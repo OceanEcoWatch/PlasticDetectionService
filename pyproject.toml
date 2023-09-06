@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.10"
 sentinelhub = "^3.9.1"
 matplotlib = "^3.7.2"
+marinedebrisdetector = "^0.0.2"
 
 
 [tool.poetry.group.dev.dependencies]
