@@ -1,12 +1,5 @@
 import numpy as np
-from sentinelhub import (
-    BBox,
-    DataCollection,
-    MimeType,
-    SentinelHubRequest,
-    SHConfig,
-    bbox_to_dimensions,
-)
+from sentinelhub import BBox, DataCollection, MimeType, SentinelHubRequest, SHConfig
 
 
 def stream_in_image(
@@ -14,7 +7,6 @@ def stream_in_image(
     bbox: BBox,
     time_interval: tuple,
     evalscript: str,
-    resolution: int,
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
 ) -> list[np.ndarray]:
@@ -27,7 +19,6 @@ def stream_in_image(
     :return: List of images.
     """
 
-    size = bbox_to_dimensions(bbox, resolution=resolution)
     request = SentinelHubRequest(
         evalscript=evalscript,
         input_data=[
@@ -38,7 +29,6 @@ def stream_in_image(
         ],
         responses=[SentinelHubRequest.output_response("default", mime_type)],
         bbox=bbox,
-        size=size,
         config=config,
     )
     return request.get_data()

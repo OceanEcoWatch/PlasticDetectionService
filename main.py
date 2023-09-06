@@ -21,7 +21,6 @@ def main():
         bbox=bbox,
         time_interval=("2023-08-01", "2023-08-05"),
         evalscript=evalscripts.EVALSCRIPT_L2A_ALL,
-        resolution=60,
         data_collection=DataCollection.SENTINEL2_L2A,
     )
     print(len(images))
