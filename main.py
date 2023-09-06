@@ -1,16 +1,7 @@
-import torch
-from marinedebrisdetector import CHECKPOINTS, SegmentationModel
-from marinedebrisdetector.predictor import ScenePredictor
+import matplotlib.pyplot as plt
 from sentinelhub import CRS, BBox, DataCollection
 
 from plastic_detection_service import config, evalscripts, stream
-
-
-def unet(seed=1):
-    assert seed in [1, 2, 3]
-    return SegmentationModel.load_from_checkpoint(
-        CHECKPOINTS[f"unet{seed}"], trust_repo=True
-    )
 
 
 def main():
@@ -28,16 +19,14 @@ def main():
     images = stream.stream_in_image(
         config=config.config,
         bbox=bbox,
-        time_interval=("2020-01-01", "2020-01-10"),
-        evalscript=evalscripts.EVALSCRIPT_ALL_BANDS,
+        time_interval=("2023-08-01", "2023-08-05"),
+        evalscript=evalscripts.EVALSCRIPT_L2A_ALL,
         resolution=60,
-        data_collection=DataCollection.SENTINEL2_L1C,
+        data_collection=DataCollection.SENTINEL2_L2A,
     )
-
-    detector = unet()
-    predictor = ScenePredictor(device="cuda" if torch.cuda.is_available() else "cpu")
-    for image in images:
-        predictor.predict(detector, image, "test.tif")
+    print(len(images))
+    plt.imshow(images[0][:, :, [3, 2, 1]] / 10000)
+    plt.show()
 
 
 if __name__ == "__main__":
