@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from sentinelhub import (
     CRS,
@@ -6,14 +5,15 @@ from sentinelhub import (
     DataCollection,
     MimeType,
     SentinelHubRequest,
+    SHConfig,
     bbox_to_dimensions,
 )
 
 from plastic_detection_service import evalscripts
-from plastic_detection_service.config import config
 
 
 def stream_in_image(
+    config: SHConfig,
     bbox: BBox,
     time_interval: tuple,
     evalscript: str,
@@ -48,6 +48,8 @@ def stream_in_image(
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
     # manilla bay
     bbox = BBox(
         bbox=(
@@ -67,5 +69,6 @@ if __name__ == "__main__":
         resolution=resolution,
         data_collection=DataCollection.SENTINEL2_L1C,
     )
+    # show band 3 of the first image
     plt.imshow(images[0][:, :, 3])
     plt.show()
