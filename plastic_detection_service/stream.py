@@ -2,7 +2,7 @@ import numpy as np
 from sentinelhub import BBox, DataCollection, MimeType, SentinelHubRequest, SHConfig
 
 
-def stream_in_image(
+def stream_in_images(
     config: SHConfig,
     bbox: BBox,
     time_interval: tuple,

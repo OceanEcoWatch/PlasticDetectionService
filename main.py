@@ -16,7 +16,7 @@ def main():
         crs=CRS.WGS84,
     )
 
-    images = stream.stream_in_image(
+    images = stream.stream_in_images(
         config=config.config,
         bbox=bbox,
         time_interval=("2023-08-01", "2023-08-05"),
