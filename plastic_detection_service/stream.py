@@ -10,14 +10,6 @@ def stream_in_images(
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
 ) -> list[np.ndarray]:
-    """
-    Stream in an image from SentinelHub.
-    :param bbox: Bounding box of the image.
-    :param time_interval: Time interval of the image.
-    :param evalscript: Evalscript to use for the image.
-    :return: List of images.
-    """
-
     request = SentinelHubRequest(
         evalscript=evalscript,
         input_data=[
