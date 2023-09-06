@@ -15,7 +15,6 @@ def stream_in_images(
     :param bbox: Bounding box of the image.
     :param time_interval: Time interval of the image.
     :param evalscript: Evalscript to use for the image.
-    :param resolution: Resolution of the image.
     :return: List of images.
     """
 
