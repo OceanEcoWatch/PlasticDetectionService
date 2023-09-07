@@ -21,13 +21,13 @@ def main():
         bbox=bbox,
         time_interval=("2023-08-01", "2023-08-15"),
         maxcc=0.8,
-        evalscript=evalscripts.EVALSCRIPT_L2A_ALL,
+        evalscript=evalscripts.L2A_12_BANDS,
         data_collection=DataCollection.SENTINEL2_L2A,
     )
     print(len(images))
     for band in range(0, 12):
         print(band)
-        plt.imshow(images[0][:, :, band])
+        plt.imshow(images[0][:, :, band], cmap=plt.cm.gray)
         plt.show()
 
 
