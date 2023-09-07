@@ -12,7 +12,7 @@ def stream_in_images(
     maxcc: Optional[float] = None,
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
-) -> list[np.ndarray]:
+) -> Optional[list[np.ndarray]]:
     request = SentinelHubRequest(
         evalscript=evalscript,
         input_data=[
@@ -26,4 +26,10 @@ def stream_in_images(
         bbox=bbox,
         config=config,
     )
-    return request.get_data()
+    data = request.get_data()
+
+    # check if data is empty by checking if first element has 0 values
+    if np.count_nonzero(data[0]) == 0:
+        return None
+
+    return data
