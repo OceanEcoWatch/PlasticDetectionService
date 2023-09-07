@@ -1,4 +1,4 @@
-EVALSCRIPT_L2A_ALL = """
+L2A_12_BANDS = """
     //VERSION=3
 function setup() {
   return {
@@ -16,7 +16,7 @@ function setup() {
 }
 
 function evaluatePixel(sample) {
-    return [ sample.B01, sample.B02, sample.B03, sample.B04, sample.B05, sample.B06,
+    return [sample.B01, sample.B02, sample.B03, sample.B04, sample.B05, sample.B06,
             sample.B07, sample.B08, sample.B8A, sample.B09, sample.B11, sample.B12]
 }
 """
