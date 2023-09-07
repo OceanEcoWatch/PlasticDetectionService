@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from sentinelhub import BBox, DataCollection, MimeType, SentinelHubRequest, SHConfig
 
@@ -7,6 +9,7 @@ def stream_in_images(
     bbox: BBox,
     time_interval: tuple,
     evalscript: str,
+    maxcc: Optional[float] = None,
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
 ) -> list[np.ndarray]:
@@ -16,6 +19,7 @@ def stream_in_images(
             SentinelHubRequest.input_data(
                 data_collection=data_collection,
                 time_interval=time_interval,
+                maxcc=maxcc,
             )
         ],
         responses=[SentinelHubRequest.output_response("default", mime_type)],
