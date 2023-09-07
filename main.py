@@ -19,12 +19,15 @@ def main():
     images = stream.stream_in_images(
         config=config.config,
         bbox=bbox,
-        time_interval=("2023-08-01", "2023-08-15"),
+        time_interval=("2023-08-01", "2023-08-01"),
         maxcc=0.8,
         evalscript=evalscripts.L2A_12_BANDS,
         data_collection=DataCollection.SENTINEL2_L2A,
     )
-    print(len(images))
+
+    if images is None:
+        print("No images found")
+        return
     for band in range(0, 12):
         print(band)
         plt.imshow(images[0][:, :, band], cmap=plt.cm.gray)
