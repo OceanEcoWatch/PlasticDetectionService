@@ -19,13 +19,16 @@ def main():
     images = stream.stream_in_images(
         config=config.config,
         bbox=bbox,
-        time_interval=("2023-08-01", "2023-08-05"),
+        time_interval=("2023-08-01", "2023-08-15"),
+        maxcc=0.8,
         evalscript=evalscripts.EVALSCRIPT_L2A_ALL,
         data_collection=DataCollection.SENTINEL2_L2A,
     )
     print(len(images))
-    plt.imshow(images[0][:, :, [3, 2, 1]] / 10000)
-    plt.show()
+    for band in range(0, 12):
+        print(band)
+        plt.imshow(images[0][:, :, band])
+        plt.show()
 
 
 if __name__ == "__main__":
