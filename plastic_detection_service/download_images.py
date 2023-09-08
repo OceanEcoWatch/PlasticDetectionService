@@ -39,7 +39,7 @@ def stream_in_images(
         config=config,
         data_folder=output_folder,
     )
-    data = request.get_data(save_data=True, max_threads=4)
+    data = request.get_data(save_data=True, decode_data=False)
 
     # check if data is empty by checking if first element has 0 values
     if np.count_nonzero(data[0]) == 0:
