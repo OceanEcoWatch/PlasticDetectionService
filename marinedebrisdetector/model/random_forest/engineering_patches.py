@@ -15,7 +15,7 @@ from tqdm import tqdm
 from shutil import copyfile
 import skimage
 from skimage import feature
-from skimage.feature import greycomatrix, graycoprops, local_binary_pattern
+from skimage.feature import local_binary_pattern
 from skimage.color import rgb2gray
 from functools import partial
 from os.path import dirname as up

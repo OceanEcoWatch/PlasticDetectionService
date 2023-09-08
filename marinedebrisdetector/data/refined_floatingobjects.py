@@ -39,7 +39,6 @@ class RefinedFlobsRegionDataset(Dataset):
             self.crs = src.crs
             self.transform = src.transform
             self.height, self.width = src.height, src.width
-            profile = src.profile
             left, bottom, right, top = src.bounds
 
         self.points = self.points.to_crs(self.crs)

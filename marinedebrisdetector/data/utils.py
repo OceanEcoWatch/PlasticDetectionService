@@ -2,7 +2,7 @@ import os.path
 
 import numpy as np
 import rasterio as rio
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import LineString
 import geopandas as gpd
 import shapely
 from tqdm import tqdm

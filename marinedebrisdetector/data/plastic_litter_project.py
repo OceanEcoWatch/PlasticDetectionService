@@ -81,7 +81,7 @@ class PlanetScopePLPDataset(torch.utils.data.Dataset):
         return len(self.ps)
 
     def __getitem__(self, index):
-        date = self.dates[index]
+        self.dates[index]
         img = self.ps[index]
         with rio.open(os.path.join(self.image_root, img), "r") as src:
 

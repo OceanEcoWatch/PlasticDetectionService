@@ -1,8 +1,6 @@
-import segmentation_models_pytorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
 
 #============== some parts of the U-Net model ===============#
 """ Parts of the U-Net model """
