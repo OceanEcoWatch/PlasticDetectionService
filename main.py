@@ -1,11 +1,8 @@
+
 import io
 import ssl
-
 from sentinelhub import CRS, BBox, UtmZoneSplitter
 
-from marinedebrisdetector.checkpoints import CHECKPOINTS
-from marinedebrisdetector.model.segmentation_model import SegmentationModel
-from marinedebrisdetector.predictor import ScenePredictor
 from plastic_detection_service.config import config
 from plastic_detection_service.constants import MANILLA_BAY_BBOX
 from plastic_detection_service.download_images import stream_in_images
@@ -45,6 +42,7 @@ def main():
                 predictor.predict(
                     detector, data=io.BytesIO(_d.content), out_dir=out_dir
                 )
+
 
 
 if __name__ == "__main__":
