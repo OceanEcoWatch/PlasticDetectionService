@@ -1,37 +1,27 @@
-import matplotlib.pyplot as plt
-from sentinelhub import CRS, BBox, DataCollection
+from sentinelhub import CRS, BBox, UtmZoneSplitter
 
-from plastic_detection_service import config, evalscripts, stream
+from plastic_detection_service.config import config
+from plastic_detection_service.constants import MANILLA_BAY_BBOX
+from plastic_detection_service.download_images import stream_in_images
+from plastic_detection_service.evalscripts import L2A_12_BANDS
 
 
 def main():
-    # manilla bay
-    bbox = BBox(
-        bbox=(
-            120.53058253709094,
-            14.384463071206468,
-            120.99038315968619,
-            14.812423505754381,
-        ),
-        crs=CRS.WGS84,
-    )
+    bbox = BBox(MANILLA_BAY_BBOX, crs=CRS.WGS84)
+    time_interval = ("2023-08-01", "2023-09-01")
+    maxcc = 0.5
 
-    images = stream.stream_in_images(
-        config=config.config,
-        bbox=bbox,
-        time_interval=("2023-08-01", "2023-08-01"),
-        maxcc=0.8,
-        evalscript=evalscripts.L2A_12_BANDS,
-        data_collection=DataCollection.SENTINEL2_L2A,
-    )
+    bbox_list = UtmZoneSplitter([bbox], crs=CRS.WGS84, bbox_size=25000).get_bbox_list()
 
-    if images is None:
-        print("No images found")
-        return
-    for band in range(0, 12):
-        print(band)
-        plt.imshow(images[0][:, :, band], cmap=plt.cm.gray)
-        plt.show()
+    for _bbox in bbox_list:
+        data = stream_in_images(
+            config,
+            _bbox,
+            time_interval,
+            L2A_12_BANDS,
+            maxcc=maxcc,
+        )
+        print(data)
 
 
 if __name__ == "__main__":

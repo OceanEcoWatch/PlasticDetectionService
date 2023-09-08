@@ -20,3 +20,26 @@ function evaluatePixel(sample) {
             sample.B07, sample.B08, sample.B8A, sample.B09, sample.B11, sample.B12]
 }
 """
+
+NDVI_NDWI = """
+    //VERSION=3
+
+    function setup() {
+        return {
+            input: ["B03","B04","B08","dataMask"],
+            output:[{
+                id: "indices",
+                bands: 2,
+                sampleType: SampleType.FLOAT32
+            }]
+        }
+    }
+
+    function evaluatePixel(sample) {
+        let ndvi = index(sample.B08, sample.B04);
+        let ndwi = index(sample.B03, sample.B08);
+        return {
+           indices: [ndvi, ndwi]
+        };
+    }
+"""

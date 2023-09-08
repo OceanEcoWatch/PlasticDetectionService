@@ -1,3 +1,4 @@
+eo-learn
 torch
 torchvision
 pytorch_lightning
@@ -13,3 +14,4 @@ scikit-image
 matplotlib
 wandb
 segmentation-models-pytorch
+
