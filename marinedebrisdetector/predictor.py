@@ -34,21 +34,14 @@ class ScenePredictor:
             "test", add_fdi_ndvi=add_fdi_ndvi, cropsize=image_size[0]
         )
 
-    def predict(self, model, data: np.ndarray, out_path):
-        with rasterio.MemoryFile() as memfile:
-            with memfile.open(
-                driver="Gtiff",
-                width=data.shape[2],
-                height=data.shape[1],
-                count=data.shape[0],
-                dtype=data.dtype,
-            ) as dataset:
-                meta = dataset.meta.copy()
+    def predict(self, model, path, predpath):
+        with rasterio.open(path, "r") as src:
+            meta = src.meta
         self.model = model.to(self.device)
         self.model.eval()
 
         # for prediction
-        predimage = out_path
+        predimage = predpath
         meta["count"] = 1
         meta["dtype"] = "uint8"  # storing as uint8 saves a lot of storage space
 
@@ -75,15 +68,8 @@ class ScenePredictor:
                     )
                 )
 
-                with rasterio.MemoryFile() as memfile:
-                    with memfile.open(
-                        driver="Gtiff",
-                        width=data.shape[2],
-                        height=data.shape[1],
-                        count=data.shape[0],
-                        dtype=data.dtype,
-                    ) as src:
-                        image = src.read(window=window)
+                with rasterio.open(path) as src:
+                    image = src.read(window=window)
 
                 # if L1C image (13 bands). read only the 12 bands compatible with L2A data
                 if image.shape[0] == 13:
