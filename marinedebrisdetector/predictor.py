@@ -1,4 +1,6 @@
+import io
 from itertools import product
+from pathlib import Path
 
 import numpy as np
 import rasterio
@@ -34,23 +36,16 @@ class ScenePredictor:
             "test", add_fdi_ndvi=add_fdi_ndvi, cropsize=image_size[0]
         )
 
-    def predict(self, model, data: np.ndarray, out_path):
-        with rasterio.MemoryFile() as memfile:
-            with memfile.open(
-                driver="Gtiff",
-                width=data.shape[2],
-                height=data.shape[1],
-                count=data.shape[0],
-                dtype=data.dtype,
-            ) as dataset:
-                meta = dataset.meta.copy()
+    def predict(self, model, data: io.BytesIO, out_dir: str = "."):
+        src = rasterio.open(data)
+        meta = src.meta.copy()
         self.model = model.to(self.device)
         self.model.eval()
 
-        # for prediction
-        predimage = out_path
+        filename = f"{src.bounds.left}_{src.bounds.bottom}_{src.bounds.right}_{src.bounds.top}.tif"
+        predimage = Path(out_dir) / Path(filename)
         meta["count"] = 1
-        meta["dtype"] = "uint8"  # storing as uint8 saves a lot of storage space
+        meta["dtype"] = "uint8"
 
         # Window(col_off, row_off, width, height)
         H, W = self.image_size
@@ -74,16 +69,7 @@ class ScenePredictor:
                         H + self.offset,
                     )
                 )
-
-                with rasterio.MemoryFile() as memfile:
-                    with memfile.open(
-                        driver="Gtiff",
-                        width=data.shape[2],
-                        height=data.shape[1],
-                        count=data.shape[0],
-                        dtype=data.dtype,
-                    ) as src:
-                        image = src.read(window=window)
+                image = src.read(window=window)
 
                 # if L1C image (13 bands). read only the 12 bands compatible with L2A data
                 if image.shape[0] == 13:
@@ -154,3 +140,4 @@ class ScenePredictor:
                     np.expand_dims(y_score, 0).astype(np.float32) * 255
                 ).astype(np.uint8)
                 dst.write(writedata, window=window)
+        src.close()
