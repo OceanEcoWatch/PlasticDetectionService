@@ -1,3 +1,12 @@
+eopatches/
+eoexectution-report*/*
+
+#ruff
+.ruff_cache/
+
+#mac
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
