@@ -64,7 +64,9 @@ def polygonize_raster(in_path, out_path, layer_name):
 
 
 if __name__ == "__main__":
-    in_path = "images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction.tiff"
+    in_path = (
+        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction_wgs84.tiff"
+    )
     out_path = "prediction.geojson"
     layer_name = "prediction"
     raster2points(in_path, out_path)
