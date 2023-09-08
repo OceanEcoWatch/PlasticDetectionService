@@ -30,6 +30,7 @@ def main():
         data = stream_in_images(
             config, bbox, time_interval, evalscript=L2A_12_BANDS, maxcc=maxcc
         )
+        print(data)
         data_list.append(data)
 
         detector = SegmentationModel.load_from_checkpoint(
