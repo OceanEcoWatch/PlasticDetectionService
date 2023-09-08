@@ -41,7 +41,7 @@ def main(root="/data/marinedebris/floatingobjects"):
 
     masktifffiles = [os.path.join(masks_path, region + ".tif") for region in regions]
 
-    r = process_map(refine_worker, zip(shapefiles, imagetiffiles, masktifffiles), max_workers=16, total=len(shapefiles), desc="refining labels")
+    process_map(refine_worker, zip(shapefiles, imagetiffiles, masktifffiles), max_workers=16, total=len(shapefiles), desc="refining labels")
 
     #with Pool(16) as p:
     #    p.map(refine_worker, zip(shapefiles, imagetiffiles, masktifffiles))
@@ -104,7 +104,7 @@ def refine_masks(image, mask,
         markers = seeds_lines * 1 + seeds_water * 2
         labels = random_walker(fdi_image, markers, beta=rw_beta, mode='bf', return_full_prob=False) == 1
     else:
-        print(f"could not refine sample, returning original mask")
+        print("could not refine sample, returning original mask")
         labels = mask
         markers = None
 
@@ -148,7 +148,7 @@ def refine_masks_iterative(imagetiffile, masktifffile, geometries,
 
             dst.write(all_masks.astype(np.uint8), window=window)
 
-            dst.set_band_description(1, f"original")
+            dst.set_band_description(1, "original")
             for i, desc in enumerate(refinement_args_list):
                 dst.set_band_description(i+2, f"buff{desc['buffersize_water']}_beta{desc['rw_beta']}_pseed{desc['object_seed_probability']}")
 

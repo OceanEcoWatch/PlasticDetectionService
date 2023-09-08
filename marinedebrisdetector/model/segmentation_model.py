@@ -73,7 +73,7 @@ class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs 
         y_true = np.hstack([o["y_true"] for o in outputs])
         y_scores = np.hstack([o["y_scores"] for o in outputs])
         loss = np.hstack([o["loss"] for o in outputs])
-        ids = np.hstack([o["id"] for o in outputs])
+        np.hstack([o["id"] for o in outputs])
 
         y_true = y_true.reshape(-1).astype(int)
         y_scores = y_scores.reshape(-1)

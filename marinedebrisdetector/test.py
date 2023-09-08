@@ -6,7 +6,6 @@ import argparse
 import pytorch_lightning as pl
 import os
 
-import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib import cm
@@ -14,7 +13,6 @@ from predictor import ScenePredictor
 import torch
 from visualization import rgb, fdi, ndvi
 from torch import nn
-from checkpoints import CHECKPOINT_FOLDERS
 
 pl.seed_everything(0)
 
@@ -50,7 +48,6 @@ def parse_checkpoint_files_return_best(ckpt_files, metric="auroc", top_k=1, lowe
     fname = df.sort_values(metric, ascending=lower_better).iloc[top_k].filename
     return fname + ".ckpt"
 
-from copy import copy
 class EnsembleModel(nn.Module):
     def __init__(self, checkpoint_files):
         super().__init__()

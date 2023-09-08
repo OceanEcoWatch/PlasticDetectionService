@@ -3,7 +3,6 @@ from datetime import datetime
 import os
 import argparse
 
-from data.plastic_litter_project import PLPDataset
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from callbacks import PLPCallback, RefinedRegionsQualitativeCallback
