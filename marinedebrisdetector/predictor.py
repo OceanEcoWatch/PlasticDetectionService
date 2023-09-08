@@ -13,7 +13,6 @@ from marinedebrisdetector.transforms import get_transform
 
 
 class ScenePredictor:
-    # def __init__(self, modelname, modelpath, image_size=(480,480), device="cpu", offset=64, use_test_aug=2, add_fdi_ndvi=False):
     def __init__(
         self,
         image_size=(480, 480),

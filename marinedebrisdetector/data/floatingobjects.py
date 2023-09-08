@@ -1,17 +1,39 @@
-import torch
-import rasterio as rio
-from rasterio import features
-from shapely.geometry import Polygon
-import geopandas as gpd
 import os
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-from .utils import get_window, read_tif_image, pad, line_is_closed, \
-    split_line_gdf_into_segments, remove_lines_outside_bounds
+import rasterio as rio
+import torch
+from rasterio import features
+from shapely.geometry import Polygon
 
-L1CBANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"]
+from .utils import (
+    get_window,
+    line_is_closed,
+    pad,
+    read_tif_image,
+    remove_lines_outside_bounds,
+    split_line_gdf_into_segments,
+)
+
+L1CBANDS = [
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B5",
+    "B6",
+    "B7",
+    "B8",
+    "B8A",
+    "B9",
+    "B10",
+    "B11",
+    "B12",
+]
 L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
-HRBANDS = ["B2", "B3", "B4","B8"]
+HRBANDS = ["B2", "B3", "B4", "B8"]
 
 # offset from image border to sample hard negative mining samples
 HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET = 1000  # meter
@@ -38,30 +60,33 @@ trainregions = [
     "tunisia_20180715",
     "turkmenistan_20181030",
     "venice_20180928",
-    "vungtau_20180423"
-    ]
+    "vungtau_20180423",
+]
 
 # same as regions in refined_floatingobjects.py
 valregions = [
     "accra_20181031",
     "lagos_20190101",
     "neworleans_20200202",
-    "venice_20180630"
+    "venice_20180630",
 ]
+
 
 def download(target_folder):
     pass
 
-def get_region_split(seed=0, fractions=(0.6, 0.2, 0.2)):
 
+def get_region_split(seed=0, fractions=(0.6, 0.2, 0.2)):
     # fix random state
     random_state = np.random.RandomState(seed)
 
     # shuffle sequence of regions
-    shuffled_regions = random_state.permutation(allregions)
+    shuffled_regions = random_state.permutation(allregions)  # noqa
 
     # determine first N indices for training
-    train_idxs = np.arange(0, np.floor(len(shuffled_regions) * fractions[0]).astype(int))
+    train_idxs = np.arange(
+        0, np.floor(len(shuffled_regions) * fractions[0]).astype(int)
+    )
 
     # next for validation
     idx = np.ceil(len(shuffled_regions) * (fractions[0] + fractions[1])).astype(int)
@@ -70,17 +95,23 @@ def get_region_split(seed=0, fractions=(0.6, 0.2, 0.2)):
     # the remaining for test
     test_idxs = np.arange(val_idxs.max() + 1, len(shuffled_regions))
 
-    return dict(train=list(shuffled_regions[train_idxs]),
-                val=list(shuffled_regions[val_idxs]),
-                test=list(shuffled_regions[test_idxs]))
-
+    return dict(
+        train=list(shuffled_regions[train_idxs]),
+        val=list(shuffled_regions[val_idxs]),
+        test=list(shuffled_regions[test_idxs]),
+    )
 
 
 class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
-    def __init__(self, root, region, output_size=64,
-                 transform=None, hard_negative_mining=True,
-                 refine_labels=True):
-
+    def __init__(
+        self,
+        root,
+        region,
+        output_size=64,
+        transform=None,
+        hard_negative_mining=True,
+        refine_labels=True,
+    ):
         maskpath = os.path.join(root, "masks")
         os.makedirs(maskpath, exist_ok=True)
         shapefile = os.path.join(root, "shapefiles", region + ".shp")
@@ -88,7 +119,7 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         imagefile = os.path.join(root, "scenes", region + ".tif")
         imagefilel2a = os.path.join(root, "scenes", region + "_l2a.tif")
         if os.path.exists(imagefilel2a):
-            imagefile = imagefilel2a # use l2afile if exists
+            imagefile = imagefilel2a  # use l2afile if exists
 
         self.refine_labels = refine_labels
 
@@ -133,10 +164,7 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         # combine with polygons to rasterize
         self.rasterize_geometries = pd.concat([rasterize_lines, rasterize_polygons])
 
-        profile.update(
-            count=1,
-            dtype="uint8"
-        )
+        profile.update(count=1, dtype="uint8")
         if refine_labels:
             self.maskfile = os.path.join(maskpath, "refined", f"{region}.tif")
         else:
@@ -144,8 +172,12 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         os.makedirs(os.path.dirname(self.maskfile), exist_ok=True)
 
         if not os.path.exists(self.maskfile) and not self.refine_labels:
-            mask = features.rasterize(self.rasterize_geometries, all_touched=True,
-                                      transform=self.geotransform, out_shape=(self.height, self.width))
+            mask = features.rasterize(
+                self.rasterize_geometries,
+                all_touched=True,
+                transform=self.geotransform,
+                out_shape=(self.height, self.width),
+            )
 
             with rio.open(self.maskfile, "w", **profile) as dst:
                 dst.write(mask[None])
@@ -159,18 +191,26 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
             left, bottom, right, top = src.bounds
 
         offset = HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET  # m
-        assert top - bottom > 2 * HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET, f"Hard Negative Mining offset 2x{HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET}m too large for the image height: {top - bottom}m"
-        assert right - left > 2 * HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET, f"Hard Negative Mining offset 2x{HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET}m too large for the image width: {right - left}m"
+        assert top - bottom > 2 * HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET, (
+            "Hard Negative Mining offset"
+            f" 2x{HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET}m too large for the image"
+            f" height: {top - bottom}m"
+        )
+        assert right - left > 2 * HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET, (
+            "Hard Negative Mining offset"
+            f" 2x{HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET}m too large for the image"
+            f" width: {right - left}m"
+        )
         N_random_points = len(self.lines)
 
         # sample random x positions within bounds
         zx = np.random.rand(N_random_points)
-        zx *= ((right - offset) - (left + offset))
+        zx *= (right - offset) - (left + offset)
         zx += left + offset
 
         # sample random y positions within bounds
         zy = np.random.rand(N_random_points)
-        zy *= ((top - offset) - (bottom + offset))
+        zy *= (top - offset) - (bottom + offset)
         zy += bottom + offset
 
         return gpd.GeoDataFrame(geometry=gpd.points_from_xy(zx, zy))
@@ -196,13 +236,17 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         line = self.lines.iloc[index]
 
-        window = get_window(line, output_size=self.output_size, transform=self.imagemeta["transform"])
+        window = get_window(
+            line, output_size=self.output_size, transform=self.imagemeta["transform"]
+        )
 
         image, win_transform = read_tif_image(self.imagefile, window)
 
-        #mask, win_transform = read_tif_image(self.maskfile, window)
+        # mask, win_transform = read_tif_image(self.maskfile, window)
         with rio.open(self.maskfile, "r") as src:
-            if src.count > 1: # if multiple masks available (i.e., refined labels generated with different parameters in each band)
+            if (
+                src.count > 1
+            ):  # if multiple masks available (i.e., refined labels generated with different parameters in each band)
                 # pick a band randomly
                 mask = src.read(np.random.randint(1, src.count + 1), window=window)
             else:
@@ -224,11 +268,12 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
 
         return image, mask, id
 
+
 class FloatingSeaObjectDataset(torch.utils.data.ConcatDataset):
     def __init__(self, root, fold="train", **kwargs):
         assert fold in ["train", "val"]
 
-        if fold=="train":
+        if fold == "train":
             self.regions = trainregions
         elif fold == "val":
             self.regions = valregions
@@ -237,7 +282,8 @@ class FloatingSeaObjectDataset(torch.utils.data.ConcatDataset):
 
         # initialize a concat dataset with the corresponding regions
         super().__init__(
-            [FloatingSeaObjectRegionDataset(root, region, **kwargs) for region in self.regions]
+            [
+                FloatingSeaObjectRegionDataset(root, region, **kwargs)
+                for region in self.regions
+            ]
         )
-
-
