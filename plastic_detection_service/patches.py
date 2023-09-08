@@ -1,5 +1,4 @@
 import datetime
-import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,8 +17,7 @@ from eolearn.core import (
 from eolearn.features import NormalizedDifferenceIndexTask
 from eolearn.io import ExportToTiffTask, SentinelHubInputTask
 from matplotlib.colors import BoundaryNorm, ListedColormap
-from sentinelhub import CRS, DataCollection, UtmZoneSplitter
-from shapely.geometry import box
+from sentinelhub import BBox, DataCollection
 
 
 class SentinelHubValidDataTask(EOTask):
@@ -82,34 +80,24 @@ class SCL(MultiValueEnum):
 
 
 def create_patches(
-    bbox: tuple[float, float, float, float],
+    bbox_list: list[BBox],
     time_interval: tuple[str, str],
     maxcc: float,
     output_folder: str,
     resolution: int,
-    bbox_size: int,
 ) -> list[WorkflowResults]:
     """Download Sentinel-2 L2A data and masks and save them as EOPatches.
 
-    :param bbox: Bounding box of the area to download.
-        Format: min_lon min_lat max_lon max_lat
+    :param bbox_list: List of bounding boxes to download.
     :param time_interval: Time interval to download. Format: YYYY-MM-DD YYYY-MM-DD
     :param maxcc: Maximum cloud coverage allowed. Float number from 0.0 to 1.0
     :param output_folder: Folder where to save downloaded EOPatches
     :param resolution: Resolution of the data in meters
-    :param bbox_size: The size of generated bounding boxes in meters
+
     :return: List of WorkflowResults containing EOPatches
     """
-
-    os.makedirs(output_folder, exist_ok=True)
-    manilla_polygon = box(*bbox)
-    bbox_splitter = UtmZoneSplitter(
-        [manilla_polygon], crs=CRS.WGS84, bbox_size=bbox_size
-    )
-
-    bbox_list = np.array(bbox_splitter.get_bbox_list())
-
-    patch_ids = np.arange(len(bbox_list))
+    np_bbox_list = np.array(bbox_list)
+    patch_ids = np.arange(len(np_bbox_list))
 
     band_names = [
         "B01",
@@ -120,6 +108,7 @@ def create_patches(
         "B06",
         "B07",
         "B08",
+        "B8A",
         "B09",
         "B11",
         "B12",
@@ -165,6 +154,7 @@ def create_patches(
     export_task = ExportToTiffTask(
         (FeatureType.DATA, "L2A_data"),
         folder=output_folder,
+        date_indices=[0],
     )
     save = SaveTask(output_folder)
     output = OutputTask("eopatch")
@@ -186,7 +176,7 @@ def create_patches(
     save_node = workflow_nodes[-2]
     export_node = workflow_nodes[-3]
     execution_args = []
-    for idx, bbox in enumerate(bbox_list[patch_ids]):
+    for idx, bbox in enumerate(np_bbox_list[patch_ids]):
         execution_args.append(
             {
                 input_node: {"bbox": bbox, "time_interval": time_interval},
@@ -198,7 +188,6 @@ def create_patches(
     executor = EOExecutor(workflow, execution_args)
 
     results = executor.run(workers=4, multiprocess=False)
-    executor.make_report()
 
     failed_ids = executor.get_failed_executions()
     if failed_ids:
