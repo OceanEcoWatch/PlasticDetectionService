@@ -1,5 +1,19 @@
 import click
-@click.command()
+
+from plastic_detection_service.constants import (
+    LAST_WEEK_TIME_INTERVAL,
+    MANILLA_BAY_BBOX,
+)
+from plastic_detection_service.patches import create_patches
+
+
+@click.group("plastic_detection_service")
+def cli():
+    """main entry point."""
+    pass
+
+
+@click.command("create_patches")
 @click.option(
     "--bbox",
     nargs=4,
@@ -12,7 +26,7 @@ import click
     "--time_interval",
     nargs=2,
     type=str,
-    default=("2023-08-01", "2023-09-01"),
+    default=LAST_WEEK_TIME_INTERVAL,
     help="Time interval to download. Format: YYYY-MM-DD YYYY-MM-DD",
 )
 @click.option(
@@ -39,3 +53,13 @@ import click
     default=5000,
     help="The size of generated bounding boxes in meters",
 )
+def cli_patches(
+    bbox: tuple[float, float, float, float],
+    time_interval: tuple[float],
+    maxcc: float,
+    output_folder: str,
+    resolution: int,
+    bbox_size: int,
+):
+    """Create EOPatches filled with Sentinel-2 data and masks."""
+    create_patches(bbox, time_interval, maxcc, output_folder, resolution, bbox_size)
