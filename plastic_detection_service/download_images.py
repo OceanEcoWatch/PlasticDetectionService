@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 import numpy as np
@@ -19,7 +20,9 @@ def stream_in_images(
     maxcc: Optional[float] = None,
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
+    output_folder: str = "images",
 ) -> Optional[list[np.ndarray]]:
+    os.makedirs(output_folder, exist_ok=True)
     bbox_size = bbox_to_dimensions(bbox, resolution=10)
     request = SentinelHubRequest(
         evalscript=evalscript,
@@ -34,7 +37,7 @@ def stream_in_images(
         responses=[SentinelHubRequest.output_response("default", mime_type)],
         bbox=bbox,
         config=config,
-        data_folder="images",
+        data_folder=output_folder,
     )
     data = request.get_data(save_data=True, max_threads=4)
 

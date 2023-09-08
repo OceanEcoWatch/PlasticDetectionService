@@ -1,13 +1,17 @@
 import numpy as np
-import torch
-from torch.optim import Adam
-import wandb
 import pytorch_lightning as pl
-from marinedebrisdetector.model import get_model
-from marinedebrisdetector.metrics import get_loss, calculate_metrics
+import torch
+import wandb
 from sklearn.metrics import precision_recall_curve
+from torch.optim import Adam
 
-class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs SegmentationModel
+from marinedebrisdetector.metrics import calculate_metrics, get_loss
+from marinedebrisdetector.model.model import get_model
+
+
+class SegmentationModel(
+    pl.LightningModule
+):  # todo purpose of ScenePredictor vs SegmentationModel
     def __init__(self, args):
         super().__init__()
 
@@ -15,7 +19,7 @@ class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs 
         self.learning_rate = args.learning_rate
         self.weight_decay = args.weight_decay
 
-        self.hr_only = args.hr_only # keep only HR bands R-G-B-NIR
+        self.hr_only = args.hr_only  # keep only HR bands R-G-B-NIR
         if self.hr_only:
             self.inchannels = 4
         else:
@@ -31,7 +35,6 @@ class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs 
         self.save_hyperparameters()
 
     def forward(self, x):
-
         if x.shape[1] > self.inchannels:
             x = x[:, np.array([1, 2, 3, 7])]
 
@@ -57,11 +60,16 @@ class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs 
         images, masks, id = batch
         logits = self(images)
         N, _, H, W = logits.shape
-        h, w = H//2, W // 2
-        logits = logits.squeeze(1)[:, h, w] # keep only center
+        h, w = H // 2, W // 2
+        logits = logits.squeeze(1)[:, h, w]  # keep only center
         loss = self.criterion(logits, target=masks.float())
         y_scores = torch.sigmoid(logits)
-        return {"y_scores":y_scores.cpu().detach(), "y_true":masks.cpu().detach(), "loss":loss.cpu().numpy(), "id":id}
+        return {
+            "y_scores": y_scores.cpu().detach(),
+            "y_true": masks.cpu().detach(),
+            "loss": loss.cpu().numpy(),
+            "id": id,
+        }
 
     def validation_step(self, batch, batch_idx):
         return self.common_step(batch, batch_idx)
@@ -78,25 +86,41 @@ class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs 
         y_true = y_true.reshape(-1).astype(int)
         y_scores = y_scores.reshape(-1)
 
-        #is_marida = np.array(["marida" in i for i in ids])
-        #y_true_marida = y_true[is_marida]
-        #y_scores_marida = y_scores[is_marida]
+        # is_marida = np.array(["marida" in i for i in ids])
+        # y_true_marida = y_true[is_marida]
+        # y_scores_marida = y_scores[is_marida]
 
-        #y_true = y_true[~is_marida]
-        #y_scores = y_scores[~is_marida]
+        # y_true = y_true[~is_marida]
+        # y_scores = y_scores[~is_marida]
 
         precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
         ix = np.abs(precision - recall).argmin()
         optimal_threshold = thresholds[ix]
         self.threshold = torch.tensor(optimal_threshold)
 
-        wandb.log({"roc_curve": wandb.plot.roc_curve(y_true, np.stack([1-y_scores, y_scores]).T,
-                                                     labels=[0,1], classes_to_plot=[1])})
+        wandb.log(
+            {
+                "roc_curve": wandb.plot.roc_curve(
+                    y_true,
+                    np.stack([1 - y_scores, y_scores]).T,
+                    labels=[0, 1],
+                    classes_to_plot=[1],
+                )
+            }
+        )
 
-        wandb.log({"pr": wandb.plot.pr_curve(y_true, np.stack([1-y_scores, y_scores]).T,
-                                             labels=[0, 1], classes_to_plot=[1])})
+        wandb.log(
+            {
+                "pr": wandb.plot.pr_curve(
+                    y_true,
+                    np.stack([1 - y_scores, y_scores]).T,
+                    labels=[0, 1],
+                    classes_to_plot=[1],
+                )
+            }
+        )
 
-        #if len(y_scores_marida) > 100: # only if some samples available to calculate metrics
+        # if len(y_scores_marida) > 100: # only if some samples available to calculate metrics
         #    metrics_marida = calculate_metrics(y_true_marida, y_scores_marida, optimal_threshold)
         #    self.log("validation-marida", {k: torch.tensor(v) for k, v in metrics_marida.items()})
 
@@ -105,7 +129,6 @@ class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs 
         self.log("auroc", metrics["auroc"])
 
         self.log("val_loss", loss.mean())
-
 
     def test_epoch_end(self, outputs) -> None:
         y_true = np.hstack([o["y_true"] for o in outputs])
@@ -120,12 +143,14 @@ class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs 
         metrics = calculate_metrics(y_true, y_scores, self.threshold.cpu())
         metrics["loss"] = loss.mean()
 
-        metrics = {"test_"+k:v for k,v in metrics.items()}
+        metrics = {"test_" + k: v for k, v in metrics.items()}
         self.log_dict(metrics)
 
         for r in np.unique(regions):
             mask = np.array([r_ == r for r_ in regions])
-            metrics = calculate_metrics(y_true[mask], y_scores[mask], self.threshold.cpu())
+            metrics = calculate_metrics(
+                y_true[mask], y_scores[mask], self.threshold.cpu()
+            )
             metrics = {f"test_{r}_" + k: v for k, v in metrics.items()}
             self.log_dict(metrics)
 
@@ -133,4 +158,8 @@ class SegmentationModel(pl.LightningModule): #todo purpose of ScenePredictor vs 
         return
 
     def configure_optimizers(self):
-        return Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        return Adam(
+            self.model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
