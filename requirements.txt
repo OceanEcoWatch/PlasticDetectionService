@@ -1,0 +1,15 @@
+torch
+torchvision
+pytorch_lightning
+numpy
+pandas
+rasterio
+shapely
+geopandas
+einops
+tqdm
+scikit-learn
+scikit-image
+matplotlib
+wandb
+segmentation-models-pytorch
