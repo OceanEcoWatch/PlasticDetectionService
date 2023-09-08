@@ -61,5 +61,4 @@ def cli_patches(
     resolution: int,
     bbox_size: int,
 ):
-    """Create EOPatches filled with Sentinel-2 data and masks."""
     create_patches(bbox, time_interval, maxcc, output_folder, resolution, bbox_size)
