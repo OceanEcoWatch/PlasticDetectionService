@@ -159,9 +159,9 @@ def create_patches(
         )
         break
 
-    executor = EOExecutor(workflow, execution_args, save_logs=True)
+    executor = EOExecutor(workflow, execution_args)
     results = executor.run(workers=4, multiprocess=True)
-    executor.make_report()
+
     failed_ids = executor.get_failed_executions()
     if failed_ids:
         raise RuntimeError(
