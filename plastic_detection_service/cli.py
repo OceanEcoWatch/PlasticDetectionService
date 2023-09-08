@@ -19,8 +19,9 @@ def cli():
     nargs=4,
     type=float,
     default=MANILLA_BAY_BBOX,
-    help="Bounding box of the area to download. "
-    "Format: min_lon min_lat max_lon max_lat",
+    help=(
+        "Bounding box of the area to download. Format: min_lon min_lat max_lon max_lat"
+    ),
 )
 @click.option(
     "--time_interval",

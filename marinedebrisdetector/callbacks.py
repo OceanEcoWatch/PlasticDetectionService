@@ -1,11 +1,12 @@
-from skimage.exposure import equalize_hist
+import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
+import torch
 import wandb
 from matplotlib import cm, colors
-import numpy as np
-import torch
-from visualization import rgb, fdi, ndvi
+from skimage.exposure import equalize_hist
+from visualization import fdi, ndvi, rgb
+
 
 class PlotPredictionsCallback(pl.Callback):
     def __init__(self, logger, dataset, indices):
@@ -15,7 +16,7 @@ class PlotPredictionsCallback(pl.Callback):
         self.indices = indices
 
     def on_validation_epoch_end(self, trainer, model):
-        images, masks, id  = map(np.stack, zip(*[self.dataset[i] for i in self.indices]))
+        images, masks, id = map(np.stack, zip(*[self.dataset[i] for i in self.indices]))
         images = torch.from_numpy(images).to(model.device)
         masks = torch.from_numpy(masks).to(model.device)
 
@@ -23,15 +24,22 @@ class PlotPredictionsCallback(pl.Callback):
 
         norm = colors.Normalize(vmin=0, vmax=1, clip=True)
         scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
-        predictions = [wandb.Image(scmap.to_rgba(i)*255) for i in y_scores.squeeze(1).detach().cpu().numpy()]
+        predictions = [
+            wandb.Image(scmap.to_rgba(i) * 255)
+            for i in y_scores.squeeze(1).detach().cpu().numpy()
+        ]
 
         targets = [wandb.Image(cm.viridis(i)) for i in masks.detach().cpu().numpy()]
 
         rgb = equalize_hist(images[:, np.array([3, 2, 1])].detach().cpu().numpy())
-        rgb_images = [wandb.Image(i) for i in rgb.transpose(0,2,3,1)]
+        rgb_images = [wandb.Image(i) for i in rgb.transpose(0, 2, 3, 1)]
 
-        df = pd.DataFrame([predictions, rgb_images, targets, id], index=["predictions","images", "targets","id"]).T
+        df = pd.DataFrame(
+            [predictions, rgb_images, targets, id],
+            index=["predictions", "images", "targets", "id"],
+        ).T
         self.logger.log_table(key="predictions", dataframe=df, step=trainer.global_step)
+
 
 class RefinedRegionsQualitativeCallback(pl.Callback):
     def __init__(self, logger, dataset):
@@ -64,13 +72,16 @@ class RefinedRegionsQualitativeCallback(pl.Callback):
             scmap = cm.ScalarMappable(norm=norm, cmap="tab10")
             stat["annot"] = wandb.Image(scmap.to_rgba(pred.cpu()))
 
-            stat["rgb"] = wandb.Image(rgb(image.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+            stat["rgb"] = wandb.Image(
+                rgb(image.squeeze(0).cpu().numpy()).transpose(1, 2, 0)
+            )
 
             stats.append(stat)
 
         df = pd.DataFrame(stats)
 
         self.logger.log_table(key="qualitative", dataframe=df, step=trainer.global_step)
+
 
 class PLPCallback(pl.Callback):
     def __init__(self, logger, dataset):
@@ -79,7 +90,6 @@ class PLPCallback(pl.Callback):
         self.dataset = dataset
 
     def on_validation_epoch_end(self, trainer, model):
-
         images, masks, years = [], [], []
         for image, mask, year in self.dataset:
             images.append(image)
@@ -92,16 +102,17 @@ class PLPCallback(pl.Callback):
         y_probs = torch.sigmoid(model(images)).squeeze(1)
 
         pred = y_probs > model.threshold
-        msk = (masks > 0)
+        msk = masks > 0
 
-        recall= msk[pred].float().mean().cpu().detach().numpy()
+        recall = msk[pred].float().mean().cpu().detach().numpy()
         precision = pred[msk].float().mean().cpu().detach().numpy()
-        fscore = 2 * (precision*recall) / (precision+recall+1e-12)
-        self.log(f"PLP{self.dataset.year}", dict(
-            recall=float(recall),
-            precision=float(precision),
-            fscore=float(fscore)
-        ))
+        fscore = 2 * (precision * recall) / (precision + recall + 1e-12)
+        self.log(
+            f"PLP{self.dataset.year}",
+            dict(
+                recall=float(recall), precision=float(precision), fscore=float(fscore)
+            ),
+        )
 
         stats = []
         for image, mask, y_prob, year in zip(images, masks, y_probs, years):
@@ -135,4 +146,6 @@ class PLPCallback(pl.Callback):
 
         df = pd.DataFrame(stats)
 
-        self.logger.log_table(key=f"PLP{self.dataset.year}", dataframe=df, step=trainer.global_step)
+        self.logger.log_table(
+            key=f"PLP{self.dataset.year}", dataframe=df, step=trainer.global_step
+        )

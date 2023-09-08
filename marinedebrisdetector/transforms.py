@@ -1,15 +1,11 @@
+import random
+
 import numpy as np
+import torch
+import torchvision.transforms as T
+from torch import nn
 
 from marinedebrisdetector.data.utils import L2ABANDS as bands
-
-"""
-def center_crop(image,mask):
-    size_crop = 56
-    R = transforms.CenterCrop(size_crop)
-    image = R(image)
-    mask = R(mask)
-    return image, mask
-"""
 
 
 def get_transform(mode, intensity=0, add_fdi_ndvi=False, cropsize=224, hr_only=False):
@@ -206,13 +202,6 @@ def center_crop(image, mask=None, size=64):
     return image, mask
 
 
-import random
-
-import torch
-import torchvision.transforms as T
-from torch import nn
-
-
 class RandomApply(nn.Module):
     def __init__(self, fn, p):
         super().__init__()
@@ -283,9 +272,6 @@ class Noise(nn.Module):
             x.shape[0], x.shape[1], x.shape[2], x.shape[3], device=x.device
         )
         return x + noise * noise_level
-
-
-import torchvision.transforms as T
 
 
 def get_train_transform(crop_size=64):

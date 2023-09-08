@@ -1,26 +1,27 @@
-import sys
-sys.path.append("/home/marc/projects/marinedetector")
-import joblib
-from data.marinedebrisdatamodule import MarineDebrisDataModule
-import numpy as np
-from random_forest import get_random_forest
-
 import os
+import sys
 
+import joblib
 import matplotlib
-matplotlib.use("pdf")
-
+import numpy as np
+import torch
+from data.marinedebrisdatamodule import MarineDebrisDataModule
 from predictor import ScenePredictor
-
+from random_forest import get_random_forest
 from sklearn.metrics import precision_recall_curve
 from test_kikaki import extract_feature_image
-import torch
+
+matplotlib.use("pdf")
+sys.path.append("/home/marc/projects/marinedetector")
+
 
 def main():
     root = "/data/marinedebris/results/kikaki/randomforest"
     rf_path = os.path.join(root, "random_forest.joblib")
 
-    marinedebris_datamodule = MarineDebrisDataModule("/data/marinedebris", no_label_refinement=True)
+    marinedebris_datamodule = MarineDebrisDataModule(
+        "/data/marinedebris", no_label_refinement=True
+    )
     marinedebris_datamodule.setup("fit")
 
     if os.path.exists(rf_path):
@@ -67,7 +68,7 @@ class Imageprediction_wapper(torch.nn.Module):
         feat = extract_feature_image(x.squeeze().cpu())
 
         D, H, W = feat.shape
-        feat_flat = np.nan_to_num(feat.reshape(D, H*W).T)
+        feat_flat = np.nan_to_num(feat.reshape(D, H * W).T)
 
         y_proba = self.model.predict_proba(feat_flat)[:, 1]
 
@@ -75,5 +76,6 @@ class Imageprediction_wapper(torch.nn.Module):
 
         return torch.from_numpy(y_proba).unsqueeze(0).unsqueeze(0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

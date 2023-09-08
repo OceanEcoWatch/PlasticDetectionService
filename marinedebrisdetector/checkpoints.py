@@ -1,13 +1,19 @@
 CHECKPOINT_FOLDERS = {
-    "unet++1":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B1.zip",
-    "unet++2":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B2.zip",
-    "unet++3":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B3.zip",
-    "unet++1_no_label_refinement":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B1_no_label_refinement.zip",
-    "unet++2_no_label_refinement":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B2_no_label_refinement.zip",
-    "unet++3_no_label_refinement":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B3_no_label_refinement.zip",
-    "unet1":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet1.zip",
-    "unet2":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet2.zip",
-    "unet3":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet3.zip",
+    "unet++1": "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B1.zip",
+    "unet++2": "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B2.zip",
+    "unet++3": "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B3.zip",
+    "unet++1_no_label_refinement": "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B1_no_label_refinement.zip",
+    "unet++2_no_label_refinement": "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B2_no_label_refinement.zip",
+    "unet++3_no_label_refinement": "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B3_no_label_refinement.zip",
+    "unet1": (
+        "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet1.zip"
+    ),
+    "unet2": (
+        "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet2.zip"
+    ),
+    "unet3": (
+        "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet3.zip"
+    ),
 }
 
 CHECKPOINTS = {
