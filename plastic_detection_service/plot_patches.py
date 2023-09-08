@@ -80,15 +80,18 @@ def valid_count_plot(eopatch):
     plt.show()
 
 
-eopatch = EOPatch.load("eopatches/eopatch_0")
-print(eopatch)
-print(len(eopatch.timestamps))
+def plot_patches(eopatch):
+    eopatch.plot((FeatureType.DATA, "L2A_data"))
+    eopatch.plot((FeatureType.DATA, "NDVI"))
+    eopatch.plot((FeatureType.DATA, "NDWI"))
+    eopatch.plot((FeatureType.DATA, "NDBI"))
+    eopatch.plot((FeatureType.MASK, "IS_DATA"))
+    eopatch.plot((FeatureType.MASK, "IS_VALID"))
+    scl_plot(eopatch)
+    valid_count_plot(eopatch)
 
-eopatch.plot((FeatureType.DATA, "L2A_data"))
-eopatch.plot((FeatureType.DATA, "NDVI"))
-eopatch.plot((FeatureType.DATA, "NDWI"))
-eopatch.plot((FeatureType.DATA, "NDBI"))
-eopatch.plot((FeatureType.MASK, "IS_DATA"))
-eopatch.plot((FeatureType.MASK, "IS_VALID"))
-scl_plot(eopatch)
-valid_count_plot(eopatch)
+
+if __name__ == "__main__":
+    eopatch = EOPatch.load("eopatches/eopatch_0")
+    print(eopatch)
+    plot_patches(eopatch)
