@@ -8,6 +8,6 @@ MANILLA_BAY_BBOX = (
 )
 
 LAST_WEEK_TIME_INTERVAL = (
-    datetime.datetime.now() - datetime.timedelta(days=7),
-    datetime.datetime.now(),
+    (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d"),
+    (datetime.datetime.now()).strftime("%Y-%m-%d"),
 )

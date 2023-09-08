@@ -1,6 +1,6 @@
 eopatches/
-eoexectution-report*/*
-
+eoexectution-report*
+images/
 #ruff
 .ruff_cache/
 
