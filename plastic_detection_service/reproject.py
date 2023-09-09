@@ -18,6 +18,9 @@ def raster_to_wgs84(input_raster: bytes) -> bytes:
     out_ds = gdal.Warp(out_path_memory, input_ds, dstSRS=srs_wgs84)
     del input_ds
     del out_path_memory
+    del srs_utm
+    del srs_wgs84
+    del input_raster
     return out_ds.ReadRaster()
 
 
