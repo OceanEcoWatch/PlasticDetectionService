@@ -15,7 +15,7 @@ def raster_to_wgs84(input_raster: bytes) -> bytes:
     osr.CoordinateTransformation(srs_utm, srs_wgs84)
 
     out_path_memory = "/vsimem/temp.tif"
-    out_ds = gdal.Warp(out_path_memory, input_ds, dstSRS=srs_wgs84)
+    out_ds: gdal.Dataset = gdal.Warp(out_path_memory, input_ds, dstSRS=srs_wgs84)  # type: ignore
     del input_ds
     del out_path_memory
     del srs_utm
