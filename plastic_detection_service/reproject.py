@@ -1,9 +1,10 @@
 from osgeo import gdal, osr
 
 
-def raster_to_wgs84(input_raster: str) -> bytes:
-    input_ds = gdal.Open(input_raster)
+def raster_to_wgs84(input_raster: bytes) -> bytes:
+    gdal.FileFromMemBuffer("/vsimem/input_raster.tif", input_raster)
 
+    input_ds = gdal.Open("/vsimem/input_raster.tif")
     srs_utm = osr.SpatialReference()
     srs_utm.ImportFromWkt(input_ds.GetProjection())
 
