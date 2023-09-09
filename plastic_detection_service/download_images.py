@@ -1,7 +1,6 @@
 import os
 from typing import Optional
 
-import numpy as np
 from sentinelhub import (
     BBox,
     DataCollection,
@@ -10,6 +9,7 @@ from sentinelhub import (
     SHConfig,
     bbox_to_dimensions,
 )
+from sentinelhub.download.models import DownloadResponse
 
 
 def stream_in_images(
@@ -21,7 +21,7 @@ def stream_in_images(
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
     output_folder: str = "images",
-) -> Optional[list[np.ndarray]]:
+) -> Optional[list[DownloadResponse]]:
     os.makedirs(output_folder, exist_ok=True)
     bbox_size = bbox_to_dimensions(bbox, resolution=10)
     request = SentinelHubRequest(
@@ -39,10 +39,6 @@ def stream_in_images(
         config=config,
         data_folder=output_folder,
     )
-    data = request.get_data(save_data=True, max_threads=4)
-
-    # check if data is empty by checking if first element has 0 values
-    if np.count_nonzero(data[0]) == 0:
-        return None
+    data = request.get_data(save_data=True, decode_data=False)
 
     return data
