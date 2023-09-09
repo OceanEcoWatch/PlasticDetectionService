@@ -1,8 +1,10 @@
 from osgeo import gdal, ogr, osr
 
 
-def raster2points(input_raster, output_vector, pixel_value_threshold=0):
-    raster_ds = gdal.Open(input_raster)
+def raster2points(input_raster: bytes, output_vector, pixel_value_threshold=0):
+    gdal.FileFromMemBuffer("/vsimem/pred_raster.tif", input_raster)
+
+    raster_ds = gdal.Open("/vsimem/pred_raster.tif")
     raster_layer = raster_ds.GetRasterBand(1)
 
     srs = osr.SpatialReference()

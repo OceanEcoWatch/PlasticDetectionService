@@ -15,3 +15,7 @@ scikit-image
 matplotlib
 wandb
 segmentation-models-pytorch
+psycopg2-binary
+sqlalchemy
+sqlalchemy_utils
+geoalchemy2
