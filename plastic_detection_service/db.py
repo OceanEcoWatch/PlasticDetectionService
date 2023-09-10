@@ -5,7 +5,6 @@ import psycopg2
 from geoalchemy2 import Geometry, Raster, RasterElement
 from geoalchemy2.types import WKBElement
 from sqlalchemy import (
-    DDL,
     Column,
     DateTime,
     ForeignKey,
@@ -71,9 +70,8 @@ def create_tables(engine, base):
     engine.dispose()
 
 
-def create_triggers(engine):
-    custom_trigger_function_sql = DDL(
-        """
+def create_triggers():
+    custom_trigger_function_sql = """
     CREATE OR REPLACE FUNCTION prevent_duplicate_raster_insert()
     RETURNS TRIGGER AS $$
     BEGIN
@@ -89,19 +87,27 @@ def create_triggers(engine):
     END;
     $$ LANGUAGE plpgsql;
     """
-    )
-    engine.execute(custom_trigger_function_sql)
 
-    trigger_sql = DDL(
-        """
+    trigger_sql = """
     CREATE TRIGGER check_duplicate_raster_insert
     BEFORE INSERT ON prediction_rasters
     FOR EACH ROW
     EXECUTE FUNCTION prevent_duplicate_raster_insert();
     """
-    )
 
-    engine.execute(trigger_sql)
+    conn = psycopg2.connect(
+        dbname=os.environ["DB_NAME"],
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PW"],
+        host=os.environ["DB_HOST"],
+        port=os.environ["DB_PORT"],
+    )
+    cursor = conn.cursor()
+    cursor.execute(custom_trigger_function_sql)
+    cursor.execute(trigger_sql)
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 
 class PredictionRaster(Base):
@@ -141,15 +147,19 @@ class PredictionVector(Base):
     __tablename__ = "prediction_vectors"
 
     id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
-    geometry = Column(Geometry(geometry_type="MULTIPOINT", srid=4326))
+    pixel_value = Column(Integer)
+    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326))
     prediction_raster_id = Column(
         Integer, ForeignKey("prediction_rasters.id"), nullable=False
     )
     prediction_raster = relationship("PredictionRaster", backref="prediction_vectors")
 
-    def __init__(self, geometry):
+    def __init__(
+        self, pixel_value: int, geometry: WKBElement, prediction_raster_id: int
+    ):
+        self.pixel_value = pixel_value
         self.geometry = geometry
+        self.prediction_raster_id = prediction_raster_id
 
 
 if __name__ == "__main__":
@@ -157,4 +167,4 @@ if __name__ == "__main__":
     if not database_exists(engine.url):
         create_postgis_db(engine)
     create_tables(engine, Base)
-    create_triggers(engine)
+    create_triggers()
