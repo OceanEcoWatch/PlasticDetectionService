@@ -39,6 +39,6 @@ def stream_in_images(
         config=config,
         data_folder=output_folder,
     )
-    data = request.get_data(decode_data=False, show_progress=True)
+    data = request.get_data(decode_data=False)
 
     return data

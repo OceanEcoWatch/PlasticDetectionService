@@ -5,11 +5,13 @@ import psycopg2
 from geoalchemy2 import Geometry, Raster, RasterElement
 from geoalchemy2.types import WKBElement
 from sqlalchemy import (
+    DDL,
     Column,
     DateTime,
     ForeignKey,
     Integer,
     String,
+    UniqueConstraint,
     create_engine,
     inspect,
 )
@@ -69,6 +71,39 @@ def create_tables(engine, base):
     engine.dispose()
 
 
+def create_triggers(engine):
+    custom_trigger_function_sql = DDL(
+        """
+    CREATE OR REPLACE FUNCTION prevent_duplicate_raster_insert()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM prediction_rasters
+            WHERE timestamp = NEW.timestamp
+            AND ST_Equals(bbox, NEW.bbox)
+        ) THEN
+            RAISE EXCEPTION 'Duplicate raster insert not allowed.';
+        END IF;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+    )
+    engine.execute(custom_trigger_function_sql)
+
+    trigger_sql = DDL(
+        """
+    CREATE TRIGGER check_duplicate_raster_insert
+    BEFORE INSERT ON prediction_rasters
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_duplicate_raster_insert();
+    """
+    )
+
+    engine.execute(trigger_sql)
+
+
 class PredictionRaster(Base):
     __tablename__ = "prediction_rasters"
 
@@ -80,6 +115,8 @@ class PredictionRaster(Base):
     height = Column(Integer)
     bands = Column(Integer)
     prediction_mask = Column(Raster)
+
+    __table_args__ = (UniqueConstraint("timestamp", "bbox", name="uq_timestamp_bbox"),)
 
     def __init__(
         self,
@@ -120,3 +157,4 @@ if __name__ == "__main__":
     if not database_exists(engine.url):
         create_postgis_db(engine)
     create_tables(engine, Base)
+    create_triggers(engine)

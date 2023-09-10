@@ -41,16 +41,19 @@ def main():
     bbox_list = UtmZoneSplitter([bbox], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
 
     data_gen = image_generator(bbox_list, time_interval, L2A_12_BANDS, maxcc)
+    detector = SegmentationModel.load_from_checkpoint(
+        CHECKPOINTS["unet++1"], map_location="cpu", trust_repo=True
+    )
+    predictor = ScenePredictor(device="cpu")
 
     for data in data_gen:
-        detector = SegmentationModel.load_from_checkpoint(
-            CHECKPOINTS["unet++1"], map_location="cpu", trust_repo=True
-        )
         for _d in data:
             if _d.content is not None:
-                predictor = ScenePredictor(device="cpu")
                 pred_raster = predictor.predict(
                     detector, data=io.BytesIO(_d.content), out_dir=out_dir
+                )
+                timestamp = datetime.datetime.strptime(
+                    _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
                 )
                 wgs84_raster = raster_to_wgs84(pred_raster)
                 bands = wgs84_raster.RasterCount
@@ -69,7 +72,7 @@ def main():
                 dtype = gdal.GetDataTypeName(band.DataType)
 
                 db_raster = PredictionRaster(
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timestamp,
                     dtype=dtype,
                     bbox=wkb_geometry,
                     prediction_mask=RasterElement(wgs84_raster.ReadRaster()),
