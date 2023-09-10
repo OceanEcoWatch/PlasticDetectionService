@@ -16,7 +16,8 @@ from plastic_detection_service.constants import MANILLA_BAY_BBOX
 from plastic_detection_service.db import PredictionRaster, sql_alch_commit
 from plastic_detection_service.download_images import stream_in_images
 from plastic_detection_service.evalscripts import L2A_12_BANDS
-from plastic_detection_service.reproject import raster_to_wgs84
+from plastic_detection_service.reproject_raster import raster_to_wgs84
+from plastic_detection_service.to_vector import vectorize_raster
 
 
 def image_generator(bbox_list, time_interval, evalscript, maxcc):
@@ -56,6 +57,8 @@ def main():
                     _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
                 )
                 wgs84_raster = raster_to_wgs84(pred_raster)
+                vector = vectorize_raster(io.BytesIO(wgs84_raster.ReadRaster()))
+                print(vector)
                 bands = wgs84_raster.RasterCount
                 height = wgs84_raster.RasterYSize
                 width = wgs84_raster.RasterXSize

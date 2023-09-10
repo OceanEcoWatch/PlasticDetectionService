@@ -49,10 +49,3 @@ def raster_to_wgs84(input_raster: bytes) -> gdal.Dataset:
     out_path_memory = "/vsimem/temp.tif"
     out_ds: gdal.Dataset = gdal.Warp(out_path_memory, input_ds, dstSRS=srs_wgs84)  # type: ignore
     return out_ds
-
-
-if __name__ == "__main__":
-    reproj = raster_to_wgs84(
-        "../images/120.53058253709094_14.42725911466126_120.57656259935047_14.47005515811605.tif"
-    )
-    print(reproj)

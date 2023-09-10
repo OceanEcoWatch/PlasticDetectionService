@@ -1,4 +1,9 @@
+import io
+
+import rasterio
 from osgeo import gdal, ogr, osr
+from rasterio.features import shapes
+from shapely.geometry import MultiPolygon, shape
 
 
 def raster2points(input_raster: bytes, output_vector, pixel_value_threshold=0):
@@ -43,32 +48,42 @@ def raster2points(input_raster: bytes, output_vector, pixel_value_threshold=0):
     print("Raster to vector conversion completed.")
 
 
-def polygonize_raster(in_path, out_path, layer_name):
-    src_ds = gdal.Open(in_path)
+def polygonize_raster(input_gdal_ds: gdal.Dataset, crs: int = 4326) -> gdal.Dataset:
+    driver = ogr.GetDriverByName("Memory")
+    output_vector_ds = driver.CreateDataSource("")
 
-    srcband = src_ds.GetRasterBand(1)
-    drv = ogr.GetDriverByName("GeoJSON")
-    dst_ds = drv.CreateDataSource(out_path)
+    srs = osr.SpatialReference()
 
-    sp_ref = osr.SpatialReference()
-    sp_ref.SetFromUserInput("EPSG:4326")
-
-    dst_layer = dst_ds.CreateLayer(layer_name, srs=sp_ref)
+    srs.ImportFromEPSG(crs)
+    output_layer = output_vector_ds.CreateLayer(
+        "polygons", srs=srs, geom_type=ogr.wkbPolygon
+    )
 
     fld = ogr.FieldDefn("HA", ogr.OFTInteger)
-    dst_layer.CreateField(fld)
-    dst_field = dst_layer.GetLayerDefn().GetFieldIndex("HA")
+    output_layer.CreateField(fld)
+    dst_field = output_layer.GetLayerDefn().GetFieldIndex("HA")
+    band = input_gdal_ds.GetRasterBand(1)
+    gdal.Polygonize(band, None, output_layer, dst_field, [], callback=None)
 
-    gdal.Polygonize(srcband, None, dst_layer, dst_field, [], callback=None)
+    return output_vector_ds
 
-    del dst_ds
-    del src_ds
+
+def vectorize_raster(input_raster: io.BytesIO) -> MultiPolygon:
+    with rasterio.open(input_raster) as src:
+        mask = src.read_masks(1)
+        shapes_generator = shapes(mask, mask=mask, transform=src.transform)
+        geometries = [shape(geometry) for geometry, _ in shapes_generator]
+        return MultiPolygon(geometries)
 
 
 if __name__ == "__main__":
-    in_path = (
-        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction_wgs84.tiff"
+    ds = gdal.Open(
+        "../images/120.53058253709094_14.384463071206468_120.57656259935047_14.42725911466126.tif"
     )
-    out_path = "prediction.geojson"
-    layer_name = "prediction"
-    raster2points(in_path, out_path)
+    out_ds = polygonize_raster(ds)
+
+    layer = out_ds.GetLayer()
+    feature = layer.GetFeature(0)
+
+    print(out_ds.GetDriver().GetName())
+    print(feature.ExportToJson())
