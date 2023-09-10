@@ -8,6 +8,7 @@ from geoalchemy2.types import RasterElement
 from osgeo import gdal
 from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
+from sqlalchemy.orm import Session
 
 from marinedebrisdetector.checkpoints import CHECKPOINTS
 from marinedebrisdetector.model.segmentation_model import SegmentationModel
@@ -17,7 +18,7 @@ from plastic_detection_service.constants import MANILLA_BAY_BBOX
 from plastic_detection_service.db import (
     PredictionRaster,
     PredictionVector,
-    sql_alch_commit,
+    get_db_engine,
 )
 from plastic_detection_service.download_images import stream_in_images
 from plastic_detection_service.evalscripts import L2A_12_BANDS
@@ -79,32 +80,35 @@ def main():
                 band = wgs84_raster.GetRasterBand(1)
                 dtype = gdal.GetDataTypeName(band.DataType)
 
-                db_raster = PredictionRaster(
-                    timestamp=timestamp,
-                    dtype=dtype,
-                    bbox=wkb_geometry,
-                    prediction_mask=RasterElement(wgs84_raster.ReadRaster()),
-                    width=width,
-                    height=height,
-                    bands=bands,
-                )
-                sql_alch_commit(db_raster)
-                print("Successfully added prediction raster to database.")
-                ds = polygonize_raster(wgs84_raster)
-                for feature in ds.GetLayer():
-                    pixel_value = int(feature.GetField("pixel_value"))
-                    geom = from_shape(
-                        shape(json.loads(feature.ExportToJson())["geometry"]),
-                        srid=4326,
+                with Session(get_db_engine()) as session:
+                    db_raster = PredictionRaster(
+                        timestamp=timestamp,
+                        dtype=dtype,
+                        bbox=wkb_geometry,
+                        prediction_mask=RasterElement(wgs84_raster.ReadRaster()),
+                        width=width,
+                        height=height,
+                        bands=bands,
                     )
-                    print(shape(json.loads(feature.ExportToJson())["geometry"]))
-                    db_vector = PredictionVector(
-                        pixel_value=pixel_value,
-                        geometry=geom,
-                        prediction_raster_id=db_raster.id,
-                    )
-                    sql_alch_commit(db_vector)
-                    print("Successfully added prediction vector to database.")
+                    session.add(db_raster)
+                    session.commit()
+                    print("Successfully added prediction raster to database.")
+
+                    ds = polygonize_raster(wgs84_raster)
+                    for feature in ds.GetLayer():
+                        pixel_value = int(feature.GetField("pixel_value"))
+                        geom = from_shape(
+                            shape(json.loads(feature.ExportToJson())["geometry"]),
+                            srid=4326,
+                        )
+                        db_vector = PredictionVector(
+                            pixel_value=pixel_value,
+                            geometry=geom,
+                            prediction_raster_id=db_raster.id,
+                        )
+                        session.add(db_vector)
+                        session.commit()
+                        print("Successfully added prediction vector to database.")
 
                 print("Successfully added all prediction vector polygons to database.")
 
