@@ -74,16 +74,3 @@ def vectorize_raster(input_raster: io.BytesIO) -> MultiPolygon:
         shapes_generator = shapes(mask, mask=mask, transform=src.transform)
         geometries = [shape(geometry) for geometry, _ in shapes_generator]
         return MultiPolygon(geometries)
-
-
-if __name__ == "__main__":
-    ds = gdal.Open(
-        "../images/120.53058253709094_14.384463071206468_120.57656259935047_14.42725911466126.tif"
-    )
-    out_ds = polygonize_raster(ds)
-
-    layer = out_ds.GetLayer()
-    feature = layer.GetFeature(0)
-
-    print(out_ds.GetDriver().GetName())
-    print(feature.ExportToJson())
