@@ -17,7 +17,6 @@ from plastic_detection_service.db import PredictionRaster, sql_alch_commit
 from plastic_detection_service.download_images import stream_in_images
 from plastic_detection_service.evalscripts import L2A_12_BANDS
 from plastic_detection_service.reproject_raster import raster_to_wgs84
-from plastic_detection_service.to_vector import vectorize_raster
 
 
 def image_generator(bbox_list, time_interval, evalscript, maxcc):
@@ -35,6 +34,7 @@ def main():
     time_interval = ("2023-08-01", "2023-09-01")
     maxcc = 0.5
     out_dir = "images"
+
     ssl._create_default_https_context = (
         ssl._create_unverified_context
     )  # fix for SSL error on Mac
@@ -50,15 +50,14 @@ def main():
     for data in data_gen:
         for _d in data:
             if _d.content is not None:
-                pred_raster = predictor.predict(
+                predictor.predict(
                     detector, data=io.BytesIO(_d.content), out_dir=out_dir
                 )
                 timestamp = datetime.datetime.strptime(
                     _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
                 )
-                wgs84_raster = raster_to_wgs84(pred_raster)
-                vector = vectorize_raster(io.BytesIO(wgs84_raster.ReadRaster()))
-                print(vector)
+                wgs84_raster = raster_to_wgs84(_d.content)
+
                 bands = wgs84_raster.RasterCount
                 height = wgs84_raster.RasterYSize
                 width = wgs84_raster.RasterXSize
