@@ -1,4 +1,5 @@
 import io
+import json
 
 import rasterio
 from osgeo import gdal, ogr, osr
@@ -59,9 +60,9 @@ def polygonize_raster(input_gdal_ds: gdal.Dataset, crs: int = 4326) -> gdal.Data
         "polygons", srs=srs, geom_type=ogr.wkbPolygon
     )
 
-    fld = ogr.FieldDefn("HA", ogr.OFTInteger)
+    fld = ogr.FieldDefn("pixel_value", ogr.OFTInteger)
     output_layer.CreateField(fld)
-    dst_field = output_layer.GetLayerDefn().GetFieldIndex("HA")
+    dst_field = output_layer.GetLayerDefn().GetFieldIndex("pixel_value")
     band = input_gdal_ds.GetRasterBand(1)
     gdal.Polygonize(band, None, output_layer, dst_field, [], callback=None)
 
@@ -74,3 +75,14 @@ def vectorize_raster(input_raster: io.BytesIO) -> MultiPolygon:
         shapes_generator = shapes(mask, mask=mask, transform=src.transform)
         geometries = [shape(geometry) for geometry, _ in shapes_generator]
         return MultiPolygon(geometries)
+
+
+if __name__ == "__main__":
+    src = gdal.Open(
+        "../images/120.53058253709094_14.42725911466126_120.57656259935047_14.47005515811605.tif"
+    )
+    ds = polygonize_raster(src)
+
+    for feature in ds.GetLayer():
+        print(feature.ExportToJson())
+        print(shape(json.loads(feature.ExportToJson())["geometry"]))
