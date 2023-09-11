@@ -3,10 +3,8 @@ from functools import cache
 from typing import Optional, Union
 
 import pyproj
-import rasterio
 from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
-from rasterio.warp import Resampling, calculate_default_transform, reproject
 from shapely.geometry import (
     GeometryCollection,
     LinearRing,
@@ -193,45 +191,3 @@ def _project_polygon(polygon: Polygon, source_epsg: int, target_epsg: int) -> Po
         interior_coords.append([transformer.transform(*xy) for xy in interior.coords])
 
     return Polygon(exterior_coords, interior_coords)
-
-
-def reproject_raster(
-    raster: str,
-    target_epsg: int,
-    output_path: str,
-    resampling: Resampling = Resampling.nearest,
-) -> None:
-    """
-    Reproject a raster to a target EPSG projection.
-
-    :param raster: The raster to reproject
-    :param target_epsg: The target EPSG code
-    :param output_path: The output path
-    :param resampling: The resampling method to use. Default is nearest neighbor.
-    """
-    with rasterio.open(raster) as src:
-        transform, width, height = calculate_default_transform(
-            src.crs, target_epsg, src.width, src.height, *src.bounds
-        )
-
-        kwargs = src.meta.copy()
-        kwargs.update(
-            {
-                "crs": target_epsg,
-                "transform": transform,
-                "width": width,
-                "height": height,
-            }
-        )
-
-        with rasterio.open(output_path, "w", **kwargs) as dst:
-            for i in range(1, src.count + 1):
-                reproject(
-                    source=rasterio.band(src, i),
-                    destination=rasterio.band(dst, i),
-                    src_transform=src.transform,
-                    src_crs=src.crs,
-                    dst_transform=transform,
-                    dst_crs=target_epsg,
-                    resampling=resampling,
-                )
