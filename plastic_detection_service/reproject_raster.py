@@ -47,5 +47,19 @@ def raster_to_wgs84(input_raster: bytes) -> gdal.Dataset:
     osr.CoordinateTransformation(srs_utm, srs_wgs84)
 
     out_path_memory = "/vsimem/temp.tif"
-    out_ds: gdal.Dataset = gdal.Warp(out_path_memory, input_ds, dstSRS=srs_wgs84)  # type: ignore
+    out_ds: gdal.Dataset = gdal.Warp(out_path_memory, input_ds, dstSRS=srs_wgs84, resampleAlg=gdal.GRA_Cubic)  # type: ignore
     return out_ds
+
+
+if __name__ == "__main__":
+    # Example usage
+    with open(
+        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction.tiff", "rb"
+    ) as f:
+        wgs84_raster = raster_to_wgs84(f.read())
+
+    # save
+    gdal.Translate(
+        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction_wgs84_cubic.tiff",
+        wgs84_raster,
+    )
