@@ -14,7 +14,7 @@ from sqlalchemy import (
     create_engine,
     inspect,
 )
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import create_database, database_exists
 
 from plastic_detection_service.config import POSTGIS_URL
@@ -24,22 +24,6 @@ Base = declarative_base()
 
 def get_db_engine():
     return create_engine(POSTGIS_URL, echo=False)
-
-
-def get_db_session():
-    engine = get_db_engine()
-    session = sessionmaker(bind=engine)
-    return session()
-
-
-session = get_db_session()
-
-
-def sql_alch_commit(model):
-    session = get_db_session()
-    session.add(model)
-    session.commit()
-    session.close()
 
 
 def create_postgis_db(engine):

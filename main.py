@@ -104,7 +104,7 @@ def main():
                         db_vector = PredictionVector(
                             pixel_value=pixel_value,
                             geometry=geom,
-                            prediction_raster_id=db_raster.id,
+                            prediction_raster_id=db_raster.id,  # type: ignore
                         )
                         session.add(db_vector)
                         session.commit()
