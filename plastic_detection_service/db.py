@@ -120,7 +120,7 @@ class PredictionRaster(Base):
     width = Column(Integer)
     height = Column(Integer)
     bands = Column(Integer)
-    prediction_mask = Column(Raster)
+    prediction_mask = Column(Raster, nullable=False)
 
     __table_args__ = (UniqueConstraint("timestamp", "bbox", name="uq_timestamp_bbox"),)
 
@@ -148,7 +148,7 @@ class PredictionVector(Base):
 
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer)
-    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326))
+    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     prediction_raster_id = Column(
         Integer, ForeignKey("prediction_rasters.id"), nullable=False
     )
