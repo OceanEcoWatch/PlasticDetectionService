@@ -1,8 +1,16 @@
+import io
+import json
+
+import rasterio
 from osgeo import gdal, ogr, osr
+from rasterio.features import shapes
+from shapely.geometry import MultiPolygon, shape
 
 
-def raster2points(input_raster, output_vector, pixel_value_threshold=0):
-    raster_ds = gdal.Open(input_raster)
+def raster2points(input_raster: bytes, output_vector, pixel_value_threshold=0):
+    gdal.FileFromMemBuffer("/vsimem/pred_raster.tif", input_raster)
+
+    raster_ds = gdal.Open("/vsimem/pred_raster.tif")
     raster_layer = raster_ds.GetRasterBand(1)
 
     srs = osr.SpatialReference()
@@ -41,32 +49,40 @@ def raster2points(input_raster, output_vector, pixel_value_threshold=0):
     print("Raster to vector conversion completed.")
 
 
-def polygonize_raster(in_path, out_path, layer_name):
-    src_ds = gdal.Open(in_path)
+def polygonize_raster(input_gdal_ds: gdal.Dataset, crs: int = 4326) -> gdal.Dataset:
+    driver = ogr.GetDriverByName("Memory")
+    output_vector_ds = driver.CreateDataSource("")
 
-    srcband = src_ds.GetRasterBand(1)
-    drv = ogr.GetDriverByName("GeoJSON")
-    dst_ds = drv.CreateDataSource(out_path)
+    srs = osr.SpatialReference()
 
-    sp_ref = osr.SpatialReference()
-    sp_ref.SetFromUserInput("EPSG:4326")
+    srs.ImportFromEPSG(crs)
+    output_layer = output_vector_ds.CreateLayer(
+        "polygons", srs=srs, geom_type=ogr.wkbPolygon
+    )
 
-    dst_layer = dst_ds.CreateLayer(layer_name, srs=sp_ref)
+    fld = ogr.FieldDefn("pixel_value", ogr.OFTInteger)
+    output_layer.CreateField(fld)
+    dst_field = output_layer.GetLayerDefn().GetFieldIndex("pixel_value")
+    band = input_gdal_ds.GetRasterBand(1)
+    gdal.Polygonize(band, None, output_layer, dst_field, [], callback=None)
 
-    fld = ogr.FieldDefn("HA", ogr.OFTInteger)
-    dst_layer.CreateField(fld)
-    dst_field = dst_layer.GetLayerDefn().GetFieldIndex("HA")
+    return output_vector_ds
 
-    gdal.Polygonize(srcband, None, dst_layer, dst_field, [], callback=None)
 
-    del dst_ds
-    del src_ds
+def vectorize_raster(input_raster: io.BytesIO) -> MultiPolygon:
+    with rasterio.open(input_raster) as src:
+        mask = src.read_masks(1)
+        shapes_generator = shapes(mask, mask=mask, transform=src.transform)
+        geometries = [shape(geometry) for geometry, _ in shapes_generator]
+        return MultiPolygon(geometries)
 
 
 if __name__ == "__main__":
-    in_path = (
-        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction_wgs84.tiff"
+    src = gdal.Open(
+        "../images/120.53058253709094_14.42725911466126_120.57656259935047_14.47005515811605.tif"
     )
-    out_path = "prediction.geojson"
-    layer_name = "prediction"
-    raster2points(in_path, out_path)
+    ds = polygonize_raster(src)
+
+    for feature in ds.GetLayer():
+        print(feature.ExportToJson())
+        print(shape(json.loads(feature.ExportToJson())["geometry"]))

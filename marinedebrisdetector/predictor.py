@@ -36,7 +36,7 @@ class ScenePredictor:
             "test", add_fdi_ndvi=add_fdi_ndvi, cropsize=image_size[0]
         )
 
-    def predict(self, model, data: io.BytesIO, out_dir: str = "."):
+    def predict(self, model, data: io.BytesIO, out_dir: str = ".") -> bytes:
         src = rasterio.open(data)
         meta = src.meta.copy()
         self.model = model.to(self.device)
@@ -112,7 +112,6 @@ class ScenePredictor:
                             y_logits = torch.sigmoid(y_logits)
 
                         y_score = y_logits.cpu().detach().numpy()[0]
-                        # y_score = y_score[:,self.offset:-self.offset, self.offset:-self.offset]
 
                 # unpad
                 y_score = y_score[
@@ -141,3 +140,5 @@ class ScenePredictor:
                 ).astype(np.uint8)
                 dst.write(writedata, window=window)
         src.close()
+        dst.close()
+        return predimage.read_bytes()
