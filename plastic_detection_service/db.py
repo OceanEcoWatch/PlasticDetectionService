@@ -154,17 +154,13 @@ class ClearWaterVector(Base):
     __tablename__ = "clear_water_vectors"
 
     id = Column(Integer, primary_key=True)
-    pixel_value = Column(Integer)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     prediction_raster_id = Column(
         Integer, ForeignKey("prediction_rasters.id"), nullable=False
     )
     prediction_raster = relationship("PredictionRaster", backref="clear_water_vectors")
 
-    def __init__(
-        self, pixel_value: int, geometry: WKBElement, prediction_raster_id: int
-    ):
-        self.pixel_value = pixel_value
+    def __init__(self, geometry: WKBElement, prediction_raster_id: int):
         self.geometry = geometry
         self.prediction_raster_id = prediction_raster_id
 
