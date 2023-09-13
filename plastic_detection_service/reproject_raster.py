@@ -33,14 +33,17 @@ def reproject_raster(raster: io.BytesIO, dst_crs: str) -> bytes:
     return reprojected_raster.read_bytes()
 
 
-def raster_to_wgs84(
-    input_raster: bytes, resample_alg=gdal.GRA_NearestNeighbour
-) -> gdal.Dataset:
-    gdal.FileFromMemBuffer("/vsimem/input_raster.tif", input_raster)
+from osgeo import gdal, osr
 
-    input_ds = gdal.Open("/vsimem/input_raster.tif")
+
+def raster_to_wgs84(
+    input_raster: gdal.Dataset,
+    target_bands: list[int],
+    resample_alg=gdal.GRA_NearestNeighbour
+) -> gdal.Dataset:
+
     srs_utm = osr.SpatialReference()
-    srs_utm.ImportFromWkt(input_ds.GetProjection())
+    srs_utm.ImportFromWkt(input_raster.GetProjection())
 
     srs_wgs84 = osr.SpatialReference()
     srs_wgs84.ImportFromEPSG(4326)
@@ -49,13 +52,18 @@ def raster_to_wgs84(
     osr.CoordinateTransformation(srs_utm, srs_wgs84)
 
     out_path_memory = "/vsimem/temp.tif"
+
     out_ds: gdal.Dataset = gdal.Warp(
         out_path_memory,
-        input_ds,
+        input_raster,
         dstSRS=srs_wgs84,
         resampleAlg=resample_alg,
-    )  # type: ignore
+        srcBands=target_bands,
+        dstBands=target_bands,
+    ) # type: ignore
+
     return out_ds
+
 
 
 if __name__ == "__main__":
@@ -69,4 +77,5 @@ if __name__ == "__main__":
     gdal.Translate(
         "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction_wgs84_cubic.tiff",
         wgs84_raster,
+    )
     )
