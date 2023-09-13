@@ -16,6 +16,7 @@ from marinedebrisdetector.predictor import ScenePredictor
 from plastic_detection_service.config import config
 from plastic_detection_service.constants import MANILLA_BAY_BBOX
 from plastic_detection_service.db import (
+    ClearWaterVector,
     PredictionRaster,
     PredictionVector,
     get_db_engine,
@@ -105,9 +106,9 @@ def main():
                     session.commit()
                     print("Successfully added prediction raster to database.")
 
-                    ds = polygonize_raster(wgs84_raster)
-                    polygonize_raster(clear_water_mask)
-                    for feature in ds.GetLayer():
+                    pred_polys_ds = polygonize_raster(wgs84_raster)
+
+                    for feature in pred_polys_ds.GetLayer():
                         pixel_value = int(feature.GetField("pixel_value"))
                         geom = from_shape(
                             shape(json.loads(feature.ExportToJson())["geometry"]),
@@ -120,9 +121,21 @@ def main():
                         )
                         session.add(db_vector)
                         session.commit()
-                        print("Successfully added prediction vector to database.")
+                    print("Successfully added prediction vector to database.")
 
-                print("Successfully added all prediction vector polygons to database.")
+                    clear_water_ds = polygonize_raster(clear_water_mask)
+                    for feature in clear_water_ds.GetLayer():
+                        geom = from_shape(
+                            shape(json.loads(feature.ExportToJson())["geometry"]),
+                            srid=4326,
+                        )
+                        db_vector = ClearWaterVector(
+                            geometry=geom,
+                            prediction_raster_id=db_raster.id,  # type: ignore
+                        )
+                        session.add(db_vector)
+                        session.commit()
+                    print("Successfully added clear water vector to database.")
 
 
 if __name__ == "__main__":
