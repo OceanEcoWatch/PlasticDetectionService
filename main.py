@@ -22,6 +22,7 @@ from plastic_detection_service.db import (
 )
 from plastic_detection_service.download_images import stream_in_images
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
+from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
 from plastic_detection_service.to_vector import polygonize_raster
 
@@ -65,8 +66,14 @@ def main():
                 timestamp = datetime.datetime.strptime(
                     _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
                 )
-                wgs84_raster = raster_to_wgs84(pred_raster, gdal.GRA_Cubic)
-                unclear_pixels = raster_to_wgs84(_d.content, gdal.GRA_NearestNeighbour)
+                raster_ds = get_gdal_ds_from_memory(_d.content)
+                pred_raster_ds = get_gdal_ds_from_memory(pred_raster)
+                wgs84_raster = raster_to_wgs84(
+                    pred_raster_ds, target_bands=[1], resample_alg=gdal.GRA_Cubic
+                )
+                clear_water_mask = raster_to_wgs84(
+                    raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
+                )
 
                 bands = wgs84_raster.RasterCount
                 height = wgs84_raster.RasterYSize
@@ -89,6 +96,7 @@ def main():
                         dtype=dtype,
                         bbox=wkb_geometry,
                         prediction_mask=RasterElement(wgs84_raster.ReadRaster()),
+                        clear_water_mask=RasterElement(clear_water_mask.ReadRaster()),
                         width=width,
                         height=height,
                         bands=bands,
@@ -98,7 +106,7 @@ def main():
                     print("Successfully added prediction raster to database.")
 
                     ds = polygonize_raster(wgs84_raster)
-                    polygonize_raster(unclear_pixels)
+                    polygonize_raster(clear_water_mask)
                     for feature in ds.GetLayer():
                         pixel_value = int(feature.GetField("pixel_value"))
                         geom = from_shape(
@@ -118,4 +126,5 @@ def main():
 
 
 if __name__ == "__main__":
+    main()
     main()
