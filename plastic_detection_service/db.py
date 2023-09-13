@@ -1,5 +1,6 @@
 import datetime
 import os
+from typing import Optional
 
 import psycopg2
 from geoalchemy2 import Geometry, Raster, RasterElement
@@ -117,6 +118,7 @@ class PredictionRaster(Base):
         width: int,
         height: int,
         bands: int,
+        clear_water_mask: Optional[RasterElement],
         prediction_mask: RasterElement,
     ):
         self.timestamp = timestamp
@@ -125,6 +127,7 @@ class PredictionRaster(Base):
         self.width = width
         self.height = height
         self.bands = bands
+        self.clear_water_mask = clear_water_mask
         self.prediction_mask = prediction_mask
 
 
@@ -152,4 +155,5 @@ if __name__ == "__main__":
     if not database_exists(engine.url):
         create_postgis_db(engine)
     create_tables(engine, Base)
+    create_triggers()
     create_triggers()
