@@ -7,6 +7,9 @@ load_dotenv()
 
 config = SHConfig()
 
+config.sh_client_id = os.environ['SH_CLIENT_ID']
+config.sh_client_secret = os.environ['SH_CLIENT_SECRET']
+
 if not config.sh_client_id or not config.sh_client_secret:
     print("Warning! To use Process API, please provide the credentials")
 
