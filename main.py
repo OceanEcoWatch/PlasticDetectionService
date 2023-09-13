@@ -21,7 +21,7 @@ from plastic_detection_service.db import (
     get_db_engine,
 )
 from plastic_detection_service.download_images import stream_in_images
-from plastic_detection_service.evalscripts import L2A_12_BANDS
+from plastic_detection_service.evalscripts import L2A_12_BANDS_CLOUD_MASK
 from plastic_detection_service.reproject_raster import raster_to_wgs84
 from plastic_detection_service.to_vector import polygonize_raster
 
@@ -48,7 +48,7 @@ def main():
 
     bbox_list = UtmZoneSplitter([bbox], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
 
-    data_gen = image_generator(bbox_list, time_interval, L2A_12_BANDS, maxcc)
+    data_gen = image_generator(bbox_list, time_interval, L2A_12_BANDS_CLOUD_MASK, maxcc)
     detector = SegmentationModel.load_from_checkpoint(
         CHECKPOINTS["unet++1"], map_location="cpu", trust_repo=True
     )

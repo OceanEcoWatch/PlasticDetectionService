@@ -104,6 +104,7 @@ class PredictionRaster(Base):
     width = Column(Integer)
     height = Column(Integer)
     bands = Column(Integer)
+    clear_water_mask = Column(Raster, nullable=True)
     prediction_mask = Column(Raster, nullable=False)
 
     __table_args__ = (UniqueConstraint("timestamp", "bbox", name="uq_timestamp_bbox"),)
