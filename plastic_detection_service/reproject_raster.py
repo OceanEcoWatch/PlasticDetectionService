@@ -33,7 +33,9 @@ def reproject_raster(raster: io.BytesIO, dst_crs: str) -> bytes:
     return reprojected_raster.read_bytes()
 
 
-def raster_to_wgs84(input_raster: bytes) -> gdal.Dataset:
+def raster_to_wgs84(
+    input_raster: bytes, resample_alg=gdal.GRA_NearestNeighbour
+) -> gdal.Dataset:
     gdal.FileFromMemBuffer("/vsimem/input_raster.tif", input_raster)
 
     input_ds = gdal.Open("/vsimem/input_raster.tif")
@@ -51,7 +53,7 @@ def raster_to_wgs84(input_raster: bytes) -> gdal.Dataset:
         out_path_memory,
         input_ds,
         dstSRS=srs_wgs84,
-        resampleAlg=gdal.GRA_Cubic,
+        resampleAlg=resample_alg,
     )  # type: ignore
     return out_ds
 

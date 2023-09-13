@@ -21,7 +21,7 @@ from plastic_detection_service.db import (
     get_db_engine,
 )
 from plastic_detection_service.download_images import stream_in_images
-from plastic_detection_service.evalscripts import L2A_12_BANDS_CLOUD_MASK
+from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.reproject_raster import raster_to_wgs84
 from plastic_detection_service.to_vector import polygonize_raster
 
@@ -48,7 +48,9 @@ def main():
 
     bbox_list = UtmZoneSplitter([bbox], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
 
-    data_gen = image_generator(bbox_list, time_interval, L2A_12_BANDS_CLOUD_MASK, maxcc)
+    data_gen = image_generator(
+        bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc
+    )
     detector = SegmentationModel.load_from_checkpoint(
         CHECKPOINTS["unet++1"], map_location="cpu", trust_repo=True
     )
@@ -63,7 +65,8 @@ def main():
                 timestamp = datetime.datetime.strptime(
                     _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
                 )
-                wgs84_raster = raster_to_wgs84(pred_raster)
+                wgs84_raster = raster_to_wgs84(pred_raster, gdal.GRA_Cubic)
+                unclear_pixels = raster_to_wgs84(_d.content, gdal.GRA_NearestNeighbour)
 
                 bands = wgs84_raster.RasterCount
                 height = wgs84_raster.RasterYSize
@@ -95,6 +98,7 @@ def main():
                     print("Successfully added prediction raster to database.")
 
                     ds = polygonize_raster(wgs84_raster)
+                    polygonize_raster(unclear_pixels)
                     for feature in ds.GetLayer():
                         pixel_value = int(feature.GetField("pixel_value"))
                         geom = from_shape(

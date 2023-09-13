@@ -105,8 +105,8 @@ class PredictionRaster(Base):
     width = Column(Integer)
     height = Column(Integer)
     bands = Column(Integer)
-    clear_water_mask = Column(Raster, nullable=True)
     prediction_mask = Column(Raster, nullable=False)
+    clear_water_mask = Column(Raster, nullable=True)
 
     __table_args__ = (UniqueConstraint("timestamp", "bbox", name="uq_timestamp_bbox"),)
 
@@ -118,8 +118,8 @@ class PredictionRaster(Base):
         width: int,
         height: int,
         bands: int,
-        clear_water_mask: Optional[RasterElement],
         prediction_mask: RasterElement,
+        clear_water_mask: Optional[RasterElement] = None,
     ):
         self.timestamp = timestamp
         self.bbox = bbox
@@ -127,8 +127,8 @@ class PredictionRaster(Base):
         self.width = width
         self.height = height
         self.bands = bands
-        self.clear_water_mask = clear_water_mask
         self.prediction_mask = prediction_mask
+        self.clear_water_mask = clear_water_mask
 
 
 class PredictionVector(Base):
