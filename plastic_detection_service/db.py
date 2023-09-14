@@ -171,4 +171,3 @@ if __name__ == "__main__":
         create_postgis_db(engine)
     create_tables(engine, Base)
     create_triggers()
-    create_triggers()
