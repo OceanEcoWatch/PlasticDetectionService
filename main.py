@@ -61,19 +61,21 @@ def main():
     for data in data_gen:
         for _d in data:
             if _d.content is not None:
+                raster_ds = get_gdal_ds_from_memory(_d.content)
+                clear_water_mask = raster_to_wgs84(
+                    raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
+                )
+                clear_water_ds = polygonize_raster(clear_water_mask)
+
                 pred_raster = predictor.predict(
                     detector, data=io.BytesIO(_d.content), out_dir=out_dir
                 )
                 timestamp = datetime.datetime.strptime(
                     _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
                 )
-                raster_ds = get_gdal_ds_from_memory(_d.content)
                 pred_raster_ds = get_gdal_ds_from_memory(pred_raster)
                 wgs84_raster = raster_to_wgs84(
                     pred_raster_ds, target_bands=[1], resample_alg=gdal.GRA_Cubic
-                )
-                clear_water_mask = raster_to_wgs84(
-                    raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
                 )
 
                 bands = wgs84_raster.RasterCount
@@ -109,7 +111,11 @@ def main():
                     pred_polys_ds = polygonize_raster(wgs84_raster)
 
                     for feature in pred_polys_ds.GetLayer():
-                        pixel_value = int(feature.GetField("pixel_value"))
+                        pixel_value = int(
+                            json.loads(feature.ExportToJson())["properties"][
+                                "pixel_value"
+                            ]
+                        )
                         geom = from_shape(
                             shape(json.loads(feature.ExportToJson())["geometry"]),
                             srid=4326,
@@ -123,7 +129,6 @@ def main():
                         session.commit()
                     print("Successfully added prediction vector to database.")
 
-                    clear_water_ds = polygonize_raster(clear_water_mask)
                     for feature in clear_water_ds.GetLayer():
                         geom = from_shape(
                             shape(json.loads(feature.ExportToJson())["geometry"]),

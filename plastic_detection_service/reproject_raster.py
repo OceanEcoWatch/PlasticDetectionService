@@ -33,15 +33,11 @@ def reproject_raster(raster: io.BytesIO, dst_crs: str) -> bytes:
     return reprojected_raster.read_bytes()
 
 
-from osgeo import gdal, osr
-
-
 def raster_to_wgs84(
     input_raster: gdal.Dataset,
     target_bands: list[int],
-    resample_alg=gdal.GRA_NearestNeighbour
+    resample_alg=gdal.GRA_NearestNeighbour,
 ) -> gdal.Dataset:
-
     srs_utm = osr.SpatialReference()
     srs_utm.ImportFromWkt(input_raster.GetProjection())
 
@@ -59,23 +55,20 @@ def raster_to_wgs84(
         dstSRS=srs_wgs84,
         resampleAlg=resample_alg,
         srcBands=target_bands,
-        dstBands=target_bands,
-    ) # type: ignore
+    )  # type: ignore
 
     return out_ds
 
 
-
 if __name__ == "__main__":
     # Example usage
-    with open(
-        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction.tiff", "rb"
-    ) as f:
-        wgs84_raster = raster_to_wgs84(f.read())
+    with open("../images/5cb12a6cbd6df0865947f21170bc432a/response.tiff", "rb") as f:
+        wgs84_raster = raster_to_wgs84(
+            gdal.Open(f.name), target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
+        )
 
     # save
     gdal.Translate(
-        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction_wgs84_cubic.tiff",
+        "../images/5cb12a6cbd6df0865947f21170bc432a/response_scl.tiff",
         wgs84_raster,
-    )
     )
