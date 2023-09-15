@@ -1,6 +1,7 @@
 import io
 import json
 
+import geojson
 import rasterio
 from osgeo import gdal, ogr, osr
 from rasterio.features import shapes
@@ -49,12 +50,11 @@ def raster2points(input_raster: bytes, output_vector, pixel_value_threshold=0):
     print("Raster to vector conversion completed.")
 
 
-def polygonize_raster(input_gdal_ds: gdal.Dataset, crs: int = 4326) -> gdal.Dataset:
+def polygonize_raster(input_gdal_ds: gdal.Dataset, crs: int = 4326) -> ogr.DataSource:
     driver = ogr.GetDriverByName("Memory")
     output_vector_ds = driver.CreateDataSource("")
 
     srs = osr.SpatialReference()
-
     srs.ImportFromEPSG(crs)
     output_layer = output_vector_ds.CreateLayer(
         "polygons", srs=srs, geom_type=ogr.wkbPolygon
@@ -63,10 +63,20 @@ def polygonize_raster(input_gdal_ds: gdal.Dataset, crs: int = 4326) -> gdal.Data
     fld = ogr.FieldDefn("pixel_value", ogr.OFTInteger)
     output_layer.CreateField(fld)
     dst_field = output_layer.GetLayerDefn().GetFieldIndex("pixel_value")
+
     band = input_gdal_ds.GetRasterBand(1)
+
     gdal.Polygonize(band, None, output_layer, dst_field, [], callback=None)
 
     return output_vector_ds
+
+
+def filter_out_no_data_polygons(polygon_ds: ogr.DataSource, threshold: int = 0):
+    for feature in polygon_ds.GetLayer():
+        if feature.GetField("pixel_value") <= threshold:
+            polygon_ds.GetLayer().DeleteFeature(feature.GetFID())
+
+    return polygon_ds
 
 
 def vectorize_raster(input_raster: io.BytesIO) -> MultiPolygon:
@@ -78,11 +88,23 @@ def vectorize_raster(input_raster: io.BytesIO) -> MultiPolygon:
 
 
 if __name__ == "__main__":
-    src = gdal.Open(
-        "../images/120.53058253709094_14.42725911466126_120.57656259935047_14.47005515811605.tif"
-    )
+    src = gdal.Open("response_wgs84_test.tiff")
+
     ds = polygonize_raster(src)
 
-    for feature in ds.GetLayer():
-        print(feature.ExportToJson())
-        print(shape(json.loads(feature.ExportToJson())["geometry"]))
+    # save
+    with open("response_wgs84_test.geojson", "w") as f:
+        schema = {
+            "geometry": "Polygon",
+            "properties": {"pixel_value": "int"},
+        }
+        feature_collection = geojson.FeatureCollection([])
+        for feature in ds.GetLayer():
+            pixel_value = int(feature.GetField("pixel_value"))
+            geometry = json.loads(feature.ExportToJson())["geometry"]
+            feature_collection["features"].append(
+                geojson.Feature(
+                    geometry=geometry, properties={"pixel_value": pixel_value}
+                )
+            )
+        f.write(geojson.dumps(feature_collection))

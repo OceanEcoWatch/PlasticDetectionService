@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from typing import Optional
 
 import rasterio
 from osgeo import gdal, osr
@@ -35,7 +36,7 @@ def reproject_raster(raster: io.BytesIO, dst_crs: str) -> bytes:
 
 def raster_to_wgs84(
     input_raster: gdal.Dataset,
-    target_bands: list[int],
+    target_bands: Optional[list] = None,
     resample_alg=gdal.GRA_NearestNeighbour,
 ) -> gdal.Dataset:
     srs_utm = osr.SpatialReference()
@@ -62,13 +63,13 @@ def raster_to_wgs84(
 
 if __name__ == "__main__":
     # Example usage
-    with open("../images/5cb12a6cbd6df0865947f21170bc432a/response.tiff", "rb") as f:
-        wgs84_raster = raster_to_wgs84(
-            gdal.Open(f.name), target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
-        )
+    with open(
+        "images/d95da6d3c9b9f66a8cd7a17d311beb0d/response_prediction.tiff", "rb"
+    ) as f:
+        wgs84_raster = raster_to_wgs84(gdal.Open(f.name), resample_alg=gdal.GRA_Cubic)
 
     # save
     gdal.Translate(
-        "../images/5cb12a6cbd6df0865947f21170bc432a/response_scl.tiff",
+        "response_wgs84_test.tiff",
         wgs84_raster,
     )
