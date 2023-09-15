@@ -25,7 +25,10 @@ from plastic_detection_service.download_images import stream_in_images
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
-from plastic_detection_service.to_vector import polygonize_raster
+from plastic_detection_service.to_vector import (
+    filter_out_no_data_polygons,
+    polygonize_raster,
+)
 
 
 def image_generator(bbox_list, time_interval, evalscript, maxcc):
@@ -66,6 +69,7 @@ def main():
                     raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
                 )
                 clear_water_ds = polygonize_raster(clear_water_mask)
+                clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
 
                 pred_raster = predictor.predict(
                     detector, data=io.BytesIO(_d.content), out_dir=out_dir
@@ -75,7 +79,7 @@ def main():
                 )
                 pred_raster_ds = get_gdal_ds_from_memory(pred_raster)
                 wgs84_raster = raster_to_wgs84(
-                    pred_raster_ds, target_bands=[1], resample_alg=gdal.GRA_Cubic
+                    pred_raster_ds, resample_alg=gdal.GRA_Cubic
                 )
                 pred_polys_ds = polygonize_raster(wgs84_raster)
 
@@ -147,5 +151,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
     main()
