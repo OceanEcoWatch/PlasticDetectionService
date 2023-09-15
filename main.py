@@ -68,6 +68,7 @@ def main():
                 clear_water_mask = raster_to_wgs84(
                     raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
                 )
+
                 clear_water_ds = polygonize_raster(clear_water_mask)
                 clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
 
@@ -82,6 +83,7 @@ def main():
                     pred_raster_ds, resample_alg=gdal.GRA_Cubic
                 )
                 pred_polys_ds = polygonize_raster(wgs84_raster)
+                pred_polys_ds = filter_out_no_data_polygons(pred_polys_ds)
 
                 bands = wgs84_raster.RasterCount
                 height = wgs84_raster.RasterYSize
