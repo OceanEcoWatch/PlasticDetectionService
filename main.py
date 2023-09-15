@@ -77,6 +77,7 @@ def main():
                 wgs84_raster = raster_to_wgs84(
                     pred_raster_ds, target_bands=[1], resample_alg=gdal.GRA_Cubic
                 )
+                pred_polys_ds = polygonize_raster(wgs84_raster)
 
                 bands = wgs84_raster.RasterCount
                 height = wgs84_raster.RasterYSize
@@ -108,8 +109,7 @@ def main():
                     session.commit()
                     print("Successfully added prediction raster to database.")
 
-                    pred_polys_ds = polygonize_raster(wgs84_raster)
-
+                    db_vectors = []
                     for feature in pred_polys_ds.GetLayer():
                         pixel_value = int(
                             json.loads(feature.ExportToJson())["properties"][
@@ -125,21 +125,24 @@ def main():
                             geometry=geom,
                             prediction_raster_id=db_raster.id,  # type: ignore
                         )
-                        session.add(db_vector)
-                        session.commit()
+                        db_vectors.append(db_vector)
+                    session.bulk_save_objects(db_vectors)
+                    session.commit()
                     print("Successfully added prediction vector to database.")
 
+                    clear_waters = []
                     for feature in clear_water_ds.GetLayer():
                         geom = from_shape(
                             shape(json.loads(feature.ExportToJson())["geometry"]),
                             srid=4326,
                         )
-                        db_vector = ClearWaterVector(
+                        clear_water_db = ClearWaterVector(
                             geometry=geom,
                             prediction_raster_id=db_raster.id,  # type: ignore
                         )
-                        session.add(db_vector)
-                        session.commit()
+                        clear_waters.append(clear_water_db)
+                    session.bulk_save_objects(clear_waters)
+                    session.commit()
                     print("Successfully added clear water vector to database.")
 
 
