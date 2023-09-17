@@ -59,7 +59,7 @@ def raster_to_wgs84(input_raster: bytes) -> gdal.Dataset:
 if __name__ == "__main__":
     # Example usage
     with open(
-        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction.tiff", "rb"
+            "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction.tiff", "rb"
     ) as f:
         wgs84_raster = raster_to_wgs84(f.read())
 

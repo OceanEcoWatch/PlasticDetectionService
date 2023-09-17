@@ -49,7 +49,7 @@ def raster2points(input_raster: bytes, output_vector, pixel_value_threshold=0):
     print("Raster to vector conversion completed.")
 
 
-def polygonize_raster(input_gdal_ds: gdal.Dataset, crs: int = 4326) -> gdal.Dataset:
+def polygonize_raster(input_gdal_ds: gdal.Dataset, threshold: int = 30, crs: int = 4326) -> gdal.Dataset:
     driver = ogr.GetDriverByName("Memory")
     output_vector_ds = driver.CreateDataSource("")
 
@@ -65,6 +65,11 @@ def polygonize_raster(input_gdal_ds: gdal.Dataset, crs: int = 4326) -> gdal.Data
     dst_field = output_layer.GetLayerDefn().GetFieldIndex("pixel_value")
     band = input_gdal_ds.GetRasterBand(1)
     gdal.Polygonize(band, None, output_layer, dst_field, [], callback=None)
+
+    if threshold > 0:
+        for feature in output_layer:
+            if feature.GetField("pixel_value") <= threshold:
+                output_layer.DeleteFeature(feature.GetFID())
 
     return output_vector_ds
 

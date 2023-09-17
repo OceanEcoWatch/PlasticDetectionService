@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    SmallInteger,
     String,
     UniqueConstraint,
     create_engine,
@@ -101,22 +102,22 @@ class PredictionRaster(Base):
     timestamp = Column(DateTime, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326))
     dtype = Column(String)
-    width = Column(Integer)
-    height = Column(Integer)
-    bands = Column(Integer)
+    width = Column(SmallInteger)
+    height = Column(SmallInteger)
+    bands = Column(SmallInteger)
     prediction_mask = Column(Raster, nullable=False)
 
     __table_args__ = (UniqueConstraint("timestamp", "bbox", name="uq_timestamp_bbox"),)
 
     def __init__(
-        self,
-        timestamp: datetime.datetime,
-        bbox: WKBElement,
-        dtype: str,
-        width: int,
-        height: int,
-        bands: int,
-        prediction_mask: RasterElement,
+            self,
+            timestamp: datetime.datetime,
+            bbox: WKBElement,
+            dtype: str,
+            width: int,
+            height: int,
+            bands: int,
+            prediction_mask: RasterElement,
     ):
         self.timestamp = timestamp
         self.bbox = bbox
@@ -131,7 +132,7 @@ class PredictionVector(Base):
     __tablename__ = "prediction_vectors"
 
     id = Column(Integer, primary_key=True)
-    pixel_value = Column(Integer)
+    pixel_value = Column(SmallInteger)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     prediction_raster_id = Column(
         Integer, ForeignKey("prediction_rasters.id"), nullable=False
@@ -139,7 +140,7 @@ class PredictionVector(Base):
     prediction_raster = relationship("PredictionRaster", backref="prediction_vectors")
 
     def __init__(
-        self, pixel_value: int, geometry: WKBElement, prediction_raster_id: int
+            self, pixel_value: int, geometry: WKBElement, prediction_raster_id: int
     ):
         self.pixel_value = pixel_value
         self.geometry = geometry
