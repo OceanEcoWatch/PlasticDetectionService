@@ -133,9 +133,7 @@ class ScenePredictor:
 
                     y_score = transition * y_score + (1 - transition) * data
 
-                # y_score = np.round(y_score, 1) * 100
-                # y_score = y_score.astype(np.int8)
-                # write
+                print(f'Unique plastic prediction probabilities: {np.unique(y_score.astype(np.uint8))}')
                 writedata = (
                     np.expand_dims(y_score, 0).astype(np.float32)
                 ).astype(np.uint8)

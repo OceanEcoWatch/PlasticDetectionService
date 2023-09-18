@@ -1,9 +1,12 @@
 import datetime
 import io
 import json
+import os
 import ssl
+import tempfile
 
 import numpy as np
+import rasterio
 from geoalchemy2.shape import from_shape
 from geoalchemy2.types import RasterElement
 from osgeo import gdal
@@ -35,11 +38,6 @@ def image_generator(bbox_list, time_interval, evalscript, maxcc):
 
         if data is not None:
             yield data
-
-
-import rasterio
-import tempfile
-import os
 
 
 def inspect_raster_data(raster_bytes: bytes):
@@ -77,11 +75,9 @@ def round_to_int(input_raster: gdal.Dataset) -> gdal.Dataset:
     return input_raster
 
 
-# todo track progress of which exact polygons are currently predicted and saved to the db
-# maybe first check if something is already in db to not run unnecessary predictions
 def main():
     bbox = BBox(MANILLA_BAY_BBOX, crs=CRS.WGS84)
-    time_interval = ("2023-08-01", "2023-09-01")
+    time_interval = ("2022-08-01", "2023-09-01")
     maxcc = 0.5
     out_dir = "images"
 
@@ -173,12 +169,3 @@ if __name__ == "__main__":
 #
 # # print detailed model architecture
 # summary(detector, input_size=(12, 608, 608))
-
-# probability output
-# round probability outputs, adapt db column type, set threshold, don't save polygons with value 0
-# todo check if prediction already exists
-# todo add gpu option
-# todo how to query raster data in db, how to check if values make sense?
-# todo überlappungsproblem marc
-# change step size to 5
-# store original(int) value in raster
