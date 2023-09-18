@@ -63,9 +63,7 @@ def raster_to_wgs84(
 
 if __name__ == "__main__":
     # Example usage
-    with open(
-        "images/d95da6d3c9b9f66a8cd7a17d311beb0d/response_prediction.tiff", "rb"
-    ) as f:
+    with open("images/230000.0_1590000.0_235000.0_1595000.0.tif", "rb") as f:
         wgs84_raster = raster_to_wgs84(gdal.Open(f.name), resample_alg=gdal.GRA_Cubic)
 
     # save
