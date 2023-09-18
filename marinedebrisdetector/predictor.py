@@ -9,7 +9,6 @@ from rasterio.windows import Window
 from scipy.ndimage.filters import gaussian_filter
 from tqdm import tqdm
 
-from marinedebrisdetector.data.utils import L1CBANDS, L2ABANDS
 from marinedebrisdetector.model.unet import UNet
 from marinedebrisdetector.transforms import get_transform
 
@@ -71,9 +70,9 @@ class ScenePredictor:
                 )
                 image = src.read(window=window)
 
-                # if L1C image (13 bands). read only the 12 bands compatible with L2A data
+                # read only 12 bands
                 if image.shape[0] == 13:
-                    image = image[[L1CBANDS.index(b) for b in L2ABANDS]]
+                    image = image[:12]
 
                 # pad with zeros
                 H, W = self.image_size
