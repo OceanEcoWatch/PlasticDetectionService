@@ -88,7 +88,7 @@ def vectorize_raster(input_raster: io.BytesIO) -> MultiPolygon:
 
 
 if __name__ == "__main__":
-    src = gdal.Open("response_wgs84_test.tiff")
+    src = gdal.Open("images/5cb12a6cbd6df0865947f21170bc432a/response_wgs84_test.tiff")
 
     ds = polygonize_raster(src)
 
