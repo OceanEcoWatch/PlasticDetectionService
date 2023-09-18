@@ -33,4 +33,4 @@ coastal_water = coastal_water.to_crs("EPSG:4326")
 coastal_water["area_sqkm"] = coastal_water.geometry.apply(lambda x: calculate_area(x))
 
 # Step 4: Save to GeoJSON
-coastal_water.to_file("coastal_water.geojson", driver="GeoJSON", crs)
+coastal_water.to_file("coastal_water.geojson", driver="GeoJSON")
