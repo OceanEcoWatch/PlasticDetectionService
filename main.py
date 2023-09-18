@@ -16,14 +16,19 @@ from marinedebrisdetector.predictor import ScenePredictor
 from plastic_detection_service.config import config
 from plastic_detection_service.constants import MANILLA_BAY_BBOX
 from plastic_detection_service.db import (
+    ClearWaterVector,
     PredictionRaster,
     PredictionVector,
     get_db_engine,
 )
 from plastic_detection_service.download_images import stream_in_images
-from plastic_detection_service.evalscripts import L2A_12_BANDS
+from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
+from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
-from plastic_detection_service.to_vector import polygonize_raster
+from plastic_detection_service.to_vector import (
+    filter_out_no_data_polygons,
+    polygonize_raster,
+)
 
 
 def image_generator(bbox_list, time_interval, evalscript, maxcc):
@@ -48,7 +53,9 @@ def main():
 
     bbox_list = UtmZoneSplitter([bbox], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
 
-    data_gen = image_generator(bbox_list, time_interval, L2A_12_BANDS, maxcc)
+    data_gen = image_generator(
+        bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc
+    )
     detector = SegmentationModel.load_from_checkpoint(
         CHECKPOINTS["unet++1"], map_location="cpu", trust_repo=True
     )
@@ -57,13 +64,26 @@ def main():
     for data in data_gen:
         for _d in data:
             if _d.content is not None:
+                raster_ds = get_gdal_ds_from_memory(_d.content)
+                clear_water_mask = raster_to_wgs84(
+                    raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
+                )
+
+                clear_water_ds = polygonize_raster(clear_water_mask)
+                clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
+
                 pred_raster = predictor.predict(
                     detector, data=io.BytesIO(_d.content), out_dir=out_dir
                 )
                 timestamp = datetime.datetime.strptime(
                     _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
                 )
-                wgs84_raster = raster_to_wgs84(pred_raster)
+                pred_raster_ds = get_gdal_ds_from_memory(pred_raster)
+                wgs84_raster = raster_to_wgs84(
+                    pred_raster_ds, resample_alg=gdal.GRA_Cubic
+                )
+                pred_polys_ds = polygonize_raster(wgs84_raster)
+                pred_polys_ds = filter_out_no_data_polygons(pred_polys_ds)
 
                 bands = wgs84_raster.RasterCount
                 height = wgs84_raster.RasterYSize
@@ -86,6 +106,7 @@ def main():
                         dtype=dtype,
                         bbox=wkb_geometry,
                         prediction_mask=RasterElement(wgs84_raster.ReadRaster()),
+                        clear_water_mask=RasterElement(clear_water_mask.ReadRaster()),
                         width=width,
                         height=height,
                         bands=bands,
@@ -94,9 +115,13 @@ def main():
                     session.commit()
                     print("Successfully added prediction raster to database.")
 
-                    ds = polygonize_raster(wgs84_raster)
-                    for feature in ds.GetLayer():
-                        pixel_value = int(feature.GetField("pixel_value"))
+                    db_vectors = []
+                    for feature in pred_polys_ds.GetLayer():
+                        pixel_value = int(
+                            json.loads(feature.ExportToJson())["properties"][
+                                "pixel_value"
+                            ]
+                        )
                         geom = from_shape(
                             shape(json.loads(feature.ExportToJson())["geometry"]),
                             srid=4326,
@@ -106,11 +131,25 @@ def main():
                             geometry=geom,
                             prediction_raster_id=db_raster.id,  # type: ignore
                         )
-                        session.add(db_vector)
-                        session.commit()
-                        print("Successfully added prediction vector to database.")
+                        db_vectors.append(db_vector)
+                    session.bulk_save_objects(db_vectors)
+                    session.commit()
+                    print("Successfully added prediction vector to database.")
 
-                print("Successfully added all prediction vector polygons to database.")
+                    clear_waters = []
+                    for feature in clear_water_ds.GetLayer():
+                        geom = from_shape(
+                            shape(json.loads(feature.ExportToJson())["geometry"]),
+                            srid=4326,
+                        )
+                        clear_water_db = ClearWaterVector(
+                            geometry=geom,
+                            prediction_raster_id=db_raster.id,  # type: ignore
+                        )
+                        clear_waters.append(clear_water_db)
+                    session.bulk_save_objects(clear_waters)
+                    session.commit()
+                    print("Successfully added clear water vector to database.")
 
 
 if __name__ == "__main__":

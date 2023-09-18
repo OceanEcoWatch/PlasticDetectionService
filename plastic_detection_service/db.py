@@ -1,5 +1,6 @@
 import datetime
 import os
+from typing import Optional
 
 import psycopg2
 from geoalchemy2 import Geometry, Raster, RasterElement
@@ -105,6 +106,7 @@ class PredictionRaster(Base):
     height = Column(Integer)
     bands = Column(Integer)
     prediction_mask = Column(Raster, nullable=False)
+    clear_water_mask = Column(Raster, nullable=True)
 
     __table_args__ = (UniqueConstraint("timestamp", "bbox", name="uq_timestamp_bbox"),)
 
@@ -117,6 +119,7 @@ class PredictionRaster(Base):
         height: int,
         bands: int,
         prediction_mask: RasterElement,
+        clear_water_mask: Optional[RasterElement] = None,
     ):
         self.timestamp = timestamp
         self.bbox = bbox
@@ -125,6 +128,7 @@ class PredictionRaster(Base):
         self.height = height
         self.bands = bands
         self.prediction_mask = prediction_mask
+        self.clear_water_mask = clear_water_mask
 
 
 class PredictionVector(Base):
@@ -142,6 +146,21 @@ class PredictionVector(Base):
         self, pixel_value: int, geometry: WKBElement, prediction_raster_id: int
     ):
         self.pixel_value = pixel_value
+        self.geometry = geometry
+        self.prediction_raster_id = prediction_raster_id
+
+
+class ClearWaterVector(Base):
+    __tablename__ = "clear_water_vectors"
+
+    id = Column(Integer, primary_key=True)
+    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+    prediction_raster_id = Column(
+        Integer, ForeignKey("prediction_rasters.id"), nullable=False
+    )
+    prediction_raster = relationship("PredictionRaster", backref="clear_water_vectors")
+
+    def __init__(self, geometry: WKBElement, prediction_raster_id: int):
         self.geometry = geometry
         self.prediction_raster_id = prediction_raster_id
 
