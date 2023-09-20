@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from typing import Optional
 
 import rasterio
 from osgeo import gdal, osr
@@ -33,12 +34,13 @@ def reproject_raster(raster: io.BytesIO, dst_crs: str) -> bytes:
     return reprojected_raster.read_bytes()
 
 
-def raster_to_wgs84(input_raster: bytes) -> gdal.Dataset:
-    gdal.FileFromMemBuffer("/vsimem/input_raster.tif", input_raster)
-
-    input_ds = gdal.Open("/vsimem/input_raster.tif")
+def raster_to_wgs84(
+    input_raster: gdal.Dataset,
+    target_bands: Optional[list] = None,
+    resample_alg=gdal.GRA_NearestNeighbour,
+) -> gdal.Dataset:
     srs_utm = osr.SpatialReference()
-    srs_utm.ImportFromWkt(input_ds.GetProjection())
+    srs_utm.ImportFromWkt(input_raster.GetProjection())
 
     srs_wgs84 = osr.SpatialReference()
     srs_wgs84.ImportFromEPSG(4326)
@@ -47,24 +49,25 @@ def raster_to_wgs84(input_raster: bytes) -> gdal.Dataset:
     osr.CoordinateTransformation(srs_utm, srs_wgs84)
 
     out_path_memory = "/vsimem/temp.tif"
+
     out_ds: gdal.Dataset = gdal.Warp(
         out_path_memory,
-        input_ds,
+        input_raster,
         dstSRS=srs_wgs84,
-        resampleAlg=gdal.GRA_Cubic,
+        resampleAlg=resample_alg,
+        srcBands=target_bands,
     )  # type: ignore
+
     return out_ds
 
 
 if __name__ == "__main__":
     # Example usage
-    with open(
-        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction.tiff", "rb"
-    ) as f:
-        wgs84_raster = raster_to_wgs84(f.read())
+    with open("images/230000.0_1590000.0_235000.0_1595000.0.tif", "rb") as f:
+        wgs84_raster = raster_to_wgs84(gdal.Open(f.name), resample_alg=gdal.GRA_Cubic)
 
     # save
     gdal.Translate(
-        "../images/4df92568740fcdb7e339d7e5e2848ad0/response_prediction_wgs84_cubic.tiff",
+        "response_wgs84_test.tiff",
         wgs84_raster,
     )
