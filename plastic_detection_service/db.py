@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    SmallInteger,
     String,
     UniqueConstraint,
     create_engine,
@@ -102,9 +103,9 @@ class PredictionRaster(Base):
     timestamp = Column(DateTime, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326))
     dtype = Column(String)
-    width = Column(Integer)
-    height = Column(Integer)
-    bands = Column(Integer)
+    width = Column(SmallInteger)
+    height = Column(SmallInteger)
+    bands = Column(SmallInteger)
     prediction_mask = Column(Raster, nullable=False)
     clear_water_mask = Column(Raster, nullable=True)
 
@@ -135,7 +136,7 @@ class PredictionVector(Base):
     __tablename__ = "prediction_vectors"
 
     id = Column(Integer, primary_key=True)
-    pixel_value = Column(Integer)
+    pixel_value = Column(SmallInteger)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     prediction_raster_id = Column(
         Integer, ForeignKey("prediction_rasters.id"), nullable=False

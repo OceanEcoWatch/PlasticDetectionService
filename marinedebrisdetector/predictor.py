@@ -15,13 +15,13 @@ from marinedebrisdetector.transforms import get_transform
 
 class ScenePredictor:
     def __init__(
-            self,
-            image_size=(480, 480),
-            device="cpu",
-            offset=64,
-            use_test_aug=2,
-            add_fdi_ndvi=False,
-            activation="sigmoid",
+        self,
+        image_size=(480, 480),
+        device="cpu",
+        offset=64,
+        use_test_aug=2,
+        add_fdi_ndvi=False,
+        activation="sigmoid",
     ):
         self.image_size = image_size
         self.activation = activation
@@ -55,7 +55,7 @@ class ScenePredictor:
 
         with rasterio.open(predimage, "w+", **meta) as dst:
             for r, c in tqdm(
-                    product(rows, cols), total=len(rows) * len(cols), leave=False
+                product(rows, cols), total=len(rows) * len(cols), leave=False
             ):
                 H, W = self.image_size
 
@@ -113,9 +113,9 @@ class ScenePredictor:
 
                 # unpad
                 y_score = y_score[
-                          int(np.ceil(dh)): y_score.shape[0] - int(np.floor(dh)),
-                          int(np.ceil(dw)): y_score.shape[1] - int(np.floor(dw)),
-                          ]
+                    int(np.ceil(dh)) : y_score.shape[0] - int(np.floor(dh)),
+                    int(np.ceil(dw)) : y_score.shape[1] - int(np.floor(dw)),
+                ]
                 assert y_score.shape[0] == window.height, "unpadding size mismatch"
                 assert y_score.shape[1] == window.width, "unpadding size mismatch"
 
@@ -132,10 +132,12 @@ class ScenePredictor:
 
                     y_score = transition * y_score + (1 - transition) * data
 
-                # write
-                writedata = (
-                    np.expand_dims(y_score, 0).astype(np.float32)
-                ).astype(np.uint8)
+                print(
+                    f"Unique plastic prediction probabilities: {np.unique(y_score.astype(np.uint8))}"
+                )
+                writedata = (np.expand_dims(y_score, 0).astype(np.float32)).astype(
+                    np.uint8
+                )
                 dst.write(writedata, window=window)
         src.close()
         dst.close()
