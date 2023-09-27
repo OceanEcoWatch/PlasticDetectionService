@@ -1,12 +1,8 @@
 import datetime
 import io
 import json
-import os
 import ssl
-import tempfile
 
-import numpy as np
-import rasterio
 from geoalchemy2.shape import from_shape
 from geoalchemy2.types import RasterElement
 from osgeo import gdal
@@ -18,7 +14,7 @@ from marinedebrisdetector.checkpoints import CHECKPOINTS
 from marinedebrisdetector.model.segmentation_model import SegmentationModel
 from marinedebrisdetector.predictor import ScenePredictor
 from plastic_detection_service.config import config
-from plastic_detection_service.constants import MANILLA_BAY_BBOX
+from plastic_detection_service.constants import AOI_BBOX
 from plastic_detection_service.db import (
     ClearWaterVector,
     PredictionRaster,
@@ -29,6 +25,7 @@ from plastic_detection_service.download_images import stream_in_images
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
+from plastic_detection_service.round import round_to_nearest_5_int
 from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
     polygonize_raster,
@@ -45,49 +42,11 @@ def image_generator(bbox_list, time_interval, evalscript, maxcc):
             yield data
 
 
-def inspect_raster_data(raster_bytes: bytes):
-    # Create a temporary file to write the bytes
-    with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as tmpfile:
-        tmpfile.write(raster_bytes)
-        tmp_filepath = tmpfile.name
-
-    # Use rasterio to open the temporary file
-    with rasterio.open(tmp_filepath, "r") as src:
-        # Read the raster data
-        data = src.read(
-            1
-        )  # Read the first band. Change the index if you have multiple bands.
-
-    # Inspect the data values
-    print(data)
-
-    # Optionally, delete the temporary file after use
-    os.remove(tmp_filepath)
-
-
-def round_to_nearest_5(input_raster: gdal.Dataset) -> gdal.Dataset:
-    band = input_raster.GetRasterBand(1)  # Assuming a single band raster
-    data = band.ReadAsArray() * 100
-    rounded_data = np.round(data / 5) * 5
-    rounded_data = rounded_data.astype(np.int8)
-    band.WriteArray(rounded_data)
-    return input_raster
-
-
-def round_to_int(input_raster: gdal.Dataset) -> gdal.Dataset:
-    band = input_raster.GetRasterBand(1)  # Assuming a single band raster
-    data = band.ReadAsArray() * 100
-    rounded_data = np.round(data, 0).astype(np.int8)
-    band.WriteArray(rounded_data)
-    return input_raster
-
-
 def main():
-    bbox = BBox(MANILLA_BAY_BBOX, crs=CRS.WGS84)
-    time_interval = ("2022-08-01", "2023-09-01")
+    bbox = BBox(AOI_BBOX, crs=CRS.WGS84)
+    time_interval = ("2019-04-24", "2019-04-24")
     maxcc = 0.5
     out_dir = "images"
-
     ssl._create_default_https_context = (
         ssl._create_unverified_context
     )  # fix for SSL error on Mac
@@ -119,13 +78,12 @@ def main():
                 timestamp = datetime.datetime.strptime(
                     _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
                 )
-                pred_raster_ds = get_gdal_ds_from_memory(pred_raster)
+                pred_rounded = round_to_nearest_5_int(io.BytesIO(pred_raster))
+
+                pred_raster_ds = get_gdal_ds_from_memory(pred_rounded)
                 pred_wgs84_raster = raster_to_wgs84(
                     pred_raster_ds, resample_alg=gdal.GRA_Cubic
                 )
-
-                pred_rounded_poly = round_to_nearest_5(pred_wgs84_raster)
-                round_to_int(pred_wgs84_raster)
 
                 bands = pred_wgs84_raster.RasterCount
                 height = pred_wgs84_raster.RasterYSize
@@ -139,7 +97,7 @@ def main():
                 )
 
                 wkb_geometry = from_shape(box(*bbox), srid=4326)
-                band = pred_rounded_poly.GetRasterBand(1)
+                band = pred_wgs84_raster.GetRasterBand(1)
                 dtype = gdal.GetDataTypeName(band.DataType)
 
                 with Session(get_db_engine()) as session:
@@ -157,10 +115,13 @@ def main():
                     session.commit()
                     print("Successfully added prediction raster to database.")
 
-                    ds = polygonize_raster(pred_rounded_poly)
+                    pred_ds = polygonize_raster(pred_wgs84_raster)
                     db_vectors = []
-                    for feature in ds.GetLayer():
+                    print(pred_ds.GetLayerCount())
+                    print(pred_ds.GetLayer(0).GetFeatureCount())
+                    for feature in pred_ds.GetLayer():
                         pixel_value = int(feature.GetField("pixel_value"))
+                        print(pixel_value)
                         geom = from_shape(
                             shape(json.loads(feature.ExportToJson())["geometry"]),
                             srid=4326,
@@ -192,4 +153,5 @@ def main():
 
 
 if __name__ == "__main__":
+    main()
     main()
