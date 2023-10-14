@@ -58,13 +58,20 @@ from plastic_detection_service.to_vector import (
     "--processing-unit",
     type=enumerate(["cpu", "gpu"]),
     default="gpu",
-    help="Processing unit to be used.",
+    help="Processing unit to be used. gpu or cpu.",
+)
+@click.option(
+    "--model_checkpoint",
+    type=enumerate(CHECKPOINTS),
+    default="unet++1",
+    help=f"Model checkpoint to be used. Choose from {CHECKPOINTS.keys()}",
 )
 def main(
     bbox: tuple[float, float, float, float],
     time_interval: tuple[str, str],
     maxcc: float,
     processing_unit: str,
+    model_checkpoint: str,
 ):
     create_unverified_https_context()
 
@@ -77,7 +84,7 @@ def main(
         bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc
     )
     detector = SegmentationModel.load_from_checkpoint(
-        CHECKPOINTS["unet++1"], map_location=processing_unit, trust_repo=True
+        CHECKPOINTS[model_checkpoint], map_location=processing_unit, trust_repo=True
     )
     predictor = ScenePredictor(device=processing_unit)
 
