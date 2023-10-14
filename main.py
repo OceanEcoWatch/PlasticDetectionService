@@ -74,21 +74,19 @@ def main(
     model_checkpoint: str,
 ):
     create_unverified_https_context()
+    detector = SegmentationModel.load_from_checkpoint(
+        CHECKPOINTS[model_checkpoint], map_location=processing_unit, trust_repo=True
+    )
+    predictor = ScenePredictor(device=processing_unit)
 
     bbox_crs = BBox(bbox, crs=CRS.WGS84)
     bbox_list = UtmZoneSplitter(
         [bbox_crs], crs=CRS.WGS84, bbox_size=5000
     ).get_bbox_list()
 
-    data_gen = image_generator(
+    for data in image_generator(
         bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc
-    )
-    detector = SegmentationModel.load_from_checkpoint(
-        CHECKPOINTS[model_checkpoint], map_location=processing_unit, trust_repo=True
-    )
-    predictor = ScenePredictor(device=processing_unit)
-
-    for data in data_gen:
+    ):
         for _d in data:
             if _d.content is not None:
                 timestamp = datetime.datetime.strptime(
