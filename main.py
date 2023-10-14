@@ -6,14 +6,13 @@ import click
 from geoalchemy2.shape import from_shape
 from geoalchemy2.types import RasterElement
 from osgeo import gdal
-from sentinelhub import CRS, UtmZoneSplitter
+from sentinelhub import CRS, Bbox, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
 
 from marinedebrisdetector.checkpoints import CHECKPOINTS
 from marinedebrisdetector.model.segmentation_model import SegmentationModel
 from marinedebrisdetector.predictor import ScenePredictor
-from plastic_detection_service.config import config
 from plastic_detection_service.constants import AOI
 from plastic_detection_service.db import (
     ClearWaterVector,
@@ -21,7 +20,7 @@ from plastic_detection_service.db import (
     PredictionVector,
     get_db_engine,
 )
-from plastic_detection_service.download_images import stream_in_images
+from plastic_detection_service.download_images import image_generator
 from plastic_detection_service.dt_util import get_past_date, get_today_str
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
@@ -32,16 +31,6 @@ from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
     polygonize_raster,
 )
-
-
-def image_generator(bbox_list, time_interval, evalscript, maxcc):
-    for bbox in bbox_list:
-        data = stream_in_images(
-            config, bbox, time_interval, evalscript=evalscript, maxcc=maxcc
-        )
-
-        if data is not None:
-            yield data
 
 
 @click.command()
@@ -71,9 +60,18 @@ def image_generator(bbox_list, time_interval, evalscript, maxcc):
     default="images",
     help="Directory where the images will be saved.",
 )
-def main(bbox, time_interval, maxcc, out_dir):
+def main(
+    bbox: tuple[float, float, float, float],
+    time_interval: tuple[str, str],
+    maxcc: float,
+    out_dir: str,
+):
     create_unverified_https_context()
-    bbox_list = UtmZoneSplitter([bbox], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
+
+    bbox_crs = Bbox(bbox, crs=CRS.WGS84)
+    bbox_list = UtmZoneSplitter(
+        [bbox_crs], crs=CRS.WGS84, bbox_size=5000
+    ).get_bbox_list()
 
     data_gen = image_generator(
         bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc

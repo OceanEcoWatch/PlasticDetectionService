@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Generator, Optional
 
 from sentinelhub import (
     BBox,
@@ -10,6 +10,8 @@ from sentinelhub import (
     bbox_to_dimensions,
 )
 from sentinelhub.download.models import DownloadResponse
+
+from plastic_detection_service.config import config
 
 
 def stream_in_images(
@@ -42,3 +44,38 @@ def stream_in_images(
     data = request.get_data(decode_data=False)
 
     return data
+
+
+def image_generator(
+    bbox_list: list[BBox],
+    time_interval: tuple[str, str],
+    evalscript: str,
+    maxcc: Optional[float] = None,
+    data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
+    mime_type: MimeType = MimeType.TIFF,
+) -> Generator[list[DownloadResponse], None, None]:
+    """Generator that yields sentinel hub data for each bbox in bbox_list.
+
+    :param bbox_list: list of bounding boxes
+    :param time_interval: time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD
+    :param evalscript: sentinel hub evalscript
+    :param maxcc: maximum cloud cover of the images to be processed.
+    :param data_collection: sentinel hub data collection
+    :param mime_type: sentinel hub mime type
+    :param output_folder: directory where the images will be saved.
+
+    :return: generator that yields sentinel hub data for each bbox in bbox_list
+    """
+    for bbox in bbox_list:
+        data = stream_in_images(
+            config,
+            bbox,
+            time_interval,
+            evalscript=evalscript,
+            maxcc=maxcc,
+            data_collection=data_collection,
+            mime_type=mime_type,
+        )
+
+        if data is not None:
+            yield data
