@@ -1,12 +1,12 @@
 import datetime
 import io
 import json
-import ssl
 
+import click
 from geoalchemy2.shape import from_shape
 from geoalchemy2.types import RasterElement
 from osgeo import gdal
-from sentinelhub import CRS, BBox, UtmZoneSplitter
+from sentinelhub import CRS, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,7 @@ from marinedebrisdetector.checkpoints import CHECKPOINTS
 from marinedebrisdetector.model.segmentation_model import SegmentationModel
 from marinedebrisdetector.predictor import ScenePredictor
 from plastic_detection_service.config import config
-from plastic_detection_service.constants import MANILLA_BAY_BBOX
+from plastic_detection_service.constants import AOI
 from plastic_detection_service.db import (
     ClearWaterVector,
     PredictionRaster,
@@ -22,10 +22,12 @@ from plastic_detection_service.db import (
     get_db_engine,
 )
 from plastic_detection_service.download_images import stream_in_images
+from plastic_detection_service.dt_util import get_past_date, get_today_str
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
 from plastic_detection_service.scaling import round_to_nearest_5_int, scale_pixel_values
+from plastic_detection_service.ssh_util import create_unverified_https_context
 from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
     polygonize_raster,
@@ -42,16 +44,35 @@ def image_generator(bbox_list, time_interval, evalscript, maxcc):
             yield data
 
 
-def main():
-    bbox = BBox(MANILLA_BAY_BBOX, crs=CRS.WGS84)
-    time_interval = ("2023-08-01", "2023-09-01")
-    maxcc = 0.5
-    out_dir = "images"
-
-    ssl._create_default_https_context = (
-        ssl._create_unverified_context
-    )  # fix for SSL error on Mac
-
+@click.command()
+@click.option(
+    "--bbox",
+    nargs=4,
+    type=float,
+    help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
+    default=AOI,
+)
+@click.option(
+    "--time-interval",
+    nargs=2,
+    type=str,
+    help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
+    default=[get_past_date(7), get_today_str()],
+)
+@click.option(
+    "--maxcc",
+    type=float,
+    default=0.5,
+    help="Maximum cloud cover of the images to be processed.",
+)
+@click.option(
+    "--out-dir",
+    type=str,
+    default="images",
+    help="Directory where the images will be saved.",
+)
+def main(bbox, time_interval, maxcc, out_dir):
+    create_unverified_https_context()
     bbox_list = UtmZoneSplitter([bbox], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
 
     data_gen = image_generator(
