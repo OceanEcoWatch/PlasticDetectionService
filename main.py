@@ -62,7 +62,7 @@ from plastic_detection_service.to_vector import (
 )
 @click.option(
     "--model_checkpoint",
-    type=enumerate(CHECKPOINTS),
+    type=enumerate(CHECKPOINTS.keys()),
     default="unet++1",
     help=f"Model checkpoint to be used. Choose from {CHECKPOINTS.keys()}",
 )
