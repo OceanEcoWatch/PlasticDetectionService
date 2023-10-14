@@ -54,7 +54,7 @@ def image_generator(
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
 ) -> Generator[list[DownloadResponse], None, None]:
-    """Generator that yields sentinel hub data for each bbox in bbox_list.
+    """Generator that streams in images from sentinel hub.
 
     :param bbox_list: list of bounding boxes
     :param time_interval: time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD
