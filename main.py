@@ -6,7 +6,7 @@ import click
 from geoalchemy2.shape import from_shape
 from geoalchemy2.types import RasterElement
 from osgeo import gdal
-from sentinelhub import CRS, Bbox, UtmZoneSplitter
+from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
 
@@ -68,7 +68,7 @@ def main(
 ):
     create_unverified_https_context()
 
-    bbox_crs = Bbox(bbox, crs=CRS.WGS84)
+    bbox_crs = BBox(bbox, crs=CRS.WGS84)
     bbox_list = UtmZoneSplitter(
         [bbox_crs], crs=CRS.WGS84, bbox_size=5000
     ).get_bbox_list()
