@@ -46,7 +46,7 @@ from plastic_detection_service.to_vector import (
     nargs=2,
     type=str,
     help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
-    default=[get_past_date(7), get_today_str()],
+    default=(get_past_date(7), get_today_str()),
 )
 @click.option(
     "--maxcc",
@@ -55,16 +55,16 @@ from plastic_detection_service.to_vector import (
     help="Maximum cloud cover of the images to be processed.",
 )
 @click.option(
-    "--out-dir",
-    type=str,
-    default="images",
-    help="Directory where the images will be saved.",
+    "--processing-unit",
+    type=enumerate(["cpu", "gpu"]),
+    default="gpu",
+    help="Processing unit to be used.",
 )
 def main(
     bbox: tuple[float, float, float, float],
     time_interval: tuple[str, str],
     maxcc: float,
-    out_dir: str,
+    processing_unit: str,
 ):
     create_unverified_https_context()
 
@@ -77,9 +77,9 @@ def main(
         bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc
     )
     detector = SegmentationModel.load_from_checkpoint(
-        CHECKPOINTS["unet++1"], map_location="cpu", trust_repo=True
+        CHECKPOINTS["unet++1"], map_location=processing_unit, trust_repo=True
     )
-    predictor = ScenePredictor(device="cpu")
+    predictor = ScenePredictor(device=processing_unit)
 
     for data in data_gen:
         for _d in data:
@@ -96,9 +96,7 @@ def main(
                 clear_water_ds = polygonize_raster(clear_water_mask)
                 clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
 
-                pred_raster = predictor.predict(
-                    detector, data=io.BytesIO(_d.content), out_dir=out_dir
-                )
+                pred_raster = predictor.predict(detector, data=io.BytesIO(_d.content))
                 scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
 
                 pred_rounded = round_to_nearest_5_int(io.BytesIO(scaled_pred_raster))

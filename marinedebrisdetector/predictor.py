@@ -35,14 +35,13 @@ class ScenePredictor:
             "test", add_fdi_ndvi=add_fdi_ndvi, cropsize=image_size[0]
         )
 
-    def predict(self, model, data: io.BytesIO, out_dir: str = ".") -> bytes:
+    def predict(self, model, data: io.BytesIO) -> bytes:
         src = rasterio.open(data)
         meta = src.meta.copy()
         self.model = model.to(self.device)
         self.model.eval()
 
-        filename = f"{src.bounds.left}_{src.bounds.bottom}_{src.bounds.right}_{src.bounds.top}.tif"
-        predimage = Path(out_dir) / Path(filename)
+        predimage = Path("temp.tif")
         meta["count"] = 1
         meta["dtype"] = "uint8"
 
@@ -140,4 +139,6 @@ class ScenePredictor:
                 dst.write(writedata, window=window)
         src.close()
         dst.close()
+
+        predimage.unlink()
         return predimage.read_bytes()
