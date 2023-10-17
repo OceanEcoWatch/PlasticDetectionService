@@ -1,8 +1,8 @@
 import datetime
 import io
 import json
-import ssl
 
+import click
 from geoalchemy2.shape import from_shape
 from geoalchemy2.types import RasterElement
 from osgeo import gdal
@@ -13,56 +13,80 @@ from sqlalchemy.orm import Session
 from marinedebrisdetector.checkpoints import CHECKPOINTS
 from marinedebrisdetector.model.segmentation_model import SegmentationModel
 from marinedebrisdetector.predictor import ScenePredictor
-from plastic_detection_service.config import config
-from plastic_detection_service.constants import MANILLA_BAY_BBOX
+from plastic_detection_service.constants import AOI
 from plastic_detection_service.db import (
     ClearWaterVector,
     PredictionRaster,
     PredictionVector,
     get_db_engine,
 )
-from plastic_detection_service.download_images import stream_in_images
+from plastic_detection_service.download_images import image_generator
+from plastic_detection_service.dt_util import get_past_date, get_today_str
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
 from plastic_detection_service.scaling import round_to_nearest_5_int, scale_pixel_values
+from plastic_detection_service.ssh_util import create_unverified_https_context
 from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
     polygonize_raster,
 )
 
 
-def image_generator(bbox_list, time_interval, evalscript, maxcc):
-    for bbox in bbox_list:
-        data = stream_in_images(
-            config, bbox, time_interval, evalscript=evalscript, maxcc=maxcc
-        )
-
-        if data is not None:
-            yield data
-
-
-def main():
-    bbox = BBox(MANILLA_BAY_BBOX, crs=CRS.WGS84)
-    time_interval = ("2023-08-01", "2023-09-01")
-    maxcc = 0.5
-    out_dir = "images"
-
-    ssl._create_default_https_context = (
-        ssl._create_unverified_context
-    )  # fix for SSL error on Mac
-
-    bbox_list = UtmZoneSplitter([bbox], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
-
-    data_gen = image_generator(
-        bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc
-    )
+@click.command()
+@click.option(
+    "--bbox",
+    nargs=4,
+    type=float,
+    help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
+    default=AOI,
+)
+@click.option(
+    "--time-interval",
+    nargs=2,
+    type=str,
+    help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
+    default=(get_past_date(7), get_today_str()),
+)
+@click.option(
+    "--maxcc",
+    type=float,
+    default=0.5,
+    help="Maximum cloud cover of the images to be processed.",
+)
+@click.option(
+    "--processing-unit",
+    type=enumerate(["cpu", "gpu"]),
+    default="gpu",
+    help="Processing unit to be used. gpu or cpu.",
+)
+@click.option(
+    "--model_checkpoint",
+    type=enumerate(CHECKPOINTS.keys()),
+    default="unet++1",
+    help=f"Model checkpoint to be used. Choose from {CHECKPOINTS.keys()}",
+)
+def main(
+    bbox: tuple[float, float, float, float],
+    time_interval: tuple[str, str],
+    maxcc: float,
+    processing_unit: str,
+    model_checkpoint: str,
+):
+    create_unverified_https_context()
     detector = SegmentationModel.load_from_checkpoint(
-        CHECKPOINTS["unet++1"], map_location="cpu", trust_repo=True
+        CHECKPOINTS[model_checkpoint], map_location=processing_unit, trust_repo=True
     )
-    predictor = ScenePredictor(device="cpu")
+    predictor = ScenePredictor(device=processing_unit)
 
-    for data in data_gen:
+    bbox_crs = BBox(bbox, crs=CRS.WGS84)
+    bbox_list = UtmZoneSplitter(
+        [bbox_crs], crs=CRS.WGS84, bbox_size=5000
+    ).get_bbox_list()
+
+    for data in image_generator(
+        bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc
+    ):
         for _d in data:
             if _d.content is not None:
                 timestamp = datetime.datetime.strptime(
@@ -77,9 +101,7 @@ def main():
                 clear_water_ds = polygonize_raster(clear_water_mask)
                 clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
 
-                pred_raster = predictor.predict(
-                    detector, data=io.BytesIO(_d.content), out_dir=out_dir
-                )
+                pred_raster = predictor.predict(detector, data=io.BytesIO(_d.content))
                 scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
 
                 pred_rounded = round_to_nearest_5_int(io.BytesIO(scaled_pred_raster))
