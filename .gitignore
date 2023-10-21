@@ -1,5 +1,4 @@
-eopatches/
-eoexectution-report*
+sagemaker/model/epoch=73-val_loss=0.60-auroc=0.984.ckpt
 images/
 #ruff
 .ruff_cache/
