@@ -1,7 +1,7 @@
 import boto3
 
 ENDPOINT_NAME = "test"
-CONTENT_TYPE = "application/octet-stream"
+CONTENT_TYPE = "application/x-image"
 
 runtime = boto3.client("sagemaker-runtime", region_name="eu-central-1")
 
