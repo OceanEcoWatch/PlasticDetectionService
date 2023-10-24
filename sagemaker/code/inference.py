@@ -1,6 +1,19 @@
-import os
+import io
 
+import ssh_util
 import torch
+
+from marinedebrisdetector.checkpoints import CHECKPOINTS
+from marinedebrisdetector.model.segmentation_model import SegmentationModel
+from marinedebrisdetector.predictor import ScenePredictor
+
+
+def define_device():
+    if torch.cuda.is_available():
+        processing_unit = "cuda"
+    else:
+        processing_unit = "cpu"
+    return processing_unit
 
 
 def model_fn(model_dir):
@@ -8,31 +21,22 @@ def model_fn(model_dir):
     Args:
       model_dir: the directory where model is saved.
     Returns:
-      The model
+      SegmentationModel from unet++ checkpoint
     """
+    ssh_util.create_unverified_https_context()
+    processing_unit = define_device()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    with open(
-        os.path.join(model_dir, "epoch=73-val_loss=0.60-auroc=0.984.ckpt"), "rb"
-    ) as f:
-        model = torch.load(f, map_location=device)
-    return model.to(device)
+    detector = SegmentationModel.load_from_checkpoint(
+        CHECKPOINTS["unet++1"], map_location=processing_unit, trust_repo=True
+    )
+    return detector
 
 
 def input_fn(request_body, request_content_type):
-    """
-    handle image byte inputs
-
-    Args:
-      request_body: the request body
-      request_content_type: the request content type
-    """
-    if request_content_type == "application/x-image":
-        image = request_body.read()
-
-        return image
+    if request_content_type == "application/octet-stream":
+        return io.BytesIO(request_body)
     else:
-        raise ValueError("Content type {} not supported.".format(request_content_type))
+        raise ValueError(f"Unsupported content type: {request_content_type}")
 
 
 def predict_fn(input_data, model):
@@ -43,4 +47,13 @@ def predict_fn(input_data, model):
     Returns:
       The predictions
     """
-    return model.predict(input_data)
+    processing_unit = define_device()
+    predictor = ScenePredictor(device=processing_unit)
+    return predictor.predict(model, input_data)
+
+
+def output_fn(prediction, content_type):
+    if content_type == "application/octet-stream":
+        return prediction
+    else:
+        raise ValueError(f"Unsupported content type: {content_type}")
