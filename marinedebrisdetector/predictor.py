@@ -140,5 +140,6 @@ class ScenePredictor:
         src.close()
         dst.close()
 
+        prediction = predimage.read_bytes()
         predimage.unlink()
-        return predimage.read_bytes()
+        return prediction

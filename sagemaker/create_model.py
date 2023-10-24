@@ -6,7 +6,7 @@ from sagemaker import image_uris
 model_path = "s3://sagemaker-studio-768912473174-0ryazmj34j9/model.tar.gz"
 model_name = "MarineDebrisDetectorModel"
 sagemaker_role = "arn:aws:iam::768912473174:role/service-role/AmazonSageMaker-ExecutionRole-20231017T155251"
-
+content_type = "application/octet-stream"
 region_name = "eu-central-1"
 image_uri = image_uris.retrieve(
     framework="pytorch",
@@ -14,7 +14,7 @@ image_uri = image_uris.retrieve(
     version="2.0.1",
     py_version="py310",
     image_scope="inference",
-    instance_type="ml.c5.4xlarge",
+    instance_type="ml.g4dn.xlarge",
 )
 
 # Initialize sagemaker session
@@ -29,8 +29,8 @@ sm_client = boto3.client("sagemaker", region_name=region)
 modelpackage_inference_specification = {
     "InferenceSpecification": {
         "Containers": [{"Image": image_uri, "ModelDataUrl": model_path}],
-        "SupportedContentTypes": ["application/x-image"],
-        "SupportedResponseMIMETypes": ["application/x-image"],
+        "SupportedContentTypes": [content_type],
+        "SupportedResponseMIMETypes": [content_type],
     }
 }
 
@@ -39,11 +39,6 @@ create_model_package_input_dict = {
     "ModelApprovalStatus": "PendingManualApproval",
 }
 create_model_package_input_dict.update(modelpackage_inference_specification)
-
-# # Create Model in Sagemaker Studio Model Registry
-# create_model_package_response = sm_client.create_model_package(
-#     **create_model_package_input_dict,
-# )
 
 
 create_model_response = sm_client.create_model(
