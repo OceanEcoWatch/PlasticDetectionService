@@ -65,17 +65,17 @@ def output_fn(prediction, content_type):
         raise ValueError(f"Unsupported content type: {content_type}")
 
 
-# if __name__ == "__main__":
-#     model = model_fn("model")
-#     print(model)
-#     with open(
-#         "/Users/marc.leerink/dev/PlasticDetectionService/images/5cb12a6cbd6df0865947f21170bc432a/response.tiff",
-#         "rb",
-#     ) as f:
-#         input_data = f.read()
-#     input = input_fn(input_data, "application/octet-stream")
-#     print(input)
-#     prediction = predict_fn(input, model)
-#     print(prediction)
-#     output = output_fn(prediction, "application/octet-stream")
-#     print(output)
+if __name__ == "__main__":
+    model = model_fn("model")
+    print(model)
+    with open(
+        "/Users/marc.leerink/dev/PlasticDetectionService/images/5cb12a6cbd6df0865947f21170bc432a/response.tiff",
+        "rb",
+    ) as f:
+        input_data = f.read()
+    input = input_fn(input_data, "application/octet-stream")
+    print(input)
+    prediction = predict_fn(input, model)
+    print(prediction)
+    output = output_fn(prediction, "application/octet-stream")
+    print(output)

@@ -41,7 +41,8 @@ class ScenePredictor:
         self.model = model.to(self.device)
         self.model.eval()
 
-        predimage = Path("temp.tif")
+        predimage = Path("/tmp/temp.tif")
+
         meta["count"] = 1
         meta["dtype"] = "uint8"
 

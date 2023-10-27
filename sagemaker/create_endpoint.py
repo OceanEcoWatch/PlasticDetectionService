@@ -61,3 +61,28 @@ create_model_response = sm_client.create_model(
 )
 
 print(create_model_response)
+
+# create endpoint config
+endpoint_config_name = "MarineDebrisDetectorEndpointConfig"
+
+create_endpoint_config_response = sm_client.create_endpoint_config(
+    EndpointConfigName=endpoint_config_name,
+    ProductionVariants=[
+        {
+            "InstanceType": "ml.g4dn.xlarge",
+            "InitialInstanceCount": 1,
+            "ModelName": model_name,
+            "VariantName": "AllTraffic",
+        }
+    ],
+)
+
+print(create_endpoint_config_response)
+
+# create endpoint
+endpoint_name = "MarineDebrisDetectorEndpoint"
+
+create_endpoint_response = sm_client.create_endpoint(
+    EndpointName=endpoint_name, EndpointConfigName=endpoint_config_name
+)
+print(create_endpoint_response)
