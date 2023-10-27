@@ -1,4 +1,9 @@
+import io
+
 import boto3
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
 
 ENDPOINT_NAME = "MarineDebrisDetectorEndpoint"
 CONTENT_TYPE = "application/octet-stream"
@@ -20,12 +25,6 @@ response = runtime.invoke_endpoint(
 )
 predictions = response["Body"].read()
 
-# plot the prediction
-import io
-
-import matplotlib.pyplot as plt
-import numpy as np
-from PIL import Image
 
 # convert the byte array to a numpy array
 img = np.array(Image.open(io.BytesIO(predictions)))
