@@ -13,6 +13,21 @@ with open(
 
 
 response = runtime.invoke_endpoint(
-    EndpointName=ENDPOINT_NAME, ContentType=CONTENT_TYPE, Body=payload
+    EndpointName=ENDPOINT_NAME,
+    ContentType=CONTENT_TYPE,
+    Body=payload,
+    Accept=CONTENT_TYPE,
 )
-print(response)
+predictions = response["Body"].read()
+
+# plot the prediction
+import io
+
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+
+# convert the byte array to a numpy array
+img = np.array(Image.open(io.BytesIO(predictions)))
+plt.imshow(img)
+plt.show()
