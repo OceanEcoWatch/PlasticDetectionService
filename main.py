@@ -10,9 +10,6 @@ from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
 
-from marinedebrisdetector.checkpoints import CHECKPOINTS
-from marinedebrisdetector.model.segmentation_model import SegmentationModel
-from marinedebrisdetector.predictor import ScenePredictor
 from plastic_detection_service.constants import AOI
 from plastic_detection_service.db import (
     ClearWaterVector,
@@ -26,11 +23,11 @@ from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
 from plastic_detection_service.scaling import round_to_nearest_5_int, scale_pixel_values
-from plastic_detection_service.ssh_util import create_unverified_https_context
 from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
     polygonize_raster,
 )
+from sagemaker import endpoint
 
 
 @click.command()
@@ -54,31 +51,11 @@ from plastic_detection_service.to_vector import (
     default=0.5,
     help="Maximum cloud cover of the images to be processed.",
 )
-@click.option(
-    "--processing-unit",
-    type=enumerate(["cpu", "gpu"]),
-    default="gpu",
-    help="Processing unit to be used. gpu or cpu.",
-)
-@click.option(
-    "--model_checkpoint",
-    type=enumerate(CHECKPOINTS.keys()),
-    default="unet++1",
-    help=f"Model checkpoint to be used. Choose from {CHECKPOINTS.keys()}",
-)
 def main(
     bbox: tuple[float, float, float, float],
     time_interval: tuple[str, str],
     maxcc: float,
-    processing_unit: str,
-    model_checkpoint: str,
 ):
-    create_unverified_https_context()
-    detector = SegmentationModel.load_from_checkpoint(
-        CHECKPOINTS[model_checkpoint], map_location=processing_unit, trust_repo=True
-    )
-    predictor = ScenePredictor(device=processing_unit)
-
     bbox_crs = BBox(bbox, crs=CRS.WGS84)
     bbox_list = UtmZoneSplitter(
         [bbox_crs], crs=CRS.WGS84, bbox_size=5000
@@ -101,7 +78,11 @@ def main(
                 clear_water_ds = polygonize_raster(clear_water_mask)
                 clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
 
-                pred_raster = predictor.predict(detector, data=io.BytesIO(_d.content))
+                pred_raster = endpoint.invoke(
+                    endpoint_name=endpoint.ENDPOINT_NAME,
+                    content_type=endpoint.CONTENT_TYPE,
+                    payload=_d.content,
+                )
                 scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
 
                 pred_rounded = round_to_nearest_5_int(io.BytesIO(scaled_pred_raster))
