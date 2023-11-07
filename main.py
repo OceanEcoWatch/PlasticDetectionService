@@ -77,6 +77,7 @@ def main(
                 clear_water_ds = polygonize_raster(clear_water_mask)
                 clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
 
+                print("Sending image to sagemaker endpoint...")
                 pred_raster = sagemaker_endpoint.invoke(
                     endpoint_name=config.ENDPOINT_NAME,
                     content_type=config.CONTENT_TYPE,
