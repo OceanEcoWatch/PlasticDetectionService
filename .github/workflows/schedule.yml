@@ -2,8 +2,8 @@ name: Scheduled Plastic Detection
 
 on:
   schedule:
-    # Runs at midnight every day
-    - cron: "0 0 * * *"
+    # Runs every minute for testing purposes
+    - cron: "* * * * *"
 
 jobs:
   plastic-detection-job:
