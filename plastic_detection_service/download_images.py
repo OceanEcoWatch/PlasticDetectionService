@@ -11,7 +11,7 @@ from sentinelhub import (
 )
 from sentinelhub.download.models import DownloadResponse
 
-from plastic_detection_service.config import config
+from plastic_detection_service.config import SH_CONFIG
 
 
 def stream_in_images(
@@ -68,7 +68,7 @@ def image_generator(
     """
     for bbox in bbox_list:
         data = stream_in_images(
-            config,
+            SH_CONFIG,
             bbox,
             time_interval,
             evalscript=evalscript,

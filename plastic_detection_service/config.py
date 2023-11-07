@@ -5,10 +5,9 @@ from sentinelhub import SHConfig
 
 load_dotenv()
 
-config = SHConfig()
-
-if not config.sh_client_id or not config.sh_client_secret:
-    print("Warning! To use Process API, please provide the credentials")
+SH_INSTANCE_ID = os.environ["SH_INSTANCE_ID"]
+SH_CLIENT_ID = os.environ["SH_CLIENT_ID"]
+SH_CLIENT_SECRET = os.environ["SH_CLIENT_SECRET"]
 
 DB_USER = os.environ["DB_USER"]
 DB_PW = os.environ["DB_PW"]
@@ -26,3 +25,9 @@ AOI = (
     120.99038315968619,
     14.812423505754381,
 )  # manilla bay
+
+SH_CONFIG = SHConfig(
+    instance_id=SH_INSTANCE_ID,
+    sh_client_id=SH_CLIENT_ID,
+    sh_client_secret=SH_CLIENT_SECRET,
+)
