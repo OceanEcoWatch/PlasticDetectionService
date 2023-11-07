@@ -10,7 +10,7 @@ from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
 
-from plastic_detection_service.constants import AOI
+from plastic_detection_service import config, sagemaker_endpoint
 from plastic_detection_service.db import (
     ClearWaterVector,
     PredictionRaster,
@@ -27,7 +27,6 @@ from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
     polygonize_raster,
 )
-from sagemaker import endpoint
 
 
 @click.command()
@@ -36,7 +35,7 @@ from sagemaker import endpoint
     nargs=4,
     type=float,
     help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
-    default=AOI,
+    default=config.AOI,
 )
 @click.option(
     "--time-interval",
@@ -78,9 +77,9 @@ def main(
                 clear_water_ds = polygonize_raster(clear_water_mask)
                 clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
 
-                pred_raster = endpoint.invoke(
-                    endpoint_name=endpoint.ENDPOINT_NAME,
-                    content_type=endpoint.CONTENT_TYPE,
+                pred_raster = sagemaker_endpoint.invoke(
+                    endpoint_name=config.ENDPOINT_NAME,
+                    content_type=config.CONTENT_TYPE,
                     payload=_d.content,
                 )
                 scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
