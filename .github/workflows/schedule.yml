@@ -54,7 +54,7 @@ jobs:
         run: python main.py
         env:
           DB_USER: ${{ secrets.DB_USER }}
-          DB_PW: ${{ secrets.DB_PASSWORD }}
+          DB_PW: ${{ secrets.DB_PW}}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_NAME: ${{ secrets.DB_NAME }}
