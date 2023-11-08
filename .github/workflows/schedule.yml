@@ -1,10 +1,16 @@
 name: Scheduled Plastic Detection
 
+# on:
+#   schedule:
+#     # Runs every minute for testing purposes
+#     - cron: "* * * * *"
 on:
-  schedule:
-    # Runs every minute for testing purposes
-    - cron: "* * * * *"
-
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 jobs:
   plastic-detection-job:
     runs-on: ubuntu-latest
