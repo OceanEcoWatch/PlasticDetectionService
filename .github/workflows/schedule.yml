@@ -32,6 +32,11 @@ jobs:
             sudo apt-get install -y python-gdal=$GDAL_VERSION &&
             pip install GDAL==$GDAL_VERSION
           )
+      - name: Check GDAL version
+        run: |
+          gdalinfo --version
+          python -c "from osgeo import gdal; print(gdal.__version__)"
+
       - name: Run plastic detection script
         run: python main.py
         env:
