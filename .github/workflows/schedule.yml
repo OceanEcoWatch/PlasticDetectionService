@@ -24,8 +24,8 @@ jobs:
           sudo apt-get install python3.11-dev
           sudo add-apt-repository ppa:ubuntugis/ppa
           sudo apt-get update
-          sudo apt-get install gdal-bin==3.7.1
-          sudo apt-get install libgdal-dev==3.7.1
+          sudo apt-get install gdal-bin=3.7.2
+          sudo apt-get install libgdal-dev=3.7.2
           export CPLUS_INCLUDE_PATH=/usr/include/gdal
           export C_INCLUDE_PATH=/usr/include/gdal
 
