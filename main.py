@@ -125,7 +125,7 @@ def main(
                     print("Successfully added prediction raster to database.")
 
                     db_vectors = []
-                    print(pred_polys_ds.GetLayer().GetFeatureCount())
+
                     for feature in pred_polys_ds.GetLayer():
                         pixel_value = int(
                             json.loads(feature.ExportToJson())["properties"][
