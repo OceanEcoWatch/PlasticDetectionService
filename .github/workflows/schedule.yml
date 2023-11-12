@@ -13,11 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-        with:
-          ref: "main"
-
+      - uses: actions/checkout@v2
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -28,8 +24,8 @@ jobs:
           sudo apt-get install python3.11-dev
           sudo add-apt-repository ppa:ubuntugis/ppa
           sudo apt-get update
-          sudo apt-get install gdal-bin
-          sudo apt-get install libgdal-dev
+          sudo apt-get install gdal-bin==3.7.1
+          sudo apt-get install libgdal-dev==3.7.1
           export CPLUS_INCLUDE_PATH=/usr/include/gdal
           export C_INCLUDE_PATH=/usr/include/gdal
 
@@ -37,6 +33,7 @@ jobs:
         run: |
           GDAL_VERSION=$(ogrinfo --version | grep -oP '(?<=GDAL )\d+.\d+.\d+')
           pip install GDAL==$GDAL_VERSION
+          pip install -r requirements.txt
 
       - name: Run plastic detection script
         run: python main.py
