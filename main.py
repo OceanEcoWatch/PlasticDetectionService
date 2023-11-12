@@ -10,7 +10,7 @@ from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
 
-from plastic_detection_service import sagemaker_endpoint
+from plastic_detection_service import config, sagemaker_endpoint
 from plastic_detection_service.db import (
     ClearWaterVector,
     PredictionRaster,
@@ -27,8 +27,6 @@ from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
     polygonize_raster,
 )
-
-from .plastic_detection_service import config
 
 
 @click.command()
