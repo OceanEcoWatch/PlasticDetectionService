@@ -1,9 +1,5 @@
 name: Scheduled Plastic Detection
 
-# on:
-#   schedule:
-#     # Runs every minute for testing purposes
-#     - cron: "* * * * *"
 on:
   pull_request:
     branches:
@@ -26,16 +22,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev
-          echo gdal-config --version
+
       - name: Install Python dependencies and GDAL
         run: |
           pip install -r requirements.txt
-          pip install GDAL==$(gdal-config --version)
+          GDAL_VERSION=$(gdal-config --version)
+          pip install GDAL==$GDAL_VERSION || (
+            echo "GDAL $GDAL_VERSION failed to install, retrying..." &&
+            sudo apt-get install -y python-gdal=$GDAL_VERSION &&
+            pip install GDAL==$GDAL_VERSION
+          )
       - name: Run plastic detection script
         run: python main.py
         env:
           DB_USER: ${{ secrets.DB_USER }}
-          DB_PW: ${{ secrets.DB_PW }}
+          DB_PW: ${{ secrets.DB_PASSWORD }}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_NAME: ${{ secrets.DB_NAME }}
