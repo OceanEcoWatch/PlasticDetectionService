@@ -25,12 +25,10 @@ jobs:
           wget http://download.osgeo.org/gdal/3.7.2/gdal-3.7.2.tar.gz
           tar xvfz gdal-3.7.2.tar.gz
           cd gdal-3.7.2
-          ./configure --with-python
           make
           sudo make install
 
-          sudo apt-get install gdal-bin
-          sudo apt-get install libgdal-dev
+
           export CPLUS_INCLUDE_PATH=/usr/include/gdal
           export C_INCLUDE_PATH=/usr/include/gdal
 
