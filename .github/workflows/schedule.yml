@@ -17,6 +17,13 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Cache GDAL installation
+        id: cache-gdal
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/gdal
+          key: gdal-3.7.2-${{ hashFiles('**/gdal-3.7.2.tar.gz') }}
+
       - name: Install build tools and dependencies
         run: |
           sudo apt-get update
@@ -32,27 +39,26 @@ jobs:
           sudo apt-get install -y cmake g++  # Install CMake and g++
 
       - name: Download, compile, and install GDAL
+        if: steps.cache-gdal.outputs.cache-hit != 'true'
         run: |
+          mkdir -p ${{ github.workspace }}/gdal
           wget http://download.osgeo.org/gdal/3.7.2/gdal-3.7.2.tar.gz
           tar xvfz gdal-3.7.2.tar.gz
           cd gdal-3.7.2
-
-          # Use CMake to configure, build, and install GDAL
           mkdir build
           cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+          cmake .. -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/gdal
           cmake --build . -- -j$(nproc)
           sudo cmake --install .
 
-      - name: Update library path
-        run: |
-          echo "/usr/local/lib" | sudo tee -a /etc/ld.so.conf.d/gdal.conf
-          sudo ldconfig
-
       - name: Set GDAL environment variables
         run: |
-          echo "CPLUS_INCLUDE_PATH=/usr/local/include/gdal" >> $GITHUB_ENV
-          echo "C_INCLUDE_PATH=/usr/local/include/gdal" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/gdal/bin" >> $GITHUB_PATH
+          echo "${{ github.workspace }}/gdal/lib" | sudo tee -a /etc/ld.so.conf.d/gdal.conf
+          sudo ldconfig
+          echo "CPLUS_INCLUDE_PATH=${{ github.workspace }}/gdal/include" >> $GITHUB_ENV
+          echo "C_INCLUDE_PATH=${{ github.workspace }}/gdal/include" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=${{ github.workspace }}/gdal/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
       - name: Install Python GDAL bindings
         run: |

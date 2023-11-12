@@ -24,7 +24,7 @@ Base = declarative_base()
 
 
 def get_db_engine():
-    return create_engine(POSTGIS_URL, echo=True)
+    return create_engine(POSTGIS_URL, echo=False)
 
 
 def create_postgis_db(engine):

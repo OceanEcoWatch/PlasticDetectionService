@@ -10,7 +10,7 @@ from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
 
-from plastic_detection_service import config, sagemaker_endpoint
+from plastic_detection_service import sagemaker_endpoint
 from plastic_detection_service.db import (
     ClearWaterVector,
     PredictionRaster,
@@ -28,6 +28,8 @@ from plastic_detection_service.to_vector import (
     polygonize_raster,
 )
 
+from .plastic_detection_service import config
+
 
 @click.command()
 @click.option(
@@ -42,7 +44,7 @@ from plastic_detection_service.to_vector import (
     nargs=2,
     type=str,
     help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
-    default=(get_past_date(7), get_today_str()),
+    default=(get_past_date(1), get_today_str()),
 )
 @click.option(
     "--maxcc",
