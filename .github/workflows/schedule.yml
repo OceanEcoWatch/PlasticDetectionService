@@ -37,7 +37,7 @@ jobs:
         run: |
           GDAL_VERSION=$(ogrinfo --version | grep -oP '(?<=GDAL )\d+.\d+.\d+')
           pip install GDAL==$GDAL_VERSION
-          pip install -r requirements.txt
+
       - name: Run plastic detection script
         run: python main.py
         env:
