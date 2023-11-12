@@ -44,6 +44,11 @@ jobs:
           cmake --build . -- -j$(nproc)
           sudo cmake --install .
 
+      - name: Update library path
+        run: |
+          echo "/usr/local/lib" | sudo tee -a /etc/ld.so.conf.d/gdal.conf
+          sudo ldconfig
+
       - name: Set GDAL environment variables
         run: |
           echo "CPLUS_INCLUDE_PATH=/usr/local/include/gdal" >> $GITHUB_ENV
