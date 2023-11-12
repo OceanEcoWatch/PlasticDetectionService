@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+from dt_util import get_past_date, get_today_str
 from sentinelhub import SHConfig
 
 load_dotenv()
@@ -18,7 +19,7 @@ DB_PORT = os.environ["DB_PORT"]
 POSTGIS_URL = f"postgresql://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 ENDPOINT_NAME = "MarineDebrisDetectorEndpoint"
 CONTENT_TYPE = "application/octet-stream"
-
+TIME_INTERVAL = (get_past_date(1), get_today_str())
 AOI = (
     120.53058253709094,
     14.384463071206468,

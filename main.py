@@ -18,7 +18,6 @@ from plastic_detection_service.db import (
     get_db_engine,
 )
 from plastic_detection_service.download_images import image_generator
-from plastic_detection_service.dt_util import get_past_date, get_today_str
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
@@ -42,7 +41,7 @@ from plastic_detection_service.to_vector import (
     nargs=2,
     type=str,
     help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
-    default=(get_past_date(1), get_today_str()),
+    default=config.TIME_INTERVAL,
 )
 @click.option(
     "--maxcc",
