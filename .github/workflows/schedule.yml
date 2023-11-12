@@ -31,6 +31,7 @@ jobs:
           wget http://download.osgeo.org/gdal/3.7.2/gdal-3.7.2.tar.gz
           tar xvfz gdal-3.7.2.tar.gz
           cd gdal-3.7.2
+          ls -l  # List files to verify the presence of the configure script
           ./configure --prefix=/usr/local
           make -j$(nproc)
           sudo make install
