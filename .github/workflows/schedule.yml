@@ -26,16 +26,23 @@ jobs:
           sudo apt-get install -y libjson-c-dev
           # Add other necessary dependencies here
 
-      - name: Download and compile GDAL
+      - name: Install CMake and other build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++  # Install CMake and g++
+
+      - name: Download, compile, and install GDAL
         run: |
           wget http://download.osgeo.org/gdal/3.7.2/gdal-3.7.2.tar.gz
           tar xvfz gdal-3.7.2.tar.gz
           cd gdal-3.7.2
-          ls -l  # List files to verify the presence of the configure script
-          ./configure --prefix=/usr/local
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
+
+          # Use CMake to configure, build, and install GDAL
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+          cmake --build . -- -j$(nproc)
+          sudo cmake --install .
 
       - name: Set GDAL environment variables
         run: |
