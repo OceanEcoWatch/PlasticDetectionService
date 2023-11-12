@@ -25,29 +25,19 @@ jobs:
 
       - name: Install build tools and dependencies
         run: |
+          sudo apt-get install python3.11-dev
+          sudo add-apt-repository ppa:ubuntugis/ppa
           sudo apt-get update
-          sudo apt-get install -y build-essential software-properties-common
-          sudo apt-get install -y libproj-dev proj-data proj-bin
-          sudo apt-get install -y libgeos-dev
-          sudo apt-get install -y libgdal-dev
-          sudo apt-get install -y libjson-c-dev
-      - name: Download GDAL source
+          sudo apt-get install gdal-bin
+          sudo apt-get install libgdal-dev
+          export CPLUS_INCLUDE_PATH=/usr/include/gdal
+          export C_INCLUDE_PATH=/usr/include/gdal
+
+      - name: Install Python dependencies
         run: |
-          GDAL_VERSION="3.7.2"
-          wget http://download.osgeo.org/gdal/$GDAL_VERSION/gdal-$GDAL_VERSION.tar.gz
-          tar -xzf gdal-$GDAL_VERSION.tar.gz
-      - name: Compile GDAL
-        run: |
-          cd gdal-$GDAL_VERSION
-          ./configure --prefix=/usr/local
-          make -j$(nproc)  # Compiles using all available cores
-      - name: Install GDAL
-        run: |
-          sudo make install
-          sudo ldconfig  # Update shared library cache.
-      - name: Verify GDAL installation
-        run: |
-          gdalinfo --version
+          python -m pip install --upgrade pip
+          pip install GDAL==$(ogrinfo --version)
+          pip install -r requirements.txt
       - name: Run plastic detection script
         run: python main.py
         env:
