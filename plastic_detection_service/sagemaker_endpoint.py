@@ -11,13 +11,14 @@ def invoke(endpoint_name: str, content_type: str, payload: bytes) -> bytes:
             Body=payload,
             Accept=content_type,
         )
+        prediction = response["Body"].read()
+        return prediction
+
     except ClientError as e:
         if "ThrottlingException" in str(e):
             print("ThrottlingException, retrying...")
-            response = invoke(endpoint_name, content_type, payload)
+            return invoke(endpoint_name, content_type, payload)
 
         else:
             print("Unexpected error: %s" % e)
             raise e
-    prediction = response["Body"].read()
-    return prediction
