@@ -1,19 +1,17 @@
 name: Scheduled Plastic Detection
 
-# on:
-#   schedule:
-#     # Runs every minute for testing purposes
-#     - cron: "* * * * *"
 on:
   pull_request:
     branches:
       - main
+
 jobs:
   plastic-detection-job:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -22,21 +20,34 @@ jobs:
       - name: Install build tools and dependencies
         run: |
           sudo apt-get update
+          sudo apt-get install -y build-essential software-properties-common
+          sudo apt-get install -y libproj-dev proj-data proj-bin
+          sudo apt-get install -y libgeos-dev
+          sudo apt-get install -y libjson-c-dev
+          # Add other necessary dependencies here
+
+      - name: Download and compile GDAL
+        run: |
           wget http://download.osgeo.org/gdal/3.7.2/gdal-3.7.2.tar.gz
           tar xvfz gdal-3.7.2.tar.gz
           cd gdal-3.7.2
-          make
+          ./configure --prefix=/usr/local
+          make -j$(nproc)
           sudo make install
+          sudo ldconfig
 
-
-          export CPLUS_INCLUDE_PATH=/usr/include/gdal
-          export C_INCLUDE_PATH=/usr/include/gdal
-
-      - name: Install Python dependencies
+      - name: Set GDAL environment variables
         run: |
-          GDAL_VERSION=$(ogrinfo --version | grep -oP '(?<=GDAL )\d+.\d+.\d+')
+          echo "CPLUS_INCLUDE_PATH=/usr/local/include/gdal" >> $GITHUB_ENV
+          echo "C_INCLUDE_PATH=/usr/local/include/gdal" >> $GITHUB_ENV
+
+      - name: Install Python GDAL bindings
+        run: |
+          GDAL_VERSION=$(ogrinfo --version | grep -oP '(?<=GDAL )\d+(\.\d+)+')
           pip install GDAL==$GDAL_VERSION
-          pip install -r requirements.txt
+
+      - name: Install other Python dependencies
+        run: pip install -r requirements.txt
 
       - name: Run plastic detection script
         run: python main.py
