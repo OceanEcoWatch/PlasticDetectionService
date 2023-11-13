@@ -67,6 +67,7 @@ def main(
     images = list(
         image_generator(bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc)
     )
+    images = [i for i in images if i is not None]
     LOGGER.info(f"Found {len(images)} images.")
     if len(images) == 0:
         LOGGER.info("No images found.")
@@ -172,6 +173,8 @@ def main(
                     session.bulk_save_objects(clear_waters)
                     session.commit()
                     LOGGER.info("Successfully added clear water vector to database.")
+            else:
+                LOGGER.info("No image data found.")
 
 
 if __name__ == "__main__":
