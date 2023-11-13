@@ -82,6 +82,7 @@ def main(
                     content_type=config.CONTENT_TYPE,
                     payload=_d.content,
                 )
+                print("Received prediction raster from sagemaker endpoint.")
                 scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
 
                 pred_rounded = round_to_nearest_5_int(io.BytesIO(scaled_pred_raster))

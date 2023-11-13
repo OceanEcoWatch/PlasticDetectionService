@@ -1,8 +1,9 @@
 import os
 
 from dotenv import load_dotenv
-from dt_util import get_past_date, get_today_str
 from sentinelhub import SHConfig
+
+from plastic_detection_service.dt_util import get_past_date, get_today_str
 
 load_dotenv()
 
