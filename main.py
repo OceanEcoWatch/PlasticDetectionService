@@ -68,6 +68,10 @@ def main(
         image_generator(bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc)
     )
     LOGGER.info(f"Found {len(images)} images.")
+    if len(images) == 0:
+        LOGGER.info("No images found.")
+        return
+
     for data in images:
         for _d in data:
             if _d.content is not None:
