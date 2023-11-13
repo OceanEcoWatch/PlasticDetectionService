@@ -1,4 +1,3 @@
-import datetime
 import io
 import json
 import logging
@@ -19,6 +18,7 @@ from plastic_detection_service.db import (
     get_db_engine,
 )
 from plastic_detection_service.download_images import image_generator
+from plastic_detection_service.dt_util import get_today_str
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
@@ -71,9 +71,7 @@ def main(
     for data in images:
         for _d in data:
             if _d.content is not None:
-                timestamp = datetime.datetime.strptime(
-                    _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
-                )
+                timestamp = get_today_str()
                 LOGGER.info(f"Processing image from {timestamp}...")
                 raster_ds = get_gdal_ds_from_memory(_d.content)
                 clear_water_mask = raster_to_wgs84(
