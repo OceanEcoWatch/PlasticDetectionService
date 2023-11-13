@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from sentinelhub import SHConfig
 
-from plastic_detection_service.dt_util import get_past_date, get_today_str
+from plastic_detection_service.dt_util import get_today_str
 
 load_dotenv()
 
@@ -20,12 +20,12 @@ DB_PORT = os.environ["DB_PORT"]
 POSTGIS_URL = f"postgresql://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 ENDPOINT_NAME = "MarineDebrisDetectorEndpoint"
 CONTENT_TYPE = "application/octet-stream"
-TIME_INTERVAL = (get_past_date(1), get_today_str())
+TIME_INTERVAL = (get_today_str(), get_today_str())
 AOI = (
-    120.53058253709094,
-    14.384463071206468,
-    120.99038315968619,
-    14.812423505754381,
+    120.82481750015815,
+    14.619576605802296,
+    120.82562856620629,
+    14.66462165084734,
 )  # manilla bay
 
 SH_CONFIG = SHConfig(
