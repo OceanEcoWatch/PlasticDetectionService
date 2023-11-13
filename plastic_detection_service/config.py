@@ -27,6 +27,7 @@ AOI = (
     120.82562856620629,
     14.66462165084734,
 )  # manilla bay
+MAX_CC = 0.1
 
 SH_CONFIG = SHConfig(
     instance_id=SH_INSTANCE_ID,

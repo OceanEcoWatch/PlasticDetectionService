@@ -51,7 +51,7 @@ LOGGER = logging.getLogger(__name__)
 @click.option(
     "--maxcc",
     type=float,
-    default=0.5,
+    default=config.MAX_CC,
     help="Maximum cloud cover of the images to be processed.",
 )
 def main(
@@ -64,9 +64,11 @@ def main(
         [bbox_crs], crs=CRS.WGS84, bbox_size=5000
     ).get_bbox_list()
 
-    for data in image_generator(
-        bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc
-    ):
+    images = list(
+        image_generator(bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc)
+    )
+    LOGGER.info(f"Found {len(images)} images.")
+    for data in images:
         for _d in data:
             if _d.content is not None:
                 timestamp = datetime.datetime.strptime(
