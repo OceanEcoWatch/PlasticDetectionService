@@ -7,3 +7,7 @@ The purpose of the plastic detection server is to fetch sentinel-2 imagery from 
 ## Architecture Diagram
 
 ![architecture_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/geom_based_architecture.png?raw=true)
+
+## Cloud Architecture Diagram
+
+![cloud_architecture_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/PlasticDetectionService.png?raw=true)
