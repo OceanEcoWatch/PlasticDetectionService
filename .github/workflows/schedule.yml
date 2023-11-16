@@ -2,7 +2,8 @@ name: Scheduled Plastic Detection
 
 on:
   schedule:
-    - cron: "0 12 * * *"
+    # weekly on Monday at 12:00 UTC
+    - cron: "0 12 * * 1"
 
 jobs:
   plastic-detection-job:
