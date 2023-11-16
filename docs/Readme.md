@@ -2,7 +2,7 @@
 
 [![Scheduled Plastic Detection](https://github.com/OceanEcoWatch/PlasticDetectionService/actions/workflows/schedule.yml/badge.svg?branch=main)](https://github.com/OceanEcoWatch/PlasticDetectionService/actions/workflows/schedule.yml)
 
-The purpose of the plastic detection server is to fetch sentinel-2 imagery from sentinel hub and detect marine debris.
+This repository contains a cloud-based pipeline for predicting marine debris from Sentinel-2 L2A images using machine learning. The predictions are made using the [PlasticDetectionModel](https://github.com/OceanEcoWatch/PlasticDetectionModel) hosted on an custom AWS SageMaker serverless instance. The output is stored in a PostGIS database hosted on AWS RDS. The pipeline is automated to run on a weekly schedule through GitHub Actions.
 
 ## Architecture Diagram
 
@@ -11,3 +11,4 @@ The purpose of the plastic detection server is to fetch sentinel-2 imagery from 
 ## Cloud Architecture Diagram
 
 ![cloud_architecture_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/PlasticDetectionService.png?raw=true)
+
