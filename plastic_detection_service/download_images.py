@@ -93,10 +93,10 @@ def image_generator(
     bbox_list: list[BBox],
     time_interval: tuple[str, str],
     evalscript: str,
-    maxcc: Optional[float] = None,
+    maxcc: float,
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
-) -> Generator[list[DownloadResponse], None, None]:
+) -> Generator[list[TimestampResponse], None, None]:
     """Generator that streams in images from sentinel hub.
 
     :param bbox_list: list of bounding boxes
