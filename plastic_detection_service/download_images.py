@@ -5,6 +5,7 @@ from sentinelhub import (
     BBox,
     DataCollection,
     MimeType,
+    SentinelHubCatalog,
     SentinelHubRequest,
     SHConfig,
     bbox_to_dimensions,
@@ -12,6 +13,21 @@ from sentinelhub import (
 from sentinelhub.download.models import DownloadResponse
 
 from plastic_detection_service.config import SH_CONFIG
+
+
+def search_images(
+    config: SHConfig,
+    bbox: BBox,
+    time_interval: tuple[str, str],
+    maxcc: float,
+    data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
+):
+    catalog = SentinelHubCatalog(config=config)
+    images = catalog.search(
+        bbox=bbox, time=time_interval, collection=data_collection, filter=f"eo:cloud_cover<={maxcc * 100}"
+    )
+
+    return images
 
 
 def stream_in_images(
