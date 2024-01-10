@@ -60,13 +60,9 @@ def main(
     maxcc: float,
 ):
     bbox_crs = BBox(bbox, crs=CRS.WGS84)
-    bbox_list = UtmZoneSplitter(
-        [bbox_crs], crs=CRS.WGS84, bbox_size=5000
-    ).get_bbox_list()
+    bbox_list = UtmZoneSplitter([bbox_crs], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
 
-    images = list(
-        image_generator(bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc)
-    )
+    images = list(image_generator(bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc))
     images = [i for i in images if i is not None]
     LOGGER.info(f"Found {len(images)} images.")
     if len(images) == 0:
@@ -76,14 +72,13 @@ def main(
     for data in images:
         for _d in data:
             if _d.content is not None:
-                timestamp = datetime.datetime.strptime(
-                    _d.headers["Date"], "%a, %d %b %Y %H:%M:%S %Z"
-                )
-                LOGGER.info(f"Processing image from {timestamp}...")
+                date_str = _d.timestamp.rstrip("Z")
+                timestamp = datetime.datetime.fromisoformat(date_str)
+                timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
+
+                LOGGER.info(f"Processing image from {timestamp} at {_d.bbox}.")
                 raster_ds = get_gdal_ds_from_memory(_d.content)
-                clear_water_mask = raster_to_wgs84(
-                    raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
-                )
+                clear_water_mask = raster_to_wgs84(raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour)
 
                 clear_water_ds = polygonize_raster(clear_water_mask)
                 clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
@@ -102,9 +97,7 @@ def main(
                 pred_raster_ds = get_gdal_ds_from_memory(pred_rounded)
 
                 LOGGER.info("Reprojecting prediction raster...")
-                wgs84_raster = raster_to_wgs84(
-                    pred_raster_ds, resample_alg=gdal.GRA_Cubic
-                )
+                wgs84_raster = raster_to_wgs84(pred_raster_ds, resample_alg=gdal.GRA_Cubic)
                 LOGGER.info("Transforming prediction raster to vector...")
                 pred_polys_ds = polygonize_raster(wgs84_raster)
                 LOGGER.info("Filtering out no data polygons...")
@@ -142,11 +135,7 @@ def main(
 
                     db_vectors = []
                     for feature in pred_polys_ds.GetLayer():
-                        pixel_value = int(
-                            json.loads(feature.ExportToJson())["properties"][
-                                "pixel_value"
-                            ]
-                        )
+                        pixel_value = int(json.loads(feature.ExportToJson())["properties"]["pixel_value"])
                         geom = from_shape(
                             shape(json.loads(feature.ExportToJson())["geometry"]),
                             srid=4326,

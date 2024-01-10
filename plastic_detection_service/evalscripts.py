@@ -10,7 +10,8 @@ function setup() {
     output: {
       id: "default",
       bands: 12,
-      sampleType: SampleType.UINT16
+      sampleType: SampleType.UINT16,
+      mosaicing: Mosaicing.ORBIT
     }
   }
 }
@@ -37,7 +38,6 @@ function setup() {
     }
   }
 }
-
 function evaluatePixel(sample) {
   // Use SCL for clear water mask. SCL value 6 indicates clear water.
   var waterMask = (sample.SCL !== 6) ? 1 : 0;
