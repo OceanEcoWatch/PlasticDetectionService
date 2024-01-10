@@ -1,9 +1,8 @@
 import datetime
 import os
-from typing import Optional
 
 import psycopg2
-from geoalchemy2 import Geometry, Raster, RasterElement
+from geoalchemy2 import Geometry
 from geoalchemy2.types import WKBElement
 from sqlalchemy import (
     Column,
@@ -38,7 +37,6 @@ def create_postgis_db(engine):
     )
     cursor = conn.cursor()
     cursor.execute("CREATE EXTENSION postgis")
-    cursor.execute("CREATE EXTENSION postgis_raster")
     conn.commit()
     cursor.close()
     conn.close()
@@ -57,16 +55,16 @@ def create_tables(engine, base):
 
 def create_triggers():
     custom_trigger_function_sql = """
-    CREATE OR REPLACE FUNCTION prevent_duplicate_raster_insert()
+    CREATE OR REPLACE FUNCTION prevent_duplicate_bbox_insert()
     RETURNS TRIGGER AS $$
     BEGIN
         IF EXISTS (
             SELECT 1
-            FROM prediction_rasters
+            FROM prediction_bbox
             WHERE timestamp = NEW.timestamp
             AND ST_Equals(bbox, NEW.bbox)
         ) THEN
-            RAISE EXCEPTION 'Duplicate raster insert not allowed.';
+            RAISE EXCEPTION 'Duplicate bbox and timestamp insert not allowed.';
         END IF;
         RETURN NEW;
     END;
@@ -74,10 +72,10 @@ def create_triggers():
     """
 
     trigger_sql = """
-    CREATE TRIGGER check_duplicate_raster_insert
-    BEFORE INSERT ON prediction_rasters
+    CREATE TRIGGER check_duplicate_bbox_insert
+    BEFORE INSERT ON prediction_bbox
     FOR EACH ROW
-    EXECUTE FUNCTION prevent_duplicate_raster_insert();
+    EXECUTE FUNCTION prevent_duplicate_bbox_insert();
     """
 
     conn = psycopg2.connect(
@@ -95,59 +93,39 @@ def create_triggers():
     conn.close()
 
 
-class PredictionRaster(Base):
-    __tablename__ = "prediction_rasters"
+class PredictionBbox(Base):
+    __tablename__ = "prediction_bbox"
 
     id = Column(Integer, primary_key=True)
+    sentinel_hub_id = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False)
-    bbox = Column(Geometry(geometry_type="POLYGON", srid=4326))
-    dtype = Column(String)
-    width = Column(Integer)
-    height = Column(Integer)
-    bands = Column(Integer)
-    prediction_mask = Column(Raster, nullable=False)
-    clear_water_mask = Column(Raster, nullable=True)
+    bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
-    __table_args__ = (UniqueConstraint("timestamp", "bbox", name="uq_timestamp_bbox"),)
+    __table_args__ = (UniqueConstraint("timestamp", "bbox", name="_timestamp_bbox_uc"),)
 
     def __init__(
         self,
         timestamp: datetime.datetime,
         bbox: WKBElement,
-        dtype: str,
-        width: int,
-        height: int,
-        bands: int,
-        prediction_mask: RasterElement,
-        clear_water_mask: Optional[RasterElement] = None,
     ):
         self.timestamp = timestamp
         self.bbox = bbox
-        self.dtype = dtype
-        self.width = width
-        self.height = height
-        self.bands = bands
-        self.prediction_mask = prediction_mask
-        self.clear_water_mask = clear_water_mask
 
 
 class PredictionVector(Base):
     __tablename__ = "prediction_vectors"
 
     id = Column(Integer, primary_key=True)
-    pixel_value = Column(Integer)
+    pixel_value = Column(Integer, nullable=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
-    prediction_raster_id = Column(
-        Integer, ForeignKey("prediction_rasters.id"), nullable=False
-    )
-    prediction_raster = relationship("PredictionRaster", backref="prediction_vectors")
+    prediction_bbox_id = Column(Integer, ForeignKey("prediction_bbox.id"), nullable=False)
+    prediction_bbox = relationship("PredictionBbox", backref="prediction_bbox")
 
-    def __init__(
-        self, pixel_value: int, geometry: WKBElement, prediction_raster_id: int
-    ):
+    def __init__(self, sentinel_hub_id, pixel_value: int, geometry: WKBElement, prediction_bbox_id: int):
+        self.sentinel_hub_id = sentinel_hub_id
         self.pixel_value = pixel_value
         self.geometry = geometry
-        self.prediction_raster_id = prediction_raster_id
+        self.prediction_bbox_id = prediction_bbox_id
 
 
 class ClearWaterVector(Base):
@@ -155,14 +133,12 @@ class ClearWaterVector(Base):
 
     id = Column(Integer, primary_key=True)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
-    prediction_raster_id = Column(
-        Integer, ForeignKey("prediction_rasters.id"), nullable=False
-    )
-    prediction_raster = relationship("PredictionRaster", backref="clear_water_vectors")
+    prediction_bbox_id = Column(Integer, ForeignKey("prediction_bbox.id"), nullable=False)
+    prediction_bbox = relationship("PredictionBbox", backref="clear_water_vectors")
 
-    def __init__(self, geometry: WKBElement, prediction_raster_id: int):
+    def __init__(self, geometry: WKBElement, prediction_bbox_id: int):
         self.geometry = geometry
-        self.prediction_raster_id = prediction_raster_id
+        self.prediction_bbox_id = prediction_bbox_id
 
 
 if __name__ == "__main__":

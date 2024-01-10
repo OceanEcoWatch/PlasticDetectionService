@@ -39,6 +39,7 @@ def test_stream_in_images():
         config=SH_CONFIG, bbox=bbox, time_interval=time_interval, maxcc=0.1, evalscript=evalscript
     )
     if download_responses:
+        print(download_responses)
         assert len(download_responses) == 1
         assert download_responses[0].status_code == 200
         assert download_responses[0].content is not None
