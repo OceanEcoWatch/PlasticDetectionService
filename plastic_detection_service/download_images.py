@@ -1,4 +1,3 @@
-import os
 from typing import Generator, Optional
 
 from sentinelhub import (
@@ -13,6 +12,13 @@ from sentinelhub import (
 from sentinelhub.download.models import DownloadResponse
 
 from plastic_detection_service.config import SH_CONFIG
+
+
+class TimestampResponse(DownloadResponse):
+    def __init__(self, timestamp: str, bbox: BBox, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.timestamp = timestamp
+        self.bbox = bbox
 
 
 def search_images(
@@ -35,31 +41,52 @@ def stream_in_images(
     bbox: BBox,
     time_interval: tuple[str, str],
     evalscript: str,
-    maxcc: Optional[float] = None,
+    maxcc: float,
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
     output_folder: str = "images",
-) -> Optional[list[DownloadResponse]]:
-    os.makedirs(output_folder, exist_ok=True)
+) -> Optional[list[TimestampResponse]]:
+    images_search = list(search_images(config, bbox, time_interval, maxcc, data_collection))
+    if not images_search:
+        return None
     bbox_size = bbox_to_dimensions(bbox, resolution=10)
-    request = SentinelHubRequest(
-        evalscript=evalscript,
-        size=bbox_size,
-        input_data=[
-            SentinelHubRequest.input_data(
-                data_collection=data_collection,
-                time_interval=time_interval,
-                maxcc=maxcc,
-            )
-        ],
-        responses=[SentinelHubRequest.output_response("default", mime_type)],
-        bbox=bbox,
-        config=config,
-        data_folder=output_folder,
-    )
-    data = request.get_data(decode_data=False)
 
-    return data
+    timestamp_responses = []
+    for image in images_search:
+        _ti = image["properties"]["datetime"], image["properties"]["datetime"]
+        request = SentinelHubRequest(
+            evalscript=evalscript,
+            size=bbox_size,
+            input_data=[
+                SentinelHubRequest.input_data(
+                    data_collection=data_collection,
+                    time_interval=_ti,
+                    maxcc=maxcc,
+                )
+            ],
+            responses=[SentinelHubRequest.output_response("default", mime_type)],
+            bbox=bbox,
+            config=config,
+            data_folder=output_folder,
+        )
+        response_list = request.get_data(decode_data=False)
+
+        if len(response_list) != 1:
+            raise ValueError("Expected only one image to be returned.")
+        response = response_list[0]
+        timestamp_responses.append(
+            TimestampResponse(
+                image["properties"]["datetime"],
+                bbox,
+                request=response.request,
+                content=response.content,
+                status_code=response.status_code,
+                headers=response.headers,
+                elapsed=response.elapsed,
+            )
+        )
+
+    return timestamp_responses
 
 
 def image_generator(
