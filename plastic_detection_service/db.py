@@ -3,8 +3,18 @@ import os
 
 import psycopg2
 from geoalchemy2 import Geometry
-from geoalchemy2.types import WKBElement
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, create_engine, inspect
+from geoalchemy2.elements import WKBElement
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    create_engine,
+    inspect,
+)
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import create_database, database_exists
 
@@ -95,16 +105,42 @@ class SentinelHubResponse(Base):
     sentinel_hub_id = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+    image_width = Column(Integer, nullable=False)
+    image_height = Column(Integer, nullable=False)
+    max_cc = Column(Integer, nullable=False)
+    data_collection = Column(String, nullable=False)
+    mime_type = Column(String, nullable=False)
+    evalscript = Column(String, nullable=False)
+    request_datetime = Column(DateTime, nullable=False)
+    processing_units_spent = Column(Float, nullable=False)
 
     __table_args__ = (UniqueConstraint("sentinel_hub_id", "timestamp", "bbox"),)
 
     def __init__(
         self,
+        sentinel_hub_id: str,
         timestamp: datetime.datetime,
         bbox: WKBElement,
+        image_width: int,
+        image_height: int,
+        max_cc: float,
+        data_collection: str,
+        mime_type: str,
+        evalscript: str,
+        request_datetime: datetime.datetime,
+        processing_units_spent: float,
     ):
+        self.sentinel_hub_id = sentinel_hub_id
         self.timestamp = timestamp
         self.bbox = bbox
+        self.image_width = image_width
+        self.image_height = image_height
+        self.max_cc = max_cc
+        self.data_collection = data_collection
+        self.mime_type = mime_type
+        self.evalscript = evalscript
+        self.request_datetime = request_datetime
+        self.processing_units_spent = processing_units_spent
 
 
 class PredictionVector(Base):
@@ -116,8 +152,7 @@ class PredictionVector(Base):
     sentinel_hub_response_id = Column(Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False)
     sentinel_hub_response = relationship("SentinelHubResponse", backref="prediction_vectors")
 
-    def __init__(self, sentinel_hub_id, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int):
-        self.sentinel_hub_id = sentinel_hub_id
+    def __init__(self, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int):
         self.pixel_value = pixel_value
         self.geometry = geometry
         self.sentinel_hub_response_id = sentinel_hub_response_id
@@ -129,7 +164,7 @@ class ClearWaterVector(Base):
     id = Column(Integer, primary_key=True)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     sentinel_hub_response_id = Column(Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False)
-    sentinel_hub_response = relationship("SntinelHubResponse", backref="clear_water_vectors")
+    sentinel_hub_response = relationship("SentinelHubResponse", backref="clear_water_vectors")
 
     def __init__(self, geometry: WKBElement, sentinel_hub_response_id: int):
         self.geometry = geometry

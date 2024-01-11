@@ -1,5 +1,9 @@
+import logging
+
 import boto3
 from botocore.exceptions import ClientError
+
+LOGGER = logging.getLogger(__name__)
 
 
 def invoke(
@@ -24,9 +28,9 @@ def invoke(
 
     except ClientError as e:
         if "ThrottlingException" in str(e):
-            print("ThrottlingException, retrying...")
+            LOGGER.warning("ThrottlingException, retrying...")
             return invoke(endpoint_name, content_type, payload, retry_count + 1)
 
         else:
-            print("Unexpected error: %s" % e)
+            LOGGER.error("Unexpected error: %s" % e)
             raise e

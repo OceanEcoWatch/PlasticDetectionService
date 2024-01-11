@@ -1,4 +1,3 @@
-import datetime
 import io
 import json
 import logging
@@ -71,10 +70,7 @@ def main(
     for data in images:
         for _d in data:
             if _d.content is not None:
-                date_str = _d.timestamp.rstrip("Z")
-                timestamp = datetime.datetime.fromisoformat(date_str)
-                timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
-                LOGGER.info(f"Processing image from {timestamp} at {_d.bbox}.")
+                LOGGER.info(f"Processing image from {_d.timestamp} at {_d.bbox}.")
                 raster_ds = get_gdal_ds_from_memory(_d.content)
                 clear_water_mask = raster_to_wgs84(raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour)
 
@@ -107,11 +103,20 @@ def main(
                 )
                 LOGGER.info("Saving in DB...")
                 with Session(get_db_engine()) as session:
-                    db_raster = SentinelHubResponse(
-                        timestamp=timestamp,
+                    db_sh_resp = SentinelHubResponse(
+                        sentinel_hub_id=_d.sentinel_hub_id,
+                        timestamp=_d.timestamp,
                         bbox=wkb_geometry,
+                        image_width=_d.image_size[0],
+                        image_height=_d.image_size[1],
+                        max_cc=_d.max_cc,
+                        data_collection=_d.data_collection.value.api_id,
+                        mime_type=_d.mime_type.value,
+                        evalscript=_d.evalscript,
+                        request_datetime=_d.request_datetime,
+                        processing_units_spent=_d.processing_units_spent,
                     )
-                    session.add(db_raster)
+                    session.add(db_sh_resp)
                     session.commit()
                     LOGGER.info("Successfully added prediction raster to database.")
 
@@ -125,7 +130,7 @@ def main(
                         db_vector = PredictionVector(
                             pixel_value=pixel_value,
                             geometry=geom,
-                            prediction_raster_id=db_raster.id,  # type: ignore
+                            sentinel_hub_response_id=db_sh_resp.id,  # type: ignore
                         )
                         db_vectors.append(db_vector)
                     session.bulk_save_objects(db_vectors)
@@ -140,7 +145,7 @@ def main(
                         )
                         clear_water_db = ClearWaterVector(
                             geometry=geom,
-                            prediction_raster_id=db_raster.id,  # type: ignore
+                            sentinel_hub_response_id=db_sh_resp.id,  # type: ignore
                         )
                         clear_waters.append(clear_water_db)
                     session.bulk_save_objects(clear_waters)

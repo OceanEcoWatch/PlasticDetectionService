@@ -1,3 +1,4 @@
+import datetime
 from typing import Generator, Optional
 
 from sentinelhub import (
@@ -15,10 +16,32 @@ from plastic_detection_service.config import SH_CONFIG
 
 
 class TimestampResponse(DownloadResponse):
-    def __init__(self, timestamp: str, bbox: BBox, *args, **kwargs):
+    def __init__(
+        self,
+        sentinel_hub_id: str,
+        timestamp: datetime.datetime,
+        bbox: BBox,
+        image_size: tuple[int, int],
+        max_cc: float,
+        data_collection: DataCollection,
+        mime_type: MimeType,
+        evalscript: str,
+        request_datetime: datetime.datetime,
+        processing_units_spent: float,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+        self.sentinel_hub_id = sentinel_hub_id
         self.timestamp = timestamp
         self.bbox = bbox
+        self.image_size = image_size
+        self.max_cc = max_cc
+        self.data_collection = data_collection
+        self.mime_type = mime_type
+        self.evalscript = evalscript
+        self.request_datetime = request_datetime
+        self.processing_units_spent = processing_units_spent
 
 
 def search_images(
@@ -44,7 +67,6 @@ def stream_in_images(
     maxcc: float,
     data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
     mime_type: MimeType = MimeType.TIFF,
-    output_folder: str = "images",
 ) -> Optional[list[TimestampResponse]]:
     images_search = list(search_images(config, bbox, time_interval, maxcc, data_collection))
     if not images_search:
@@ -67,17 +89,25 @@ def stream_in_images(
             responses=[SentinelHubRequest.output_response("default", mime_type)],
             bbox=bbox,
             config=config,
-            data_folder=output_folder,
         )
         response_list = request.get_data(decode_data=False)
 
         if len(response_list) != 1:
             raise ValueError("Expected only one image to be returned.")
         response = response_list[0]
+
         timestamp_responses.append(
             TimestampResponse(
-                image["properties"]["datetime"],
+                image["id"],
+                datetime.datetime.fromisoformat(image["properties"]["datetime"].rstrip("Z")),
                 bbox,
+                bbox_size,
+                maxcc,
+                data_collection,
+                mime_type,
+                evalscript,
+                datetime.datetime.strptime(response.headers["Date"], "%a, %d %b %Y %H:%M:%S GMT"),
+                processing_units_spent=float(response.headers["x-processingunits-spent"]),
                 request=response.request,
                 content=response.content,
                 status_code=response.status_code,
