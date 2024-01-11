@@ -3,8 +3,9 @@ import json
 import logging
 
 import click
+from geoalchemy2.elements import WKBElement
 from geoalchemy2.shape import from_shape
-from osgeo import gdal
+from osgeo import gdal, ogr
 from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
@@ -16,7 +17,7 @@ from plastic_detection_service.db import (
     SentinelHubResponse,
     get_db_engine,
 )
-from plastic_detection_service.download_images import image_generator
+from plastic_detection_service.download_images import TimestampResponse, image_generator
 from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
@@ -60,99 +61,121 @@ def main(
     bbox_crs = BBox(bbox, crs=CRS.WGS84)
     bbox_list = UtmZoneSplitter([bbox_crs], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
 
-    images = list(image_generator(bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc))
-    images = [i for i in images if i is not None]
-    LOGGER.info(f"Found {len(images)} images.")
-    if len(images) == 0:
+    image_gen = list(image_generator(bbox_list, time_interval, L2A_12_BANDS_CLEAR_WATER_MASK, maxcc))
+    image_list = [i for i in image_gen if i is not None]
+    LOGGER.info(f"Found {len(image_list)} images.")
+    if len(image_list) == 0:
         LOGGER.info("No images found.")
         return
 
-    for data in images:
+    for data in image_list:
         for _d in data:
             if _d.content is not None:
-                LOGGER.info(f"Processing image from {_d.timestamp} at {_d.bbox}.")
-                raster_ds = get_gdal_ds_from_memory(_d.content)
-                clear_water_mask = raster_to_wgs84(raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour)
-
-                clear_water_ds = polygonize_raster(clear_water_mask)
-                clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
-
-                LOGGER.info("Sending image to sagemaker endpoint...")
-                pred_raster = sagemaker_endpoint.invoke(
-                    endpoint_name=config.ENDPOINT_NAME,
-                    content_type=config.CONTENT_TYPE,
-                    payload=_d.content,
-                )
-                LOGGER.info("Received prediction raster from sagemaker endpoint.")
-                scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
-
-                LOGGER.info("Postprocessing prediction raster...")
-                pred_rounded = round_to_nearest_5_int(io.BytesIO(scaled_pred_raster))
-                pred_raster_ds = get_gdal_ds_from_memory(pred_rounded)
-
-                LOGGER.info("Reprojecting prediction raster...")
-                wgs84_raster = raster_to_wgs84(pred_raster_ds, resample_alg=gdal.GRA_Cubic)
-                LOGGER.info("Transforming prediction raster to vector...")
-                pred_polys_ds = polygonize_raster(wgs84_raster)
-                LOGGER.info("Filtering out no data polygons...")
-                pred_polys_ds = filter_out_no_data_polygons(pred_polys_ds, threshold=30)
-
-                wkb_geometry = from_shape(
-                    box(*_d.bbox, ccw=True),
-                    srid=4326,
-                )
-                LOGGER.info("Saving in DB...")
-                with Session(get_db_engine()) as session:
-                    db_sh_resp = SentinelHubResponse(
-                        sentinel_hub_id=_d.sentinel_hub_id,
-                        timestamp=_d.timestamp,
-                        bbox=wkb_geometry,
-                        image_width=_d.image_size[0],
-                        image_height=_d.image_size[1],
-                        max_cc=_d.max_cc,
-                        data_collection=_d.data_collection.value.api_id,
-                        mime_type=_d.mime_type.value,
-                        evalscript=_d.evalscript,
-                        request_datetime=_d.request_datetime,
-                        processing_units_spent=_d.processing_units_spent,
-                    )
-                    session.add(db_sh_resp)
-                    session.commit()
-                    LOGGER.info("Successfully added prediction raster to database.")
-
-                    db_vectors = []
-                    for feature in pred_polys_ds.GetLayer():
-                        pixel_value = int(json.loads(feature.ExportToJson())["properties"]["pixel_value"])
-                        geom = from_shape(
-                            shape(json.loads(feature.ExportToJson())["geometry"]),
-                            srid=4326,
-                        )
-                        db_vector = PredictionVector(
-                            pixel_value=pixel_value,
-                            geometry=geom,
-                            sentinel_hub_response_id=db_sh_resp.id,  # type: ignore
-                        )
-                        db_vectors.append(db_vector)
-                    session.bulk_save_objects(db_vectors)
-                    session.commit()
-                    LOGGER.info("Successfully added prediction vector to database.")
-
-                    clear_waters = []
-                    for feature in clear_water_ds.GetLayer():
-                        geom = from_shape(
-                            shape(json.loads(feature.ExportToJson())["geometry"]),
-                            srid=4326,
-                        )
-                        clear_water_db = ClearWaterVector(
-                            geometry=geom,
-                            sentinel_hub_response_id=db_sh_resp.id,  # type: ignore
-                        )
-                        clear_waters.append(clear_water_db)
-                    session.bulk_save_objects(clear_waters)
-                    session.commit()
-                    LOGGER.info("Successfully added clear water vector to database.")
+                process_image(_d)
             else:
                 LOGGER.info("No image data found.")
+
+
+def process_image(image: TimestampResponse) -> None:
+    LOGGER.info(f"Processing image from {image.timestamp} at {image.bbox}.")
+    raster_ds = get_gdal_ds_from_memory(image.content)
+    clear_water_mask = raster_to_wgs84(raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour)
+
+    clear_water_ds = polygonize_raster(clear_water_mask)
+    clear_water_ds = filter_out_no_data_polygons(clear_water_ds)
+
+    LOGGER.info("Sending image to sagemaker endpoint...")
+    pred_raster = sagemaker_endpoint.invoke(
+        endpoint_name=config.ENDPOINT_NAME,
+        content_type=config.CONTENT_TYPE,
+        payload=image.content,
+    )
+    LOGGER.info("Received prediction raster from sagemaker endpoint.")
+    scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
+
+    LOGGER.info("Postprocessing prediction raster...")
+    pred_rounded = round_to_nearest_5_int(io.BytesIO(scaled_pred_raster))
+    pred_raster_ds = get_gdal_ds_from_memory(pred_rounded)
+
+    LOGGER.info("Reprojecting prediction raster...")
+    wgs84_raster = raster_to_wgs84(pred_raster_ds, resample_alg=gdal.GRA_Cubic)
+    LOGGER.info("Transforming prediction raster to vector...")
+    pred_polys_ds = polygonize_raster(wgs84_raster)
+    LOGGER.info("Filtering out no data polygons...")
+    pred_polys_ds = filter_out_no_data_polygons(pred_polys_ds, threshold=30)
+
+    width = wgs84_raster.RasterXSize
+    height = wgs84_raster.RasterYSize
+    transform = wgs84_raster.GetGeoTransform()
+    bbox = (
+        transform[0],
+        transform[3],
+        transform[0] + transform[1] * width,
+        transform[3] + transform[5] * height,
+    )
+
+    wkb_geometry = from_shape(box(*bbox), srid=4326)
+
+    return insert_db(image, pred_polys_ds, clear_water_ds, wkb_geometry)
+
+
+def insert_db(
+    image: TimestampResponse,
+    pred_polys_ds: ogr.DataSource,
+    clear_water_ds: ogr.DataSource,
+    wkb_geometry: WKBElement,
+) -> None:
+    LOGGER.info("Saving in DB...")
+
+    with Session(get_db_engine()) as session:
+        db_sh_resp = SentinelHubResponse(
+            sentinel_hub_id=image.sentinel_hub_id,
+            timestamp=image.timestamp,
+            bbox=wkb_geometry,
+            image_width=image.image_size[0],
+            image_height=image.image_size[1],
+            max_cc=image.max_cc,
+            data_collection=image.data_collection.value.api_id,
+            mime_type=image.mime_type.value,
+            evalscript=image.evalscript,
+            request_datetime=image.request_datetime,
+            processing_units_spent=image.processing_units_spent,
+        )
+        session.add(db_sh_resp)
+        session.commit()
+        LOGGER.info("Successfully added prediction raster to database.")
+
+        db_vectors = []
+        for feature in pred_polys_ds.GetLayer():
+            pixel_value = int(json.loads(feature.ExportToJson())["properties"]["pixel_value"])
+            geom = from_shape(
+                shape(json.loads(feature.ExportToJson())["geometry"]),
+                srid=4326,
+            )
+            db_vector = PredictionVector(
+                pixel_value=pixel_value,
+                geometry=geom,
+                sentinel_hub_response_id=db_sh_resp.id,  # type: ignore
+            )
+            db_vectors.append(db_vector)
+        session.bulk_save_objects(db_vectors)
+        session.commit()
+        LOGGER.info("Successfully added prediction vector to database.")
+
+        clear_waters = []
+        for feature in clear_water_ds.GetLayer():
+            geom = from_shape(
+                shape(json.loads(feature.ExportToJson())["geometry"]),
+                srid=4326,
+            )
+            clear_water_db = ClearWaterVector(
+                geometry=geom,
+                sentinel_hub_response_id=db_sh_resp.id,  # type: ignore
+            )
+            clear_waters.append(clear_water_db)
+        session.bulk_save_objects(clear_waters)
+        session.commit()
+        LOGGER.info("Successfully added clear water vector to database.")
 
 
 if __name__ == "__main__":
