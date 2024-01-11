@@ -5,7 +5,6 @@ import logging
 
 import click
 from geoalchemy2.shape import from_shape
-from geoalchemy2.types import RasterElement
 from osgeo import gdal
 from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
@@ -14,8 +13,8 @@ from sqlalchemy.orm import Session
 from plastic_detection_service import config, sagemaker_endpoint
 from plastic_detection_service.db import (
     ClearWaterVector,
-    PredictionRaster,
     PredictionVector,
+    SentinelHubResponse,
     get_db_engine,
 )
 from plastic_detection_service.download_images import image_generator
@@ -75,7 +74,6 @@ def main(
                 date_str = _d.timestamp.rstrip("Z")
                 timestamp = datetime.datetime.fromisoformat(date_str)
                 timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
-
                 LOGGER.info(f"Processing image from {timestamp} at {_d.bbox}.")
                 raster_ds = get_gdal_ds_from_memory(_d.content)
                 clear_water_mask = raster_to_wgs84(raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour)
@@ -103,31 +101,15 @@ def main(
                 LOGGER.info("Filtering out no data polygons...")
                 pred_polys_ds = filter_out_no_data_polygons(pred_polys_ds, threshold=30)
 
-                bands = wgs84_raster.RasterCount
-                height = wgs84_raster.RasterYSize
-                width = wgs84_raster.RasterXSize
-                transform = wgs84_raster.GetGeoTransform()
-                bbox = (
-                    transform[0],
-                    transform[3],
-                    transform[0] + transform[1] * width,
-                    transform[3] + transform[5] * height,
+                wkb_geometry = from_shape(
+                    box(*_d.bbox, ccw=True),
+                    srid=4326,
                 )
-
-                wkb_geometry = from_shape(box(*bbox), srid=4326)
-                band = wgs84_raster.GetRasterBand(1)
-                dtype = gdal.GetDataTypeName(band.DataType)
                 LOGGER.info("Saving in DB...")
                 with Session(get_db_engine()) as session:
-                    db_raster = PredictionRaster(
+                    db_raster = SentinelHubResponse(
                         timestamp=timestamp,
-                        dtype=dtype,
                         bbox=wkb_geometry,
-                        prediction_mask=RasterElement(wgs84_raster.ReadRaster()),
-                        clear_water_mask=RasterElement(clear_water_mask.ReadRaster()),
-                        width=width,
-                        height=height,
-                        bands=bands,
                     )
                     session.add(db_raster)
                     session.commit()

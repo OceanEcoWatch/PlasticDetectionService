@@ -49,7 +49,7 @@ def create_tables(engine, base):
 
 def create_triggers():
     custom_trigger_function_sql = """
-    CREATE OR REPLACE FUNCTION prevent_duplicate_bbox_insert()
+    CREATE OR REPLACE FUNCTION prevent_duplicate_sh_response_insert()
     RETURNS TRIGGER AS $$
     BEGIN
         IF EXISTS (
@@ -67,10 +67,10 @@ def create_triggers():
     """
 
     trigger_sql = """
-    CREATE TRIGGER check_duplicate_bbox_insert
+    CREATE TRIGGER check_duplicate_sh_response_insert
     BEFORE INSERT ON sentinel_hub_responses
     FOR EACH ROW
-    EXECUTE FUNCTION prevent_duplicate_bbox_insert();
+    EXECUTE FUNCTION prevent_duplicate_sh_response_insert();
     """
 
     conn = psycopg2.connect(
