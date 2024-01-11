@@ -54,12 +54,12 @@ def create_triggers():
     BEGIN
         IF EXISTS (
             SELECT 1
-            FROM sentinel_hub_requests
+            FROM sentinel_hub_responses
             WHERE timestamp = NEW.timestamp
             AND ST_Equals(bbox, NEW.bbox)
             AND sentinel_hub_id = NEW.sentinel_hub_id
         ) THEN
-            RAISE EXCEPTION 'Duplicate sentinel_hub_request insert not allowed.';
+            RAISE EXCEPTION 'Duplicate sentinel_hub_response insert not allowed.';
         END IF;
         RETURN NEW;
     END;
@@ -68,7 +68,7 @@ def create_triggers():
 
     trigger_sql = """
     CREATE TRIGGER check_duplicate_bbox_insert
-    BEFORE INSERT ON sentinel_hub_requests
+    BEFORE INSERT ON sentinel_hub_responses
     FOR EACH ROW
     EXECUTE FUNCTION prevent_duplicate_bbox_insert();
     """
@@ -88,8 +88,8 @@ def create_triggers():
     conn.close()
 
 
-class SentinelHubRequest(Base):
-    __tablename__ = "sentinel_hub_requests"
+class SentinelHubResponse(Base):
+    __tablename__ = "sentinel_hub_responses"
 
     id = Column(Integer, primary_key=True)
     sentinel_hub_id = Column(String, nullable=False)
@@ -113,14 +113,14 @@ class PredictionVector(Base):
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
-    sentinel_hub_request_id = Column(Integer, ForeignKey("sentinel_hub_requests.id"), nullable=False)
-    sentinel_hub_request = relationship("SentinelHubRequest", backref="prediction_vectors")
+    sentinel_hub_response_id = Column(Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False)
+    sentinel_hub_response = relationship("SentinelHubResponse", backref="prediction_vectors")
 
-    def __init__(self, sentinel_hub_id, pixel_value: int, geometry: WKBElement, sentinel_hub_request_id: int):
+    def __init__(self, sentinel_hub_id, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int):
         self.sentinel_hub_id = sentinel_hub_id
         self.pixel_value = pixel_value
         self.geometry = geometry
-        self.sentinel_hub_request_id = sentinel_hub_request_id
+        self.sentinel_hub_response_id = sentinel_hub_response_id
 
 
 class ClearWaterVector(Base):
@@ -128,12 +128,12 @@ class ClearWaterVector(Base):
 
     id = Column(Integer, primary_key=True)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
-    sentinel_hub_request_id = Column(Integer, ForeignKey("sentinel_hub_requests.id"), nullable=False)
-    sentinel_hub_request = relationship("SntinelHubRequest", backref="clear_water_vectors")
+    sentinel_hub_response_id = Column(Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False)
+    sentinel_hub_response = relationship("SntinelHubResponse", backref="clear_water_vectors")
 
-    def __init__(self, geometry: WKBElement, sentinel_hub_request_id: int):
+    def __init__(self, geometry: WKBElement, sentinel_hub_response_id: int):
         self.geometry = geometry
-        self.sentinel_hub_request_id = sentinel_hub_request_id
+        self.sentinel_hub_response_id = sentinel_hub_response_id
 
 
 if __name__ == "__main__":
