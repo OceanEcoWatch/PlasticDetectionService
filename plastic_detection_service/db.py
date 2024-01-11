@@ -4,16 +4,7 @@ import os
 import psycopg2
 from geoalchemy2 import Geometry
 from geoalchemy2.types import WKBElement
-from sqlalchemy import (
-    Column,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    UniqueConstraint,
-    create_engine,
-    inspect,
-)
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, create_engine, inspect
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import create_database, database_exists
 
@@ -42,14 +33,17 @@ def create_postgis_db(engine):
     conn.close()
 
 
+def check_tables_exists(engine):
+    ins = inspect(engine)
+    for _t in ins.get_table_names():
+        print(_t)
+
+
 def create_tables(engine, base):
     base.metadata.drop_all(engine)
     base.metadata.create_all(engine)
 
-    # check tables exists
-    ins = inspect(engine)
-    for _t in ins.get_table_names():
-        print(_t)
+    check_tables_exists(engine)
     engine.dispose()
 
 
@@ -60,11 +54,12 @@ def create_triggers():
     BEGIN
         IF EXISTS (
             SELECT 1
-            FROM prediction_bbox
+            FROM sentinel_hub_requests
             WHERE timestamp = NEW.timestamp
             AND ST_Equals(bbox, NEW.bbox)
+            AND sentinel_hub_id = NEW.sentinel_hub_id
         ) THEN
-            RAISE EXCEPTION 'Duplicate bbox and timestamp insert not allowed.';
+            RAISE EXCEPTION 'Duplicate sentinel_hub_request insert not allowed.';
         END IF;
         RETURN NEW;
     END;
@@ -73,7 +68,7 @@ def create_triggers():
 
     trigger_sql = """
     CREATE TRIGGER check_duplicate_bbox_insert
-    BEFORE INSERT ON prediction_bbox
+    BEFORE INSERT ON sentinel_hub_requests
     FOR EACH ROW
     EXECUTE FUNCTION prevent_duplicate_bbox_insert();
     """
@@ -93,15 +88,15 @@ def create_triggers():
     conn.close()
 
 
-class PredictionBbox(Base):
-    __tablename__ = "prediction_bbox"
+class SentinelHubRequest(Base):
+    __tablename__ = "sentinel_hub_requests"
 
     id = Column(Integer, primary_key=True)
     sentinel_hub_id = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
-    __table_args__ = (UniqueConstraint("timestamp", "bbox", name="_timestamp_bbox_uc"),)
+    __table_args__ = (UniqueConstraint("sentinel_hub_id", "timestamp", "bbox"),)
 
     def __init__(
         self,
@@ -118,14 +113,14 @@ class PredictionVector(Base):
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
-    prediction_bbox_id = Column(Integer, ForeignKey("prediction_bbox.id"), nullable=False)
-    prediction_bbox = relationship("PredictionBbox", backref="prediction_bbox")
+    sentinel_hub_request_id = Column(Integer, ForeignKey("sentinel_hub_requests.id"), nullable=False)
+    sentinel_hub_request = relationship("SentinelHubRequest", backref="prediction_vectors")
 
-    def __init__(self, sentinel_hub_id, pixel_value: int, geometry: WKBElement, prediction_bbox_id: int):
+    def __init__(self, sentinel_hub_id, pixel_value: int, geometry: WKBElement, sentinel_hub_request_id: int):
         self.sentinel_hub_id = sentinel_hub_id
         self.pixel_value = pixel_value
         self.geometry = geometry
-        self.prediction_bbox_id = prediction_bbox_id
+        self.sentinel_hub_request_id = sentinel_hub_request_id
 
 
 class ClearWaterVector(Base):
@@ -133,12 +128,12 @@ class ClearWaterVector(Base):
 
     id = Column(Integer, primary_key=True)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
-    prediction_bbox_id = Column(Integer, ForeignKey("prediction_bbox.id"), nullable=False)
-    prediction_bbox = relationship("PredictionBbox", backref="clear_water_vectors")
+    sentinel_hub_request_id = Column(Integer, ForeignKey("sentinel_hub_requests.id"), nullable=False)
+    sentinel_hub_request = relationship("SntinelHubRequest", backref="clear_water_vectors")
 
-    def __init__(self, geometry: WKBElement, prediction_bbox_id: int):
+    def __init__(self, geometry: WKBElement, sentinel_hub_request_id: int):
         self.geometry = geometry
-        self.prediction_bbox_id = prediction_bbox_id
+        self.sentinel_hub_request_id = sentinel_hub_request_id
 
 
 if __name__ == "__main__":
