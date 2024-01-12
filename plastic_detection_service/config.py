@@ -35,3 +35,5 @@ SH_CONFIG = SHConfig(
     sh_client_id=SH_CLIENT_ID,
     sh_client_secret=SH_CLIENT_SECRET,
 )
+
+S3_BUCKET_NAME = "sentinel-hub-images"

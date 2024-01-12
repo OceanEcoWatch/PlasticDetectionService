@@ -3,7 +3,6 @@ import json
 import logging
 
 import click
-from geoalchemy2.elements import WKBElement
 from geoalchemy2.shape import from_shape
 from osgeo import gdal, ogr
 from sentinelhub import CRS, BBox, UtmZoneSplitter
@@ -21,6 +20,7 @@ from plastic_detection_service.download_images import TimestampResponse, image_g
 from plastic_detection_service.evalscripts import L2A_12_BANDS_SCL
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
+from plastic_detection_service.s3 import stream_to_s3
 from plastic_detection_service.scaling import round_to_nearest_5_int, scale_pixel_values
 from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
@@ -60,7 +60,7 @@ def main(
 ):
     bbox_crs = BBox(bbox, crs=CRS.WGS84)
     bbox_list = UtmZoneSplitter([bbox_crs], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
-
+    LOGGER.info(f"Splitted bbox into {len(bbox_list)} parts.")
     image_gen = list(image_generator(bbox_list, time_interval, L2A_12_BANDS_SCL, maxcc))
     image_list = [i for i in image_gen if i is not None]
     LOGGER.info(f"Found {len(image_list)} images.")
@@ -77,7 +77,7 @@ def main(
 
 
 def process_image(image: TimestampResponse) -> None:
-    LOGGER.info(f"Processing image from {image.timestamp} at {image.bbox}.")
+    LOGGER.info(f"Processing image from {image.timestamp} at {image.bbox}, id: {image.sentinel_hub_id}")
     raster_ds = get_gdal_ds_from_memory(image.content)
     scl_mask = raster_to_wgs84(raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour)
 
@@ -91,9 +91,8 @@ def process_image(image: TimestampResponse) -> None:
         payload=image.content,
     )
     LOGGER.info("Received prediction raster from sagemaker endpoint.")
-    scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
-
     LOGGER.info("Postprocessing prediction raster...")
+    scaled_pred_raster = scale_pixel_values(io.BytesIO(pred_raster))
     pred_rounded = round_to_nearest_5_int(io.BytesIO(scaled_pred_raster))
     pred_raster_ds = get_gdal_ds_from_memory(pred_rounded)
 
@@ -107,31 +106,30 @@ def process_image(image: TimestampResponse) -> None:
     width = wgs84_raster.RasterXSize
     height = wgs84_raster.RasterYSize
     transform = wgs84_raster.GetGeoTransform()
-    bbox = (
+    proj_bbox = (
         transform[0],
         transform[3],
         transform[0] + transform[1] * width,
         transform[3] + transform[5] * height,
     )
 
-    wkb_geometry = from_shape(box(*bbox), srid=4326)
-
-    return insert_db(image, pred_polys_ds, scl_ds, wkb_geometry)
+    return insert_db(image, pred_polys_ds, scl_ds, proj_bbox)
 
 
 def insert_db(
     image: TimestampResponse,
     pred_polys_ds: ogr.DataSource,
     scl_ds: ogr.DataSource,
-    wkb_geometry: WKBElement,
+    proj_bbox: tuple[float, float, float, float],
 ) -> None:
+    LOGGER.info("Storing_raw_image_in_s3...")
+    s3_url = stream_to_s3(config.S3_BUCKET_NAME, f"{image.sentinel_hub_id}/{proj_bbox}.tif", io.BytesIO(image.content))
     LOGGER.info("Saving in DB...")
-
     with Session(get_db_engine()) as session:
         db_sh_resp = SentinelHubResponse(
             sentinel_hub_id=image.sentinel_hub_id,
             timestamp=image.timestamp,
-            bbox=wkb_geometry,
+            bbox=from_shape(box(*proj_bbox), srid=4326),
             image_width=image.image_size[0],
             image_height=image.image_size[1],
             max_cc=image.max_cc,
@@ -140,6 +138,7 @@ def insert_db(
             evalscript=image.evalscript,
             request_datetime=image.request_datetime,
             processing_units_spent=image.processing_units_spent,
+            image_url=s3_url,
         )
         session.add(db_sh_resp)
         session.commit()

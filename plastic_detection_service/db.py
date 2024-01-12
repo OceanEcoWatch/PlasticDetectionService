@@ -1,5 +1,6 @@
 import datetime
 import os
+from typing import Optional
 
 import psycopg2
 from geoalchemy2 import Geometry
@@ -103,7 +104,7 @@ class SentinelHubResponse(Base):
 
     id = Column(Integer, primary_key=True)
     sentinel_hub_id = Column(String, nullable=False)
-    image_url = Column(String, nullable=True)
+    image_url = Column(String, nullable=True, unique=True)
     timestamp = Column(DateTime, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     image_width = Column(Integer, nullable=False)
@@ -130,6 +131,7 @@ class SentinelHubResponse(Base):
         evalscript: str,
         request_datetime: datetime.datetime,
         processing_units_spent: float,
+        image_url: Optional[str] = None,
     ):
         self.sentinel_hub_id = sentinel_hub_id
         self.timestamp = timestamp
@@ -142,6 +144,7 @@ class SentinelHubResponse(Base):
         self.evalscript = evalscript
         self.request_datetime = request_datetime
         self.processing_units_spent = processing_units_spent
+        self.image_url = image_url
 
 
 class PredictionVector(Base):
