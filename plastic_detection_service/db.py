@@ -103,6 +103,7 @@ class SentinelHubResponse(Base):
 
     id = Column(Integer, primary_key=True)
     sentinel_hub_id = Column(String, nullable=False)
+    image_url = Column(String, nullable=True)
     timestamp = Column(DateTime, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     image_width = Column(Integer, nullable=False)
