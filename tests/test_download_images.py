@@ -1,6 +1,7 @@
+import datetime
 from pprint import pprint
 
-from sentinelhub import CRS, BBox
+from sentinelhub import CRS, BBox, DataCollection, MimeType
 
 from plastic_detection_service.config import SH_CONFIG
 from plastic_detection_service.download_images import search_images, stream_in_images
@@ -42,9 +43,16 @@ def test_stream_in_images():
         assert len(download_responses) == 1
         assert download_responses[0].status_code == 200
         assert download_responses[0].content is not None
-        assert download_responses[0].timestamp >= time_interval[0]
-        assert download_responses[0].timestamp <= time_interval[1]
+        assert download_responses[0].timestamp >= datetime.datetime.fromisoformat(time_interval[0])
+        assert download_responses[0].timestamp <= datetime.datetime.fromisoformat(time_interval[1])
         assert download_responses[0].bbox == bbox
+        assert download_responses[0].image_size == (14, 498)
+        assert download_responses[0].max_cc <= 0.1
+        assert download_responses[0].data_collection == DataCollection.SENTINEL2_L2A
+        assert download_responses[0].mime_type == MimeType.TIFF
+        assert download_responses[0].evalscript == evalscript
+        assert isinstance(download_responses[0].request_datetime, datetime.datetime)
+        assert isinstance(download_responses[0].processing_units_spent, float)
 
     else:
         assert False
