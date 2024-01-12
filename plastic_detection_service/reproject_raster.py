@@ -9,13 +9,9 @@ from rasterio.warp import Resampling, calculate_default_transform, reproject
 
 def reproject_raster(raster: io.BytesIO, dst_crs: str) -> bytes:
     with rasterio.open(raster) as src:
-        transform, width, height = calculate_default_transform(
-            src.crs, dst_crs, src.width, src.height, *src.bounds
-        )
+        transform, width, height = calculate_default_transform(src.crs, dst_crs, src.width, src.height, *src.bounds)
         kwargs = src.meta.copy()
-        kwargs.update(
-            {"crs": dst_crs, "transform": transform, "width": width, "height": height}
-        )
+        kwargs.update({"crs": dst_crs, "transform": transform, "width": width, "height": height})
 
         reprojected_raster = Path("reprojected_raster.tif")
 
@@ -45,7 +41,6 @@ def raster_to_wgs84(
     srs_wgs84 = osr.SpatialReference()
     srs_wgs84.ImportFromEPSG(4326)
 
-    # Create a coordinate transformation from UTM to WGS 84
     osr.CoordinateTransformation(srs_utm, srs_wgs84)
 
     out_path_memory = "/vsimem/temp.tif"

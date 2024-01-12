@@ -158,15 +158,17 @@ class PredictionVector(Base):
         self.sentinel_hub_response_id = sentinel_hub_response_id
 
 
-class ClearWaterVector(Base):
-    __tablename__ = "clear_water_vectors"
+class SceneClassificationVector(Base):
+    __tablename__ = "scene_classification_vectors"
 
     id = Column(Integer, primary_key=True)
+    pixel_value = Column(Integer, nullable=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     sentinel_hub_response_id = Column(Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False)
-    sentinel_hub_response = relationship("SentinelHubResponse", backref="clear_water_vectors")
+    sentinel_hub_response = relationship("SentinelHubResponse", backref="scene_classification_vectors")
 
-    def __init__(self, geometry: WKBElement, sentinel_hub_response_id: int):
+    def __init__(self, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int):
+        self.pixel_value = pixel_value
         self.geometry = geometry
         self.sentinel_hub_response_id = sentinel_hub_response_id
 
