@@ -69,7 +69,7 @@ function evaluatePixel(sample) {
 }
 """
 
-NDVI_NDWI = """
+L2A_NDVI_NDWI = """
     //VERSION=3
 
     function setup() {
