@@ -89,8 +89,9 @@ def stream_in_images(
             responses=[SentinelHubRequest.output_response("default", mime_type)],
             bbox=bbox,
             config=config,
+            data_folder="images",
         )
-        response_list = request.get_data(decode_data=False)
+        response_list = request.get_data(decode_data=False, save_data=True)
 
         if len(response_list) != 1:
             raise ValueError("Expected only one image to be returned.")

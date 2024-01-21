@@ -11,7 +11,6 @@ function setup() {
       id: "default",
       bands: 12,
       sampleType: SampleType.UINT16,
-      mosaicing: Mosaicing.ORBIT
     }
   }
 }
@@ -22,36 +21,55 @@ function evaluatePixel(sample) {
 }
 """
 
-L2A_12_BANDS_CLEAR_WATER_MASK = """
+L2A_12_BANDS_SCL = """
 //VERSION=3
 function setup() {
   return {
     input: [{
       bands: ["B01", "B02", "B03", "B04", "B05", "B06", "B07",
-              "B08", "B8A", "B09", "B11", "B12", "SCL"],  // Include SCL
+              "B08", "B8A", "B09", "B11", "B12", "SCL"],
       units: "DN"
     }],
     output: {
       id: "default",
-      bands: 13,  // 12 original bands + 1 for water mask
+      bands: 13,  // 12 original bands + 1 for SCL values
       sampleType: SampleType.UINT16
     }
   }
 }
-function evaluatePixel(sample) {
-  // Use SCL for clear water mask. SCL value 6 indicates clear water.
-  var waterMask = (sample.SCL !== 6) ? 1 : 0;
 
+function evaluatePixel(sample) {
   return [
     sample.B01, sample.B02, sample.B03, sample.B04,
     sample.B05, sample.B06, sample.B07, sample.B08,
     sample.B8A, sample.B09, sample.B11, sample.B12,
-    waterMask  // Adding water mask as the 13th band
+    sample.SCL  // Adding SCL values as the 13th band
   ];
 }
 """
 
-NDVI_NDWI = """
+L2A_SCL = """
+    //VERSION=3
+function setup() {
+  return {
+    input: [{
+      bands: ["SCL"],
+      units: "DN"
+    }],
+    output: {
+      id: "default",
+      bands: 1,
+      sampleType: SampleType.UINT8
+    }
+  }
+}
+
+function evaluatePixel(sample) {
+  return [sample.SCL]
+}
+"""
+
+L2A_NDVI_NDWI = """
     //VERSION=3
 
     function setup() {

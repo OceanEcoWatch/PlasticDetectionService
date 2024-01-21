@@ -5,7 +5,7 @@ from sentinelhub import CRS, BBox, DataCollection, MimeType
 
 from plastic_detection_service.config import SH_CONFIG
 from plastic_detection_service.download_images import search_images, stream_in_images
-from plastic_detection_service.evalscripts import L2A_12_BANDS_CLEAR_WATER_MASK
+from plastic_detection_service.evalscripts import L2A_12_BANDS_SCL
 
 TIME_INTERVAL = "2023-11-01", "2024-01-01"
 
@@ -35,7 +35,7 @@ def test_stream_in_images():
         crs=CRS.WGS84,
     )
     time_interval = TIME_INTERVAL
-    evalscript = L2A_12_BANDS_CLEAR_WATER_MASK
+    evalscript = L2A_12_BANDS_SCL
     download_responses = stream_in_images(
         config=SH_CONFIG, bbox=bbox, time_interval=time_interval, maxcc=0.1, evalscript=evalscript
     )
