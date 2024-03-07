@@ -2,10 +2,8 @@ import io
 import json
 import logging
 
-import click
 from geoalchemy2.shape import from_shape
 from osgeo import gdal, ogr
-from sentinelhub import CRS, BBox, UtmZoneSplitter
 from shapely.geometry import box, shape
 from sqlalchemy.orm import Session
 
@@ -16,11 +14,9 @@ from plastic_detection_service.db import (
     SentinelHubResponse,
     get_db_engine,
 )
-from plastic_detection_service.download_images import TimestampResponse, image_generator
-from plastic_detection_service.evalscripts import L2A_12_BANDS_SCL
+from plastic_detection_service.download.models import TimestampResponse
 from plastic_detection_service.gdal_ds import get_gdal_ds_from_memory
 from plastic_detection_service.reproject_raster import raster_to_wgs84
-from plastic_detection_service.s3 import stream_to_s3
 from plastic_detection_service.scaling import round_to_nearest_5_int, scale_pixel_values
 from plastic_detection_service.to_vector import (
     filter_out_no_data_polygons,
@@ -32,54 +28,14 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
-@click.command()
-@click.option(
-    "--bbox",
-    nargs=4,
-    type=float,
-    help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
-    default=config.AOI,
-)
-@click.option(
-    "--time-interval",
-    nargs=2,
-    type=str,
-    help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
-    default=config.TIME_INTERVAL,
-)
-@click.option(
-    "--maxcc",
-    type=float,
-    default=config.MAX_CC,
-    help="Maximum cloud cover of the images to be processed.",
-)
-def main(
-    bbox: tuple[float, float, float, float],
-    time_interval: tuple[str, str],
-    maxcc: float,
-):
-    bbox_crs = BBox(bbox, crs=CRS.WGS84)
-    bbox_list = UtmZoneSplitter([bbox_crs], crs=CRS.WGS84, bbox_size=5000).get_bbox_list()
-    LOGGER.info(f"Splitted bbox into {len(bbox_list)} parts.")
-    image_gen = list(image_generator(bbox_list, time_interval, L2A_12_BANDS_SCL, maxcc))
-    image_list = [i for i in image_gen if i is not None]
-    LOGGER.info(f"Found {len(image_list)} images.")
-    if len(image_list) == 0:
-        LOGGER.info("No images found.")
-        return
-
-    for data in image_list:
-        for _d in data:
-            if _d.content is not None:
-                process_image(_d)
-            else:
-                LOGGER.info("No image data found.")
-
-
 def process_image(image: TimestampResponse) -> None:
-    LOGGER.info(f"Processing image from {image.timestamp} at {image.bbox}, id: {image.sentinel_hub_id}")
+    LOGGER.info(
+        f"Processing image from {image.timestamp} at {image.bbox}, id: {image.image_id}"
+    )
     raster_ds = get_gdal_ds_from_memory(image.content)
-    scl_mask = raster_to_wgs84(raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour)
+    scl_mask = raster_to_wgs84(
+        raster_ds, target_bands=[13], resample_alg=gdal.GRA_NearestNeighbour
+    )
 
     scl_ds = polygonize_raster(scl_mask)
     scl_ds = filter_out_no_data_polygons(scl_ds)
@@ -123,19 +79,17 @@ def insert_db(
     proj_bbox: tuple[float, float, float, float],
 ) -> None:
     LOGGER.info("Storing_raw_image_in_s3...")
-    s3_url = stream_to_s3(config.S3_BUCKET_NAME, f"{image.sentinel_hub_id}/{proj_bbox}.tif", io.BytesIO(image.content))
+
     LOGGER.info("Saving in DB...")
     with Session(get_db_engine()) as session:
         db_sh_resp = SentinelHubResponse(
-            sentinel_hub_id=image.sentinel_hub_id,
+            sentinel_hub_id=image.image_id,
             timestamp=image.timestamp,
             bbox=from_shape(box(*proj_bbox), srid=4326),
             image_width=image.image_size[0],
             image_height=image.image_size[1],
             max_cc=image.max_cc,
-            data_collection=image.data_collection.value.api_id,
-            mime_type=image.mime_type.value,
-            evalscript=image.evalscript,
+            data_collection=image.data_collection,
             request_datetime=image.request_datetime,
             processing_units_spent=image.processing_units_spent,
             image_url=s3_url,
@@ -147,8 +101,12 @@ def insert_db(
         prediction_vectors = []
         for feature in pred_polys_ds.GetLayer():
             db_vector = PredictionVector(
-                pixel_value=int(json.loads(feature.ExportToJson())["properties"]["pixel_value"]),
-                geometry=from_shape(shape(json.loads(feature.ExportToJson())["geometry"]), srid=4326),
+                pixel_value=int(
+                    json.loads(feature.ExportToJson())["properties"]["pixel_value"]
+                ),
+                geometry=from_shape(
+                    shape(json.loads(feature.ExportToJson())["geometry"]), srid=4326
+                ),
                 sentinel_hub_response_id=db_sh_resp.id,  # type: ignore
             )
             prediction_vectors.append(db_vector)
@@ -159,8 +117,12 @@ def insert_db(
         scl_vectors = []
         for feature in scl_ds.GetLayer():
             scl_db = SceneClassificationVector(
-                pixel_value=int(json.loads(feature.ExportToJson())["properties"]["pixel_value"]),
-                geometry=from_shape(shape(json.loads(feature.ExportToJson())["geometry"]), srid=4326),
+                pixel_value=int(
+                    json.loads(feature.ExportToJson())["properties"]["pixel_value"]
+                ),
+                geometry=from_shape(
+                    shape(json.loads(feature.ExportToJson())["geometry"]), srid=4326
+                ),
                 sentinel_hub_response_id=db_sh_resp.id,  # type: ignore
             )
             scl_vectors.append(scl_db)

@@ -10,7 +10,7 @@ python = "^3.10"
 sentinelhub = "^3.9.1"
 matplotlib = "^3.7.2"
 marinedebrisdetector = "^0.0.2"
-eo-learn= "^1.5.0"
+eo-learn = "^1.5.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -22,6 +22,3 @@ isort = "^5.12.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.ruff]
-line-length = 120

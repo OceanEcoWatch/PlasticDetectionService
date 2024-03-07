@@ -99,6 +99,15 @@ def create_triggers():
     conn.close()
 
 
+class Image(Base):
+    __tablename__ = "images"
+
+    id = Column(Integer, primary_key=True)
+    image_url = Column(String, nullable=False, unique=True)
+    timestamp = Column(DateTime, nullable=False)
+    bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+
+
 class SentinelHubResponse(Base):
     __tablename__ = "sentinel_hub_responses"
 
@@ -111,7 +120,6 @@ class SentinelHubResponse(Base):
     image_height = Column(Integer, nullable=False)
     max_cc = Column(Integer, nullable=False)
     data_collection = Column(String, nullable=False)
-    mime_type = Column(String, nullable=False)
     evalscript = Column(String, nullable=False)
     request_datetime = Column(DateTime, nullable=False)
     processing_units_spent = Column(Float, nullable=False)
@@ -153,10 +161,16 @@ class PredictionVector(Base):
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
-    sentinel_hub_response_id = Column(Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False)
-    sentinel_hub_response = relationship("SentinelHubResponse", backref="prediction_vectors")
+    sentinel_hub_response_id = Column(
+        Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False
+    )
+    sentinel_hub_response = relationship(
+        "SentinelHubResponse", backref="prediction_vectors"
+    )
 
-    def __init__(self, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int):
+    def __init__(
+        self, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int
+    ):
         self.pixel_value = pixel_value
         self.geometry = geometry
         self.sentinel_hub_response_id = sentinel_hub_response_id
@@ -168,10 +182,16 @@ class SceneClassificationVector(Base):
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
-    sentinel_hub_response_id = Column(Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False)
-    sentinel_hub_response = relationship("SentinelHubResponse", backref="scene_classification_vectors")
+    sentinel_hub_response_id = Column(
+        Integer, ForeignKey("sentinel_hub_responses.id"), nullable=False
+    )
+    sentinel_hub_response = relationship(
+        "SentinelHubResponse", backref="scene_classification_vectors"
+    )
 
-    def __init__(self, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int):
+    def __init__(
+        self, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int
+    ):
         self.pixel_value = pixel_value
         self.geometry = geometry
         self.sentinel_hub_response_id = sentinel_hub_response_id
