@@ -15,6 +15,20 @@ from plastic_detection_service.processing.main import (
 PROCESSORS = [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
 
 
+def test_get_gdal_ds_from_memory(content, crs):
+    processor = GdalRasterProcessor()
+
+    ds = processor._get_gdal_ds_from_memory(content)
+    assert isinstance(ds, gdal.Dataset)
+    assert ds.RasterCount == 1
+    assert ds.RasterXSize == 500
+    assert ds.RasterYSize == 500
+
+    srs = gdal.osr.SpatialReference()
+    srs.ImportFromWkt(ds.GetProjection())
+    assert int(srs.GetAttrValue("AUTHORITY", 1)) == crs
+
+
 def test_get_epsg_from_ds(ds, crs):
     processor = GdalRasterProcessor()
     assert processor._get_epsg_from_ds(ds) == crs
@@ -80,7 +94,7 @@ def test_to_vector(raster, processor: RasterProcessor):
 
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
-    rounded_raster = processor.round_pixel_values(raster, 10)
+    rounded_raster = processor.round_pixel_values(raster, 5)
 
     assert rounded_raster.width == raster.width
     assert rounded_raster.height == raster.height
@@ -91,4 +105,14 @@ def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
 
     # check if all values are rounded
     for i in range(len(raster.bands)):
-        assert (rounded_raster.to_numpy()[i] % 10 == 0).all()
+        assert (rounded_raster.to_numpy()[i] % 5 == 0).all()
+
+    # check if the standard deviations are close
+    rounded_std = np.std(rounded_raster.to_numpy())
+    original_std = np.std(raster.to_numpy())
+    assert np.isclose(original_std, rounded_std, rtol=0.02)
+
+    # check the mean values
+    rounded_mean = np.mean(rounded_raster.to_numpy())
+    original_mean = np.mean(raster.to_numpy())
+    assert np.isclose(original_mean, rounded_mean, rtol=0.2)

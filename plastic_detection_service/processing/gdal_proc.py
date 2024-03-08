@@ -21,6 +21,10 @@ class GdalRasterProcessor(RasterProcessor):
             return gdal.Open(self.TEMP_FILE, gdal.GA_Update)
         finally:
             gdal.Unlink(self.TEMP_FILE)
+            try:
+                gdal.Open(self.TEMP_FILE)
+            except RuntimeError:
+                print("File has been unlinked")
 
     def _get_epsg_from_ds(self, ds: gdal.Dataset) -> int:
         srs = osr.SpatialReference()
