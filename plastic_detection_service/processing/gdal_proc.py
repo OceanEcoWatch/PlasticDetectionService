@@ -1,4 +1,4 @@
-import tempfile
+import uuid
 from typing import Generator
 
 from osgeo import gdal, ogr, osr
@@ -12,7 +12,7 @@ from .abstractions import Raster, RasterProcessor
 
 class GdalRasterProcessor(RasterProcessor):
     def __init__(self):
-        self.TEMP_FILE = tempfile.mktemp(suffix=".tif", dir="/vsimem")
+        self.TEMP_FILE = f"/vsimem/{uuid.uuid4()}.tif"
 
     def _get_gdal_ds_from_memory(self, content: bytes) -> gdal.Dataset:
         try:
