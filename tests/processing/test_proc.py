@@ -81,7 +81,7 @@ def test_ds_to_raster(ds, content, rast_geometry, crs):
 
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
-    reprojected_raster = processor.reproject_raster(raster, 4326, [1])
+    reprojected_raster = processor.reproject_raster(raster, 4326, [1], "nearest")
     reprojected_raster.to_file("tests/assets/test_out_reprojected.tif")
     assert reprojected_raster.crs == 4326
     assert reprojected_raster.bands == [1]
