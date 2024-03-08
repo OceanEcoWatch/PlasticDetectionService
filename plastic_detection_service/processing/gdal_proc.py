@@ -111,9 +111,8 @@ class GdalRasterProcessor(RasterProcessor):
     def round_pixel_values(
         self, raster: Raster, round_to: Union[int, float] = 1
     ) -> Raster:
-        in_ds = self._get_gdal_ds_from_memory(raster.content)
-        driver = gdal.GetDriverByName("MEM")
-        ds = driver.CreateCopy("", in_ds)
+        ds = self._get_gdal_ds_from_memory(raster.content)
+
         for i in range(1, ds.RasterCount + 1):
             band = ds.GetRasterBand(i)
             array = band.ReadAsArray()
