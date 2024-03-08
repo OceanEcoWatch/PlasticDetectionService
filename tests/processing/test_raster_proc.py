@@ -5,11 +5,11 @@ from shapely.geometry import Polygon
 
 from plastic_detection_service.models import Raster
 from plastic_detection_service.processing.abstractions import RasterProcessor
+from plastic_detection_service.processing.context import (
+    RasterProcessingContext,
+)
 from plastic_detection_service.processing.gdal_proc import (
     GdalRasterProcessor,
-)
-from plastic_detection_service.processing.main import (
-    RasterProcessingContext,
 )
 
 PROCESSORS = [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
@@ -83,6 +83,7 @@ def test_to_vector(raster, processor: RasterProcessor):
     vec = next(vectors)
     assert isinstance(vec.pixel_value, int)
     assert isinstance(vec.geometry, Polygon)
+    assert vec.crs == raster.crs
 
     # test if geometry is within the bounds of the raster
     assert vec.geometry.bounds[0] >= raster.geometry.bounds[0]

@@ -3,8 +3,8 @@ from shapely.geometry import Polygon
 
 from plastic_detection_service.models import Vector
 from plastic_detection_service.processing.abstractions import VectorsProcessor
+from plastic_detection_service.processing.context import VectorsProcessingContext
 from plastic_detection_service.processing.gdal_proc import GdalVectorsProcessor
-from plastic_detection_service.processing.main import VectorsProcessingContext
 
 PROCESSORS = [GdalVectorsProcessor(), VectorsProcessingContext(GdalVectorsProcessor())]
 
@@ -12,9 +12,15 @@ PROCESSORS = [GdalVectorsProcessor(), VectorsProcessingContext(GdalVectorsProces
 @pytest.fixture
 def vectors():
     return [
-        Vector(geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=5),
-        Vector(geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=25),
-        Vector(geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=15),
+        Vector(
+            geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=5, crs=4326
+        ),
+        Vector(
+            geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=25, crs=4326
+        ),
+        Vector(
+            geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=15, crs=4326
+        ),
     ]
 
 

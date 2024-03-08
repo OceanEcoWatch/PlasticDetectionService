@@ -44,4 +44,5 @@ class Raster:
 @dataclass
 class Vector:
     geometry: BaseGeometry
+    crs: int
     pixel_value: int

@@ -109,6 +109,7 @@ class GdalRasterProcessor(RasterProcessor):
             yield Vector(
                 geometry=wkt.loads(feature.GetGeometryRef().ExportToWkt()),
                 pixel_value=feature.GetField(field),
+                crs=raster.crs,
             )
 
     def round_pixel_values(
