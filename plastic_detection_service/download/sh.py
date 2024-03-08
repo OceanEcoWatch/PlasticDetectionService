@@ -15,12 +15,7 @@ from sentinelhub import (
 )
 from sentinelhub.api.catalog import CatalogSearchIterator
 
-from .models import (
-    DownloadParams,
-    DownloadResponse,
-    DownloadStrategy,
-    TimestampResponse,
-)
+from .abstractions import DownloadParams, DownloadResponse, DownloadStrategy
 
 
 @dataclass
@@ -105,7 +100,7 @@ class SentinelHubDownload(DownloadStrategy):
     def _download_for_bbox(
         self,
         bbox: BBox,
-    ) -> Generator[TimestampResponse, None, None]:
+    ) -> Generator[DownloadResponse, None, None]:
         search_iterator = list(self._search_images(bbox=bbox))
         for search_response in search_iterator:
             yield self._download_image(
@@ -114,6 +109,6 @@ class SentinelHubDownload(DownloadStrategy):
 
     def download_images(
         self,
-    ) -> Generator[TimestampResponse, None, None]:
+    ) -> Generator[DownloadResponse, None, None]:
         for _bbox in self._split_bbox(self.params.bbox):
             yield from self._download_for_bbox(_bbox)

@@ -7,8 +7,8 @@ from sentinelhub import DataCollection, MimeType
 from plastic_detection_service import config
 from plastic_detection_service.aws import s3
 
+from .abstractions import DownloadResponse
 from .evalscripts import L2A_12_BANDS_SCL
-from .models import DownloadResponse
 from .sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,

@@ -10,15 +10,14 @@ from .abstractions import Raster, RasterProcessor
 
 
 class GdalRasterProcessor(RasterProcessor):
-    _temp_file = "/vsimem/temp.tif"
+    TEMP_FILE = "/vsimem/temp.tif"
 
-    def _get_gdal_ds_from_memory(
-        self, content: bytes
-    ) -> Generator[gdal.Dataset, None, None]:
-        gdal.FileFromMemBuffer(self._temp_file, content)
-        yield gdal.Open(self._temp_file)
-
-        gdal.Unlink(self._temp_file)
+    def _get_gdal_ds_from_memory(self, content: bytes) -> gdal.Dataset:
+        try:
+            gdal.FileFromMemBuffer(self.TEMP_FILE, content)
+            return gdal.Open(self.TEMP_FILE)
+        finally:
+            gdal.Unlink(self.TEMP_FILE)
 
     def _get_epsg_from_ds(self, ds: gdal.Dataset) -> int:
         srs = osr.SpatialReference()
@@ -35,8 +34,8 @@ class GdalRasterProcessor(RasterProcessor):
         return box(xmin, ymin, xmax, ymax)
 
     def _ds_to_raster(self, ds: gdal.Dataset) -> Raster:
-        gdal.GetDriverByName("GTiff").CreateCopy(self._temp_file, ds)
-        f = gdal.VSIFOpenL(self._temp_file, "rb")
+        gdal.GetDriverByName("GTiff").CreateCopy(self.TEMP_FILE, ds)
+        f = gdal.VSIFOpenL(self.TEMP_FILE, "rb")
         gdal.VSIFSeekL(f, 0, 2)
         size = gdal.VSIFTellL(f)
         gdal.VSIFSeekL(f, 0, 0)
@@ -65,9 +64,9 @@ class GdalRasterProcessor(RasterProcessor):
         srs_wgs84.ImportFromEPSG(target_crs)
 
         osr.CoordinateTransformation(srs_utm, srs_wgs84)
-        in_ds = next(self._get_gdal_ds_from_memory(raster.content))
+        in_ds = self._get_gdal_ds_from_memory(raster.content)
         out_ds: gdal.Dataset = gdal.Warp(
-            self._temp_file,
+            self.TEMP_FILE,
             in_ds,
             dstSRS=srs_wgs84,
             resampleAlg=resample_alg,
@@ -92,7 +91,7 @@ class GdalRasterProcessor(RasterProcessor):
         output_layer.CreateField(fld)
         dst_field = output_layer.GetLayerDefn().GetFieldIndex(field)
 
-        in_ds = next(self._get_gdal_ds_from_memory(raster.content))
+        in_ds = self._get_gdal_ds_from_memory(raster.content)
         band = in_ds.GetRasterBand(band)
 
         gdal.Polygonize(band, None, output_layer, dst_field, [], callback=None)
