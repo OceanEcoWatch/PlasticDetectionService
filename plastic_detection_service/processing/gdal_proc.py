@@ -1,3 +1,4 @@
+import tempfile
 from typing import Generator
 
 from osgeo import gdal, ogr, osr
@@ -10,7 +11,8 @@ from .abstractions import Raster, RasterProcessor
 
 
 class GdalRasterProcessor(RasterProcessor):
-    TEMP_FILE = "/vsimem/temp.tif"
+    def __init__(self):
+        self.TEMP_FILE = tempfile.mktemp(suffix=".tif", dir="/vsimem")
 
     def _get_gdal_ds_from_memory(self, content: bytes) -> gdal.Dataset:
         try:
@@ -46,7 +48,7 @@ class GdalRasterProcessor(RasterProcessor):
         gdal.VSIFSeekL(f, 0, 0)
         content = gdal.VSIFReadL(1, size, f)
 
-        return Raster(
+        raster = Raster(
             content=content,
             width=ds.RasterXSize,
             height=ds.RasterYSize,
@@ -54,13 +56,14 @@ class GdalRasterProcessor(RasterProcessor):
             bands=[i for i in range(1, ds.RasterCount + 1)],
             geometry=self._get_rast_geometry(ds),
         )
+        ds = None  # type: ignore
+        return raster
 
     def reproject_raster(
         self,
         raster: Raster,
         target_crs: int,
         target_bands: list[int],
-        resample_alg: str = gdal.GRA_NearestNeighbour,
     ) -> Raster:
         srs_utm = self._srs_from_epsg(raster.crs)
         srs_wgs84 = self._srs_from_epsg(target_crs)
@@ -71,7 +74,7 @@ class GdalRasterProcessor(RasterProcessor):
             self.TEMP_FILE,
             in_ds,
             dstSRS=srs_wgs84,
-            resampleAlg=resample_alg,
+            resampleAlg=self.RESAMPLE_ALG,
             srcBands=target_bands,
         )  # type: ignore
 
