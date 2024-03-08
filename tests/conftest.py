@@ -42,8 +42,7 @@ def rast_geometry(ds):
 def raster(content, ds, crs, rast_geometry):
     return Raster(
         content=content,
-        width=ds.RasterXSize,
-        height=ds.RasterYSize,
+        size=(ds.RasterXSize, ds.RasterYSize),
         crs=crs,
         bands=[i for i in range(1, ds.RasterCount + 1)],
         geometry=rast_geometry,

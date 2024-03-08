@@ -44,8 +44,7 @@ def test_ds_to_raster(ds, content, rast_geometry, crs):
     raster = processor._ds_to_raster(ds)
     assert raster.crs == crs
     assert raster.bands == [i for i in range(1, ds.RasterCount + 1)]
-    assert raster.width == ds.RasterXSize
-    assert raster.height == ds.RasterYSize
+    assert raster.size == (ds.RasterXSize, ds.RasterYSize)
     assert raster.content == content
     assert raster.geometry == rast_geometry
 
@@ -96,8 +95,7 @@ def test_to_vector(raster, processor: RasterProcessor):
 def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
     rounded_raster = processor.round_pixel_values(raster, 5)
 
-    assert rounded_raster.width == raster.width
-    assert rounded_raster.height == raster.height
+    assert rounded_raster.size == raster.size
     assert rounded_raster.bands == raster.bands
     assert rounded_raster.crs == raster.crs
     assert rounded_raster.geometry == raster.geometry

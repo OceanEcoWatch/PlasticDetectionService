@@ -55,8 +55,7 @@ class GdalRasterProcessor(RasterProcessor):
 
         raster = Raster(
             content=content,
-            width=ds.RasterXSize,
-            height=ds.RasterYSize,
+            size=(ds.RasterXSize, ds.RasterYSize),
             crs=self._get_epsg_from_ds(ds),
             bands=[i for i in range(1, ds.RasterCount + 1)],
             geometry=self._get_raster_geometry(ds),
