@@ -1,4 +1,4 @@
-name: Format and Lint
+name: Format Lint Test
 
 on:
   pull_request:
@@ -24,4 +24,6 @@ jobs:
       - name: Format with isort
         run: isort . --profile black
       - name: Lint with ruff
-        run: ruff --output-format=github .
+        run: ruff --output-format=github
+      - name: Test
+        run: pytest -m 'not integration'
