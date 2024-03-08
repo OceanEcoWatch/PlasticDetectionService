@@ -8,7 +8,9 @@ from plastic_detection_service.processing.abstractions import RasterProcessor
 from plastic_detection_service.processing.gdal_proc import (
     GdalRasterProcessor,
 )
-from plastic_detection_service.processing.main import RasterProcessingContext
+from plastic_detection_service.processing.main import (
+    RasterProcessingContext,
+)
 
 PROCESSORS = [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
 

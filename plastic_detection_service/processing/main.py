@@ -1,7 +1,7 @@
 import logging
-from typing import Generator
+from typing import Generator, Iterable
 
-from .abstractions import Raster, RasterProcessor, Vector
+from .abstractions import Raster, RasterProcessor, Vector, VectorsProcessor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,9 +30,14 @@ class RasterProcessingContext:
         return self.raster_processor.to_vector(raster, field, band)
 
 
-def main():
-    pass
+class VectorsProcessingContext:
+    def __init__(self, vectors_processor: VectorsProcessor):
+        self.vectors_processor = vectors_processor
 
+    def set_vectors_processor(self, vectors_processor: VectorsProcessor):
+        self.vectors_processor = vectors_processor
 
-if __name__ == "__main__":
-    main()
+    def filter_out_(
+        self, vectors: Iterable[Vector], threshold: int
+    ) -> Generator[Vector, None, None]:
+        return self.vectors_processor.filter_out_(vectors, threshold)

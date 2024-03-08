@@ -1,5 +1,5 @@
 import uuid
-from typing import Generator
+from typing import Generator, Iterable
 
 from osgeo import gdal, ogr, osr
 from shapely import wkt
@@ -7,7 +7,7 @@ from shapely.geometry import Polygon, box
 
 from plastic_detection_service.models import Vector
 
-from .abstractions import Raster, RasterProcessor
+from .abstractions import Raster, RasterProcessor, VectorsProcessor
 
 
 class GdalRasterProcessor(RasterProcessor):
@@ -106,3 +106,8 @@ class GdalRasterProcessor(RasterProcessor):
                 geometry=wkt.loads(feature.GetGeometryRef().ExportToWkt()),
                 pixel_value=feature.GetField(field),
             )
+
+
+class GdalVectorsProcessor(VectorsProcessor):
+    def to_raster(self, vectors: Iterable[Vector]) -> Raster:
+        raise NotImplementedError

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generator
+from typing import Generator, Iterable
 
 from plastic_detection_service.models import Raster, Vector
 
@@ -11,7 +11,7 @@ class RasterProcessor(ABC):
         raster: Raster,
         target_crs: int,
         target_bands: list[int],
-        resample_alg: str,
+        resample_alg: str = "nearest",
     ) -> Raster:
         pass
 
@@ -19,4 +19,17 @@ class RasterProcessor(ABC):
     def to_vector(
         self, raster: Raster, field: str, band: int = 1
     ) -> Generator[Vector, None, None]:
+        pass
+
+
+class VectorsProcessor(ABC):
+    def filter_out_(
+        self, vectors: Iterable[Vector], threshold: int
+    ) -> Generator[Vector, None, None]:
+        for v in vectors:
+            if v.pixel_value > threshold:
+                yield v
+
+    @abstractmethod
+    def to_raster(self, vectors: Iterable[Vector]) -> Raster:
         pass
