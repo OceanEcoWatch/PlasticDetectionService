@@ -30,3 +30,10 @@ def test_raster_to_file(raster: Raster):
                 assert (src.read(i + 1) == raster.to_numpy()[i]).all()
     finally:
         os.remove(file)
+
+
+def test_vector_geojson(vector):
+    geojson = vector.geojson
+    assert geojson["type"] == "Feature"
+    assert geojson["geometry"] == vector.geometry.__geo_interface__
+    assert geojson["properties"]["pixel_value"] == vector.pixel_value

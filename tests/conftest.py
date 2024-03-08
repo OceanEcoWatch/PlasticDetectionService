@@ -1,8 +1,8 @@
 import pytest
 from osgeo import gdal
-from shapely.geometry import box
+from shapely.geometry import Polygon, box
 
-from plastic_detection_service.models import Raster
+from plastic_detection_service.models import Raster, Vector
 
 
 @pytest.fixture
@@ -46,4 +46,11 @@ def raster(content, ds, crs, rast_geometry):
         crs=crs,
         bands=[i for i in range(1, ds.RasterCount + 1)],
         geometry=rast_geometry,
+    )
+
+
+@pytest.fixture
+def vector():
+    return Vector(
+        geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=5, crs=4326
     )

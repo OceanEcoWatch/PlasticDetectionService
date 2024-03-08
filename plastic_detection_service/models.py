@@ -46,3 +46,13 @@ class Vector:
     geometry: BaseGeometry
     crs: int
     pixel_value: int
+
+    @property
+    def geojson(self) -> dict:
+        if self.crs != 4326:
+            raise ValueError("Only EPSG:4326 is supported")
+        return {
+            "type": "Feature",
+            "geometry": self.geometry.__geo_interface__,
+            "properties": {"pixel_value": self.pixel_value},
+        }
