@@ -33,6 +33,11 @@ class GdalRasterProcessor(RasterProcessor):
         ymin = ymax + gt[5] * ds.RasterYSize
         return box(xmin, ymin, xmax, ymax)
 
+    def _srs_from_epsg(self, epsg: int) -> osr.SpatialReference:
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(epsg)
+        return srs
+
     def _ds_to_raster(self, ds: gdal.Dataset) -> Raster:
         gdal.GetDriverByName("GTiff").CreateCopy(self.TEMP_FILE, ds)
         f = gdal.VSIFOpenL(self.TEMP_FILE, "rb")
@@ -57,11 +62,8 @@ class GdalRasterProcessor(RasterProcessor):
         target_bands: list[int],
         resample_alg: str = gdal.GRA_NearestNeighbour,
     ) -> Raster:
-        srs_utm = osr.SpatialReference()
-        srs_utm.ImportFromEPSG(raster.crs)
-
-        srs_wgs84 = osr.SpatialReference()
-        srs_wgs84.ImportFromEPSG(target_crs)
+        srs_utm = self._srs_from_epsg(raster.crs)
+        srs_wgs84 = self._srs_from_epsg(target_crs)
 
         osr.CoordinateTransformation(srs_utm, srs_wgs84)
         in_ds = self._get_gdal_ds_from_memory(raster.content)
@@ -81,8 +83,7 @@ class GdalRasterProcessor(RasterProcessor):
         driver = ogr.GetDriverByName("Memory")
         output_vector_ds: ogr.DataSource = driver.CreateDataSource("")
 
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(raster.crs)
+        srs = self._srs_from_epsg(raster.crs)
         output_layer = output_vector_ds.CreateLayer(
             "polygons", srs=srs, geom_type=ogr.wkbPolygon
         )
