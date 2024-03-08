@@ -1,5 +1,5 @@
 import uuid
-from typing import Generator, Iterable
+from typing import Generator, Iterable, Union
 
 from osgeo import gdal, ogr, osr
 from shapely import wkt
@@ -17,7 +17,7 @@ class GdalRasterProcessor(RasterProcessor):
     def _get_gdal_ds_from_memory(self, content: bytes) -> gdal.Dataset:
         try:
             gdal.FileFromMemBuffer(self.TEMP_FILE, content)
-            return gdal.Open(self.TEMP_FILE)
+            return gdal.Open(self.TEMP_FILE, gdal.GA_Update)
         finally:
             gdal.Unlink(self.TEMP_FILE)
 
@@ -106,6 +106,16 @@ class GdalRasterProcessor(RasterProcessor):
                 geometry=wkt.loads(feature.GetGeometryRef().ExportToWkt()),
                 pixel_value=feature.GetField(field),
             )
+
+    def round_pixel_values(
+        self, raster: Raster, round_to: Union[int, float] = 1
+    ) -> Raster:
+        ds = self._get_gdal_ds_from_memory(raster.content)
+        for i in range(1, ds.RasterCount + 1):
+            band = ds.GetRasterBand(i)
+            band.WriteArray(band.ReadAsArray().round(round_to))
+
+        return self._ds_to_raster(ds)
 
 
 class GdalVectorsProcessor(VectorsProcessor):

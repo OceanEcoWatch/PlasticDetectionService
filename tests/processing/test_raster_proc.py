@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from osgeo import gdal
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon
 
 from plastic_detection_service.models import Raster
 from plastic_detection_service.processing.abstractions import RasterProcessor
@@ -13,51 +13,6 @@ from plastic_detection_service.processing.main import (
 )
 
 PROCESSORS = [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
-
-
-@pytest.fixture
-def content():
-    with open("tests/assets/test_exp_pred.tif", "rb") as f:
-        return f.read()
-
-
-@pytest.fixture
-def ds(content):
-    _temp_file = "/vsimem/temp.tif"
-    gdal.FileFromMemBuffer(_temp_file, content)
-    yield gdal.Open(_temp_file)
-
-    gdal.Unlink(_temp_file)
-
-
-@pytest.fixture
-def crs(ds):
-    srs = gdal.osr.SpatialReference()
-    srs.ImportFromWkt(ds.GetProjection())
-    return int(srs.GetAttrValue("AUTHORITY", 1))
-
-
-@pytest.fixture
-def rast_geometry(ds):
-    gt = ds.GetGeoTransform()
-
-    xmin = gt[0]
-    ymax = gt[3]
-    xmax = xmin + gt[1] * ds.RasterXSize
-    ymin = ymax + gt[5] * ds.RasterYSize
-    return box(xmin, ymin, xmax, ymax)
-
-
-@pytest.fixture
-def raster(content, ds, crs, rast_geometry):
-    return Raster(
-        content=content,
-        width=ds.RasterXSize,
-        height=ds.RasterYSize,
-        crs=crs,
-        bands=[i for i in range(1, ds.RasterCount + 1)],
-        geometry=rast_geometry,
-    )
 
 
 def test_get_epsg_from_ds(ds, crs):
@@ -106,7 +61,7 @@ def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
 
 
 @pytest.mark.parametrize("processor", PROCESSORS)
-def test_to_vector(ds, raster, processor: RasterProcessor):
+def test_to_vector(raster, processor: RasterProcessor):
     vectors = processor.to_vector(
         raster=raster,
         field="pixel_value",
@@ -121,3 +76,15 @@ def test_to_vector(ds, raster, processor: RasterProcessor):
     assert vec.geometry.bounds[1] >= raster.geometry.bounds[1]
     assert vec.geometry.bounds[2] <= raster.geometry.bounds[2]
     assert vec.geometry.bounds[3] <= raster.geometry.bounds[3]
+
+
+@pytest.mark.parametrize("processor", PROCESSORS)
+def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
+    rounded_raster = processor.round_pixel_values(raster, 10)
+
+    assert rounded_raster.width == raster.width
+    assert rounded_raster.height == raster.height
+    assert rounded_raster.bands == raster.bands
+    assert rounded_raster.crs == raster.crs
+    assert rounded_raster.geometry == raster.geometry
+    assert rounded_raster.content != raster.content

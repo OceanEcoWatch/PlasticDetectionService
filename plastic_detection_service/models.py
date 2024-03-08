@@ -1,6 +1,9 @@
 import datetime as dt
+import io
 from dataclasses import dataclass
 
+import numpy as np
+import rasterio
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
 
@@ -31,6 +34,12 @@ class Raster:
     def to_file(self, path: str):
         with open(path, "wb") as f:
             f.write(self.content)
+
+    def to_numpy(self) -> np.ndarray:
+        with rasterio.MemoryFile(io.BytesIO(self.content)) as memfile:
+            with memfile.open() as dataset:
+                array = dataset.read()
+        return array
 
 
 @dataclass
