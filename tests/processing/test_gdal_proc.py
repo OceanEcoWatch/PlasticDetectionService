@@ -100,31 +100,7 @@ def test_to_vector(ds, raster):
     assert isinstance(vec.geometry, Polygon)
 
     # test if geometry is within the bounds of the raster
-
-
-# def test_to_vector():
-#     gdal_raster = GdalRaster.from_memory(
-#         open("images/5cb12a6cbd6df0865947f21170bc432a/response.tiff", "rb").read()
-#     )
-#     processor = GdalRasterProcessor()
-#     reprojected_raster = processor.to_vector(gdal_raster, "pixel_value")
-
-#     for feature in reprojected_raster.ds.GetLayer():
-#         print(feature.GetField("pixel_value"))
-
-#     # save
-#     with open("response_wgs84_test.geojson", "w") as f:
-#         schema = {
-#             "geometry": "Polygon",
-#             "properties": {"pixel_value": "int"},
-#         }
-#         feature_collection = geojson.FeatureCollection([])
-#         for feature in ds.GetLayer():
-#             pixel_value = int(feature.GetField("pixel_value"))
-#             geometry = json.loads(feature.ExportToJson())["geometry"]
-#             feature_collection["features"].append(
-#                 geojson.Feature(
-#                     geometry=geometry, properties={"pixel_value": pixel_value}
-#                 )
-#             )
-#         f.write(geojson.dumps(feature_collection))
+    assert vec.geometry.bounds[0] >= raster.geometry.bounds[0]
+    assert vec.geometry.bounds[1] >= raster.geometry.bounds[1]
+    assert vec.geometry.bounds[2] <= raster.geometry.bounds[2]
+    assert vec.geometry.bounds[3] <= raster.geometry.bounds[3]
