@@ -11,6 +11,7 @@ class RasterProcessor(ABC):
         raster: Raster,
         target_crs: int,
         target_bands: list[int],
+        resample_alg: str,
     ) -> Raster:
         pass
 

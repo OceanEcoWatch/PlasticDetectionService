@@ -10,6 +10,8 @@ from plastic_detection_service.processing.gdal_proc import (
 )
 from plastic_detection_service.processing.main import RasterProcessingContext
 
+PROCESSORS = [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
+
 
 @pytest.fixture
 def content():
@@ -77,9 +79,7 @@ def test_ds_to_raster(ds, content, rast_geometry, crs):
     assert raster.geometry == rast_geometry
 
 
-@pytest.mark.parametrize(
-    "processor", [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
-)
+@pytest.mark.parametrize("processor", PROCESSORS)
 def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
     reprojected_raster = processor.reproject_raster(raster, 4326, [1])
     reprojected_raster.to_file("tests/assets/test_out_reprojected.tif")
@@ -103,9 +103,7 @@ def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
     assert reprojected_raster.geometry.bounds[3] < 90
 
 
-@pytest.mark.parametrize(
-    "processor", [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
-)
+@pytest.mark.parametrize("processor", PROCESSORS)
 def test_to_vector(ds, raster, processor: RasterProcessor):
     vectors = processor.to_vector(
         raster=raster,
