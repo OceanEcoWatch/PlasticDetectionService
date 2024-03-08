@@ -4,6 +4,7 @@ import os
 import psycopg2
 from geoalchemy2 import Geometry
 from geoalchemy2.elements import WKBElement
+from geoalchemy2.shape import from_shape
 from sqlalchemy import (
     Column,
     DateTime,
@@ -18,6 +19,7 @@ from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import create_database, database_exists
 
 from plastic_detection_service.config import POSTGIS_URL
+from plastic_detection_service.models import DownloadResponse, Raster, Vector
 
 Base = declarative_base()
 
@@ -58,17 +60,17 @@ def create_tables(engine, base):
 
 def create_triggers():
     custom_trigger_function_sql = """
-    CREATE OR REPLACE FUNCTION prevent_duplicate_sh_response_insert()
+    CREATE OR REPLACE FUNCTION prevent_duplicate_image_insert()
     RETURNS TRIGGER AS $$
     BEGIN
         IF EXISTS (
             SELECT 1
-            FROM sentinel_hub_responses
+            FROM images
             WHERE timestamp = NEW.timestamp
             AND ST_Equals(bbox, NEW.bbox)
-            AND sentinel_hub_id = NEW.sentinel_hub_id
+            AND image_id = NEW.image_id
         ) THEN
-            RAISE EXCEPTION 'Duplicate sentinel_hub_response insert not allowed.';
+            RAISE EXCEPTION 'Image with the same timestamp, bbox and sentinel_hub_id already exists';
         END IF;
         RETURN NEW;
     END;
@@ -76,10 +78,10 @@ def create_triggers():
     """
 
     trigger_sql = """
-    CREATE TRIGGER check_duplicate_sh_response_insert
-    BEFORE INSERT ON sentinel_hub_responses
+    CREATE TRIGGER prevent_duplicate_image_insert
+    BEFORE INSERT ON images
     FOR EACH ROW
-    EXECUTE FUNCTION prevent_duplicate_sh_response_insert();
+    EXECUTE FUNCTION prevent_duplicate_image_insert();
     """
 
     conn = psycopg2.connect(
@@ -132,6 +134,21 @@ class Image(Base):
         self.provider = provider
         self.bbox = bbox
 
+    @classmethod
+    def from_response_and_raster(
+        cls, response: DownloadResponse, raster: Raster, image_url: str
+    ):
+        return cls(
+            image_id=response.image_id,
+            image_url=image_url,
+            timestamp=response.timestamp,
+            image_width=raster.size[0],
+            image_height=raster.size[1],
+            bands=len(raster.bands),
+            provider=response.data_collection,
+            bbox=from_shape(raster.geometry),
+        )
+
 
 class Model(Base):
     __tablename__ = "models"
@@ -140,20 +157,13 @@ class Model(Base):
     model_id = Column(String, nullable=False)
     model_url = Column(String, nullable=False, unique=True)
     model_name = Column(String, nullable=False)
-    model_description = Column(String, nullable=False)
-    image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
 
     __table_args__ = (UniqueConstraint("model_id", "model_url"),)
 
-    image = relationship("Image", backref="models")
-
-    def __init__(
-        self, model_id: str, model_url: str, model_name: str, model_description: str
-    ):
+    def __init__(self, model_id: str, model_url: str, model_name: str):
         self.model_id = model_id
         self.model_url = model_url
         self.model_name = model_name
-        self.model_description = model_description
 
 
 class PredictionVector(Base):
@@ -163,15 +173,27 @@ class PredictionVector(Base):
     pixel_value = Column(Integer, nullable=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
+    model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
 
     image = relationship("Image", backref="prediction_vectors")
+    model = relationship("Model", backref="prediction_vectors")
 
     def __init__(
-        self, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int
+        self, pixel_value: int, geometry: WKBElement, image_id: int, model_id: int
     ):
         self.pixel_value = pixel_value
         self.geometry = geometry
-        self.sentinel_hub_response_id = sentinel_hub_response_id
+        self.image_id = image_id
+        self.model_id = model_id
+
+    @classmethod
+    def from_vector(cls, vector: Vector, image_id: int, model_id: int):
+        return cls(
+            pixel_value=vector.pixel_value,
+            geometry=from_shape(vector.geometry),
+            image_id=image_id,
+            model_id=model_id,
+        )
 
 
 class SceneClassificationVector(Base):
@@ -184,12 +206,18 @@ class SceneClassificationVector(Base):
 
     image = relationship("Image", backref="scene_classification_vectors")
 
-    def __init__(
-        self, pixel_value: int, geometry: WKBElement, sentinel_hub_response_id: int
-    ):
+    def __init__(self, pixel_value: int, geometry: WKBElement, image_id: int):
         self.pixel_value = pixel_value
         self.geometry = geometry
-        self.sentinel_hub_response_id = sentinel_hub_response_id
+        self.image_id = image_id
+
+    @classmethod
+    def from_vector(cls, vector: Vector, image_id: int):
+        return cls(
+            pixel_value=vector.pixel_value,
+            geometry=from_shape(vector.geometry),
+            image_id=image_id,
+        )
 
 
 if __name__ == "__main__":

@@ -1,3 +1,7 @@
+import os
+
+import rasterio
+
 from plastic_detection_service.models import Raster
 
 
@@ -10,3 +14,19 @@ def test_raster_to_numpy_same_as_gdal(raster: Raster, ds):
     numpy_arr = raster.to_numpy()
     for i in range(len(raster.bands)):
         assert (numpy_arr[i] == ds.GetRasterBand(i + 1).ReadAsArray()).all()
+
+
+def test_raster_to_file(raster: Raster):
+    file = "tests/assets/test_raster_to_file.tif"
+    try:
+        raster.to_file(file)
+        assert os.path.exists(file)
+
+        with rasterio.open(file) as src:
+            assert src.crs.to_epsg() == raster.crs
+            assert src.bounds == raster.geometry.bounds
+            assert src.shape == (raster.size[1], raster.size[0])
+            for i in range(len(raster.bands)):
+                assert (src.read(i + 1) == raster.to_numpy()[i]).all()
+    finally:
+        os.remove(file)

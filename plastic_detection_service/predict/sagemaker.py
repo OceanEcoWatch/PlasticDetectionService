@@ -30,7 +30,6 @@ def invoke(
         if "ThrottlingException" in str(e):
             LOGGER.warning("ThrottlingException, retrying...")
             return invoke(endpoint_name, content_type, payload, retry_count + 1)
-
         else:
             LOGGER.error("Unexpected error: %s" % e)
             raise e

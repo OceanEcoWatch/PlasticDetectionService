@@ -6,6 +6,7 @@ from plastic_detection_service.database.db import (
     SceneClassificationVector,
     get_db_engine,
 )
+from plastic_detection_service.models import DownloadResponse, Raster, Vector
 
 
 class Insert:
@@ -13,14 +14,22 @@ class Insert:
         self.session = session
         self.engine = engine
 
-    def insert_image(self, image: Image):
-        self.session.add(image)
-        self.session.commit()
+    def insert_image(
+        self, raster: Raster, download_response: DownloadResponse, image_url: str
+    ):
+        with self.session as session:
+            image = Image.from_response_and_raster(download_response, raster, image_url)
+            session.add(image)
+            session.commit()
 
-    def insert_prediction(self, prediction: PredictionVector):
-        self.session.add(prediction)
-        self.session.commit()
+    def insert_prediction(self, prediction: Vector, image_id: int, model_id: int):
+        with self.session as session:
+            pv = PredictionVector.from_vector(prediction, image_id, model_id)
+            session.add(pv)
+            session.commit()
 
-    def insert_scl(self, scl: SceneClassificationVector):
-        self.session.add(scl)
-        self.session.commit()
+    def insert_scl(self, scl: Vector, image_id: int):
+        with self.session as session:
+            sv = SceneClassificationVector.from_vector(scl, image_id)
+            session.add(sv)
+            session.commit()
