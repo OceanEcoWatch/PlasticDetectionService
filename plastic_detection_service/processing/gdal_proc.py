@@ -1,6 +1,8 @@
 from typing import Generator
 
 from osgeo import gdal, ogr, osr
+from shapely import wkt
+from shapely.geometry import Polygon, box
 
 from plastic_detection_service.models import Vector
 
@@ -23,6 +25,15 @@ class GdalRasterProcessor(RasterProcessor):
         srs.ImportFromWkt(ds.GetProjection())
         return int(srs.GetAttrValue("AUTHORITY", 1))
 
+    def _get_rast_geometry(self, ds: gdal.Dataset) -> Polygon:
+        gt = ds.GetGeoTransform()
+
+        xmin = gt[0]
+        ymax = gt[3]
+        xmax = xmin + gt[1] * ds.RasterXSize
+        ymin = ymax + gt[5] * ds.RasterYSize
+        return box(xmin, ymin, xmax, ymax)
+
     def _ds_to_raster(self, ds: gdal.Dataset) -> Raster:
         gdal.GetDriverByName("GTiff").CreateCopy(self._temp_file, ds)
         f = gdal.VSIFOpenL(self._temp_file, "rb")
@@ -37,6 +48,7 @@ class GdalRasterProcessor(RasterProcessor):
             height=ds.RasterYSize,
             crs=self._get_epsg_from_ds(ds),
             bands=[i for i in range(1, ds.RasterCount + 1)],
+            geometry=self._get_rast_geometry(ds),
         )
 
     def reproject_raster(
@@ -64,7 +76,9 @@ class GdalRasterProcessor(RasterProcessor):
 
         return self._ds_to_raster(out_ds)
 
-    def to_vector(self, raster: Raster, field: str, band: int) -> Vector:
+    def to_vector(
+        self, raster: Raster, field: str, band: int = 1
+    ) -> Generator[Vector, None, None]:
         driver = ogr.GetDriverByName("Memory")
         output_vector_ds: ogr.DataSource = driver.CreateDataSource("")
 
@@ -83,4 +97,8 @@ class GdalRasterProcessor(RasterProcessor):
 
         gdal.Polygonize(band, None, output_layer, dst_field, [], callback=None)
 
-        return Vector(geometry=output_vector_ds, field=field)
+        for feature in output_vector_ds.GetLayer():
+            yield Vector(
+                geometry=wkt.loads(feature.GetGeometryRef().ExportToWkt()),
+                pixel_value=feature.GetField(field),
+            )

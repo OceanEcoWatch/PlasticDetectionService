@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Generator
 
 from plastic_detection_service.models import Raster, Vector
 
@@ -15,5 +16,7 @@ class RasterProcessor(ABC):
         pass
 
     @abstractmethod
-    def to_vector(self, raster: Raster, field: str) -> Vector:
+    def to_vector(
+        self, raster: Raster, field: str, band: int = 1
+    ) -> Generator[Vector, None, None]:
         pass

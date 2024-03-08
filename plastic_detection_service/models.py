@@ -2,6 +2,7 @@ import datetime as dt
 from dataclasses import dataclass
 
 from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import Polygon
 
 
 @dataclass
@@ -25,6 +26,7 @@ class Raster:
     height: int
     crs: int
     bands: list[int]
+    geometry: Polygon
 
     def to_file(self, path: str):
         with open(path, "wb") as f:
