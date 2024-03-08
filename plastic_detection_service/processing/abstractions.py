@@ -5,8 +5,6 @@ from plastic_detection_service.models import Raster, Vector
 
 
 class RasterProcessor(ABC):
-    RESAMPLE_ALG = "nearest"
-
     @abstractmethod
     def reproject_raster(
         self,

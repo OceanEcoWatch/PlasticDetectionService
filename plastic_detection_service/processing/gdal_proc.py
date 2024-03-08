@@ -26,7 +26,7 @@ class GdalRasterProcessor(RasterProcessor):
         srs.ImportFromWkt(ds.GetProjection())
         return int(srs.GetAttrValue("AUTHORITY", 1))
 
-    def _get_rast_geometry(self, ds: gdal.Dataset) -> Polygon:
+    def _get_raster_geometry(self, ds: gdal.Dataset) -> Polygon:
         gt = ds.GetGeoTransform()
 
         xmin = gt[0]
@@ -54,7 +54,7 @@ class GdalRasterProcessor(RasterProcessor):
             height=ds.RasterYSize,
             crs=self._get_epsg_from_ds(ds),
             bands=[i for i in range(1, ds.RasterCount + 1)],
-            geometry=self._get_rast_geometry(ds),
+            geometry=self._get_raster_geometry(ds),
         )
         ds = None  # type: ignore
         return raster
@@ -64,6 +64,7 @@ class GdalRasterProcessor(RasterProcessor):
         raster: Raster,
         target_crs: int,
         target_bands: list[int],
+        resample_alg: str = "nearest",
     ) -> Raster:
         srs_utm = self._srs_from_epsg(raster.crs)
         srs_wgs84 = self._srs_from_epsg(target_crs)
@@ -74,7 +75,7 @@ class GdalRasterProcessor(RasterProcessor):
             self.TEMP_FILE,
             in_ds,
             dstSRS=srs_wgs84,
-            resampleAlg=self.RESAMPLE_ALG,
+            resampleAlg=resample_alg,
             srcBands=target_bands,
         )  # type: ignore
 

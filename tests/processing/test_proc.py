@@ -4,9 +4,11 @@ from osgeo import gdal
 from shapely.geometry import Polygon, box
 
 from plastic_detection_service.models import Raster
+from plastic_detection_service.processing.abstractions import RasterProcessor
 from plastic_detection_service.processing.gdal_proc import (
     GdalRasterProcessor,
 )
+from plastic_detection_service.processing.main import RasterProcessingContext
 
 
 @pytest.fixture
@@ -54,6 +56,16 @@ def raster(content, ds, crs, rast_geometry):
     )
 
 
+def test_get_epsg_from_ds(ds, crs):
+    processor = GdalRasterProcessor()
+    assert processor._get_epsg_from_ds(ds) == crs
+
+
+def test_get_raster_geometry(ds, rast_geometry):
+    processor = GdalRasterProcessor()
+    assert processor._get_raster_geometry(ds) == rast_geometry
+
+
 def test_ds_to_raster(ds, content, rast_geometry, crs):
     processor = GdalRasterProcessor()
     raster = processor._ds_to_raster(ds)
@@ -65,12 +77,15 @@ def test_ds_to_raster(ds, content, rast_geometry, crs):
     assert raster.geometry == rast_geometry
 
 
-def test_reproject_raster(ds, raster: Raster):
-    processor = GdalRasterProcessor()
+@pytest.mark.parametrize(
+    "processor", [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
+)
+def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
     reprojected_raster = processor.reproject_raster(raster, 4326, [1])
     reprojected_raster.to_file("tests/assets/test_out_reprojected.tif")
     assert reprojected_raster.crs == 4326
     assert reprojected_raster.bands == [1]
+    assert isinstance(reprojected_raster, Raster)
 
     # Compare the means of the rasters
     out_ds = gdal.Open("tests/assets/test_out_reprojected.tif")
@@ -88,8 +103,10 @@ def test_reproject_raster(ds, raster: Raster):
     assert reprojected_raster.geometry.bounds[3] < 90
 
 
-def test_to_vector(ds, raster):
-    processor = GdalRasterProcessor()
+@pytest.mark.parametrize(
+    "processor", [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
+)
+def test_to_vector(ds, raster, processor: RasterProcessor):
     vectors = processor.to_vector(
         raster=raster,
         field="pixel_value",

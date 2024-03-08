@@ -18,7 +18,7 @@ class RasterProcessingContext:
         raster: Raster,
         target_crs: int,
         target_bands: list[int],
-        resample_alg: str,
+        resample_alg: str = "nearest",
     ) -> Raster:
         return self.raster_processor.reproject_raster(
             raster, target_crs, target_bands, resample_alg
