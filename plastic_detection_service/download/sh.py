@@ -15,7 +15,12 @@ from sentinelhub import (
 )
 from sentinelhub.api.catalog import CatalogSearchIterator
 
-from .models import DownloadParams, ImageDownload, TimestampResponse
+from .models import (
+    DownloadParams,
+    DownloadResponse,
+    DownloadStrategy,
+    TimestampResponse,
+)
 
 
 @dataclass
@@ -26,7 +31,7 @@ class SentinelHubDownloadParams(DownloadParams):
     mime_type: MimeType
 
 
-class SentinelHubDownload(ImageDownload):
+class SentinelHubDownload(DownloadStrategy):
     def __init__(self, params: SentinelHubDownloadParams):
         self.params = params
 
@@ -73,14 +78,14 @@ class SentinelHubDownload(ImageDownload):
 
     def _download_image(
         self, search_response: dict, request: SentinelHubRequest, bbox: BBox
-    ) -> TimestampResponse:
+    ) -> DownloadResponse:
         bbox_size = bbox_to_dimensions(bbox, resolution=10)
         response_list = request.get_data(decode_data=False, save_data=False)
         if len(response_list) != 1:
             raise ValueError("Expected only one image to be returned.")
         response = response_list[0]
 
-        return TimestampResponse(
+        return DownloadResponse(
             image_id=search_response["id"],
             timestamp=datetime.datetime.fromisoformat(
                 search_response["properties"]["datetime"].rstrip("Z")

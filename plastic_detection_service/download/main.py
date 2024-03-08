@@ -8,7 +8,7 @@ from plastic_detection_service import config
 from plastic_detection_service.aws import s3
 
 from .evalscripts import L2A_12_BANDS_SCL
-from .models import TimestampResponse
+from .models import DownloadResponse
 from .sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
@@ -54,17 +54,11 @@ def main(
             mime_type=MimeType.TIFF,
         )
     )
-
-    for res in downloader.download_images():
-        if res.content:
-            print(res.crs)
-            print(type(res.crs))
-            print(res.bbox)
-            print(res.image_size)
-            print(res.timestamp)
+    for image in downloader.download_images():
+        upload_image_to_s3(image)
 
 
-def upload_image_to_s3(image: TimestampResponse) -> str:
+def upload_image_to_s3(image: DownloadResponse) -> str:
     s3_url = s3.stream_to_s3(
         io.BytesIO(image.content),
         config.S3_BUCKET_NAME,

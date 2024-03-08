@@ -1,7 +1,5 @@
 import io
-import json
 
-import geojson
 import rasterio
 from osgeo import gdal, ogr, osr
 from rasterio.features import shapes
@@ -85,26 +83,3 @@ def vectorize_raster(input_raster: io.BytesIO) -> MultiPolygon:
         shapes_generator = shapes(mask, mask=mask, transform=src.transform)
         geometries = [shape(geometry) for geometry, _ in shapes_generator]
         return MultiPolygon(geometries)
-
-
-if __name__ == "__main__":
-    src = gdal.Open("images/5cb12a6cbd6df0865947f21170bc432a/response_wgs84_test.tiff")
-
-    ds = polygonize_raster(src)
-
-    # save
-    with open("response_wgs84_test.geojson", "w") as f:
-        schema = {
-            "geometry": "Polygon",
-            "properties": {"pixel_value": "int"},
-        }
-        feature_collection = geojson.FeatureCollection([])
-        for feature in ds.GetLayer():
-            pixel_value = int(feature.GetField("pixel_value"))
-            geometry = json.loads(feature.ExportToJson())["geometry"]
-            feature_collection["features"].append(
-                geojson.Feature(
-                    geometry=geometry, properties={"pixel_value": pixel_value}
-                )
-            )
-        f.write(geojson.dumps(feature_collection))
