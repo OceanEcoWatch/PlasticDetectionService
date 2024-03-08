@@ -1,6 +1,7 @@
 import uuid
 from typing import Generator, Iterable, Union
 
+import numpy as np
 from osgeo import gdal, ogr, osr
 from shapely import wkt
 from shapely.geometry import Polygon, box
@@ -110,10 +111,14 @@ class GdalRasterProcessor(RasterProcessor):
     def round_pixel_values(
         self, raster: Raster, round_to: Union[int, float] = 1
     ) -> Raster:
-        ds = self._get_gdal_ds_from_memory(raster.content)
+        in_ds = self._get_gdal_ds_from_memory(raster.content)
+        driver = gdal.GetDriverByName("MEM")
+        ds = driver.CreateCopy("", in_ds)
         for i in range(1, ds.RasterCount + 1):
             band = ds.GetRasterBand(i)
-            band.WriteArray(band.ReadAsArray().round(round_to))
+            array = band.ReadAsArray()
+            rounded_array = np.round(array / round_to) * round_to
+            band.WriteArray(rounded_array)
 
         return self._ds_to_raster(ds)
 

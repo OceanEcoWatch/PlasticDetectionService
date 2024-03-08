@@ -88,3 +88,7 @@ def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
     assert rounded_raster.crs == raster.crs
     assert rounded_raster.geometry == raster.geometry
     assert rounded_raster.content != raster.content
+
+    # check if all values are rounded
+    for i in range(len(raster.bands)):
+        assert (rounded_raster.to_numpy()[i] % 10 == 0).all()
