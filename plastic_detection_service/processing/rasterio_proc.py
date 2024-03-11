@@ -64,15 +64,25 @@ class RasterioRasterProcessor(RasterProcessor):
         )
         return image
 
-    def update_window_metaa(self, meta, window):
+    def update_bounds(self, meta, new_bounds):
+        minx, miny, maxx, maxy = new_bounds
+        transform = meta["transform"]
+        new_transform = rasterio.Affine(
+            transform.a, transform.b, minx, transform.d, transform.e, maxy
+        )
+        meta["transform"] = new_transform
+        return meta
+
+    def update_window_meta(self, meta, image, window, src):
         window_meta = meta.copy()
         window_meta.update(
             {
-                "height": window.height,
-                "width": window.width,
+                "height": image.shape[1],
+                "width": image.shape[2],
+                "count": image.shape[0],
             }
         )
-        return window_meta
+        return self.update_bounds(window_meta, src.window_bounds(window))
 
     def write_image(self, image, meta):
         buffer = io.BytesIO()
@@ -84,19 +94,25 @@ class RasterioRasterProcessor(RasterProcessor):
     def create_raster(self, content, src, image, window, window_meta):
         return Raster(
             content=content,
-            size=(window_meta["width"], window_meta["height"]),
+            size=(image.shape[1], image.shape[2]),
             crs=window_meta["crs"].to_epsg(),
             bands=[i + 1 for i in range(image.shape[0])],
             geometry=box(*src.window_bounds(window)),
         )
+
+    def remove_bands(self, image):
+        if image.shape[0] > 12:
+            return image[0:12]
 
     def split_pad_raster(self, raster: Raster, image_size=(480, 480), offset=64):
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
             for window, src in self.generate_windows(raster, image_size, offset):
                 image = self.pad_image(src, window, image_size, offset)
-                window_meta = self.update_window_metaa(meta, window)
+                image = self.remove_bands(image)
+                window_meta = self.update_window_meta(meta, image, window, src)
                 window_byte_stream = self.write_image(image, window_meta)
+
                 yield self.create_raster(
                     window_byte_stream, src, image, window, window_meta
                 )

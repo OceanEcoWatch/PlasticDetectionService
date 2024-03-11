@@ -23,7 +23,7 @@ def s2_l2a_rasterio():
 @pytest.fixture
 def s2_l2a_raster(s2_l2a_rasterio, s2_l2a_response):
     src, image, meta = s2_l2a_rasterio
-    print(meta)
+
     return Raster(
         content=s2_l2a_response,
         size=(meta["width"], meta["height"]),
