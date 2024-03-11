@@ -1,5 +1,8 @@
+import io
+
 import numpy as np
 import pytest
+import rasterio
 from osgeo import gdal
 from shapely.geometry import Polygon
 
@@ -11,6 +14,7 @@ from plastic_detection_service.processing.context import (
 from plastic_detection_service.processing.gdal_proc import (
     GdalRasterProcessor,
 )
+from plastic_detection_service.processing.rasterio_proc import RasterioRasterProcessor
 
 PROCESSORS = [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
 
@@ -115,3 +119,25 @@ def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
     rounded_mean = np.mean(rounded_raster.to_numpy())
     original_mean = np.mean(raster.to_numpy())
     assert np.isclose(original_mean, rounded_mean, rtol=0.2)
+
+
+def test_split_raster_padding(s2_l2a_response, s2_l2a_raster):
+    # Create a dummy Raster object
+    process = RasterioRasterProcessor()
+
+    split_raster = next(
+        process.split_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
+    )
+    assert split_raster.size == (480, 480)
+    assert split_raster.crs == s2_l2a_raster.crs
+    assert split_raster.bands == s2_l2a_raster.bands
+    assert split_raster.content != s2_l2a_raster.content
+
+    with rasterio.open(io.BytesIO(split_raster.content)) as src:
+        image = src.read()
+
+        assert image.shape == (13, 480, 480)
+        assert image.dtype == np.uint16
+        assert src.meta["height"] == 480
+        assert src.meta["width"] == 480
+        assert src.meta["crs"] == s2_l2a_raster.crs

@@ -1,8 +1,36 @@
 import pytest
+import rasterio
 from osgeo import gdal
 from shapely.geometry import Polygon, box
 
 from plastic_detection_service.models import Raster, Vector
+
+
+@pytest.fixture
+def s2_l2a_response():
+    with open("tests/assets/test_response.tiff", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def s2_l2a_rasterio():
+    with rasterio.open("tests/assets/test_response.tiff") as src:
+        image = src.read()
+        meta = src.meta.copy()
+        return src, image, meta
+
+
+@pytest.fixture
+def s2_l2a_raster(s2_l2a_rasterio, s2_l2a_response):
+    src, image, meta = s2_l2a_rasterio
+    print(meta)
+    return Raster(
+        content=s2_l2a_response,
+        size=(meta["width"], meta["height"]),
+        crs=meta["crs"].to_epsg(),
+        bands=[i for i in range(1, meta["count"] + 1)],
+        geometry=box(*src.bounds),
+    )
 
 
 @pytest.fixture

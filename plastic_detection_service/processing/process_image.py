@@ -1,6 +1,7 @@
 import io
 import logging
 from itertools import product
+from typing import Generator
 
 import numpy as np
 import rasterio
@@ -10,7 +11,9 @@ from scipy.ndimage.filters import gaussian_filter
 LOGGER = logging.getLogger(__name__)
 
 
-def preprocess_image(data: bytes, image_size=(480, 480), offset=64) -> list[bytes]:
+def split_image(
+    data: bytes, image_size=(480, 480), offset=64
+) -> Generator[bytes, None, None]:
     with rasterio.open(io.BytesIO(data)) as src:
         meta = src.meta.copy()
         H, W = image_size
@@ -18,7 +21,6 @@ def preprocess_image(data: bytes, image_size=(480, 480), offset=64) -> list[byte
         cols = np.arange(0, meta["width"], W)
         image_window = Window(0, 0, meta["width"], meta["height"])
 
-        window_byte_streams = []
         for r, c in product(rows, cols):
             H, W = image_size
             window = image_window.intersection(
@@ -28,7 +30,7 @@ def preprocess_image(data: bytes, image_size=(480, 480), offset=64) -> list[byte
 
             H, W = H + offset * 2, W + offset * 2
 
-            bands, h, w = image.shape
+            _, h, w = image.shape
             dh = (H - h) / 2
             dw = (W - w) / 2
             image = np.pad(
@@ -54,9 +56,7 @@ def preprocess_image(data: bytes, image_size=(480, 480), offset=64) -> list[byte
                 mem_dst.write(image)
 
             window_byte_stream = buffer.getvalue()
-            window_byte_streams.append(window_byte_stream)
-
-        return window_byte_streams
+            yield window_byte_stream
 
 
 def unpad(y_score: np.ndarray, window: Window, dh: float, dw: float):
