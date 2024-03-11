@@ -64,7 +64,7 @@ class RasterioRasterProcessor(RasterProcessor):
         )
         return image
 
-    def write_image(self, image, window, meta):
+    def update_window_metaa(self, meta, window):
         window_meta = meta.copy()
         window_meta.update(
             {
@@ -72,12 +72,14 @@ class RasterioRasterProcessor(RasterProcessor):
                 "width": window.width,
             }
         )
+        return window_meta
 
+    def write_image(self, image, meta):
         buffer = io.BytesIO()
-        with rasterio.open(buffer, "w+", **window_meta) as mem_dst:
+        with rasterio.open(buffer, "w+", **meta) as mem_dst:
             mem_dst.write(image)
 
-        return buffer.getvalue(), window_meta
+        return buffer.getvalue()
 
     def create_raster(self, content, src, image, window, window_meta):
         return Raster(
@@ -93,7 +95,8 @@ class RasterioRasterProcessor(RasterProcessor):
             meta = src.meta.copy()
             for window, src in self.generate_windows(raster, image_size, offset):
                 image = self.pad_image(src, window, image_size, offset)
-                window_byte_stream, window_meta = self.write_image(image, window, meta)
+                window_meta = self.update_window_metaa(meta, window)
+                window_byte_stream = self.write_image(image, window_meta)
                 yield self.create_raster(
                     window_byte_stream, src, image, window, window_meta
                 )
