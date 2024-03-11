@@ -121,12 +121,11 @@ def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
     assert np.isclose(original_mean, rounded_mean, rtol=0.2)
 
 
-def test_split_raster_padding(s2_l2a_response, s2_l2a_raster):
-    # Create a dummy Raster object
+def test_split_pad_raster_padding(s2_l2a_response, s2_l2a_raster):
     process = RasterioRasterProcessor()
 
     split_raster = next(
-        process.split_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
+        process.split_pad_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
     )
     assert split_raster.size == (480, 480)
     assert split_raster.crs == s2_l2a_raster.crs

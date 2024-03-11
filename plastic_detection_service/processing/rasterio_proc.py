@@ -30,9 +30,7 @@ class RasterioRasterProcessor(RasterProcessor):
     def round_pixel_values(self, raster: Raster, round_to: Union[int, float]) -> Raster:
         raise NotImplementedError
 
-    def split_raster(
-        self, raster: Raster, image_size=(480, 480), offset=64
-    ) -> Generator[Raster, None, None]:
+    def generate_windows(self, raster: Raster, image_size=(480, 480), offset=64):
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
             H, W = image_size
@@ -45,40 +43,57 @@ class RasterioRasterProcessor(RasterProcessor):
                 window = image_window.intersection(
                     Window(c - offset, r - offset, W + offset, H + offset)
                 )
-                image = src.read(window=window)
+                yield window, src
 
-                H, W = H + offset * 2, W + offset * 2
+    def pad_image(self, src, window, image_size=(480, 480), offset=64):
+        H, W = image_size
+        image = src.read(window=window)
 
-                _, h, w = image.shape
-                dh = (H - h) / 2
-                dw = (W - w) / 2
-                image = np.pad(
-                    image,
-                    [
-                        (0, 0),
-                        (int(np.ceil(dh)), int(np.floor(dh))),
-                        (int(np.ceil(dw)), int(np.floor(dw))),
-                    ],
-                )
-                # Adjust meta for individual window
-                window_meta = meta.copy()
-                window_meta.update(
-                    {
-                        "height": window.height,
-                        "width": window.width,
-                    }
-                )
+        H, W = H + offset * 2, W + offset * 2
 
-                # Convert window to TIFF byte stream
-                buffer = io.BytesIO()
-                with rasterio.open(buffer, "w+", **window_meta) as mem_dst:
-                    mem_dst.write(image)
+        _, h, w = image.shape
+        dh = (H - h) / 2
+        dw = (W - w) / 2
+        image = np.pad(
+            image,
+            [
+                (0, 0),
+                (int(np.ceil(dh)), int(np.floor(dh))),
+                (int(np.ceil(dw)), int(np.floor(dw))),
+            ],
+        )
+        return image
 
-                window_byte_stream = buffer.getvalue()
-                yield Raster(
-                    content=window_byte_stream,
-                    size=(window.height, window.width),
-                    crs=meta["crs"],
-                    bands=[i + 1 for i in range(image.shape[0])],
-                    geometry=box(*src.window_bounds(window)),
+    def write_image(self, image, window, meta):
+        window_meta = meta.copy()
+        window_meta.update(
+            {
+                "height": window.height,
+                "width": window.width,
+            }
+        )
+
+        buffer = io.BytesIO()
+        with rasterio.open(buffer, "w+", **window_meta) as mem_dst:
+            mem_dst.write(image)
+
+        return buffer.getvalue(), window_meta
+
+    def create_raster(self, content, src, image, window, window_meta):
+        return Raster(
+            content=content,
+            size=(window_meta["width"], window_meta["height"]),
+            crs=window_meta["crs"].to_epsg(),
+            bands=[i + 1 for i in range(image.shape[0])],
+            geometry=box(*src.window_bounds(window)),
+        )
+
+    def split_pad_raster(self, raster: Raster, image_size=(480, 480), offset=64):
+        with rasterio.open(io.BytesIO(raster.content)) as src:
+            meta = src.meta.copy()
+            for window, src in self.generate_windows(raster, image_size, offset):
+                image = self.pad_image(src, window, image_size, offset)
+                window_byte_stream, window_meta = self.write_image(image, window, meta)
+                yield self.create_raster(
+                    window_byte_stream, src, image, window, window_meta
                 )
