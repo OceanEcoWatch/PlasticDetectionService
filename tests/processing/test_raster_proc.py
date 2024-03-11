@@ -121,22 +121,28 @@ def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
     assert np.isclose(original_mean, rounded_mean, rtol=0.2)
 
 
-def test_split_pad_raster_padding(s2_l2a_response, s2_l2a_raster):
+def test_split_pad_raster(s2_l2a_response, s2_l2a_raster):
     process = RasterioRasterProcessor()
 
     split_raster = next(
         process.split_pad_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
     )
+    split_raster.to_file("tests/assets/test_out_split.tif")
+
     assert split_raster.size == (480, 480)
     assert split_raster.crs == s2_l2a_raster.crs
     assert split_raster.bands == s2_l2a_raster.bands
     assert split_raster.content != s2_l2a_raster.content
+    assert isinstance(split_raster.content, bytes)
 
-    with rasterio.open(io.BytesIO(split_raster.content)) as src:
-        image = src.read()
+    with rasterio.open("tests/assets/test_exp_split.tif") as exp_src:
+        with rasterio.open(io.BytesIO(split_raster.content)) as src:
+            exp_image = exp_src.read()
+            image = src.read()
 
-        assert image.shape == (13, 480, 480)
-        assert image.dtype == np.uint16
-        assert src.meta["height"] == 480
-        assert src.meta["width"] == 480
-        assert src.meta["crs"] == s2_l2a_raster.crs
+            assert np.array_equal(exp_image, image)
+            assert image.shape == (13, 480, 480)
+            assert image.dtype == np.uint16
+            assert src.meta["height"] == 480
+            assert src.meta["width"] == 480
+            assert src.meta["crs"] == s2_l2a_raster.crs
