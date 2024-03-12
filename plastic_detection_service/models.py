@@ -25,10 +25,11 @@ class DownloadResponse:
 @dataclass
 class Raster:
     content: bytes
-    size: tuple[int, int]
+    size: tuple[int, int]  # (height, width)
     crs: int
     bands: list[int]
     geometry: Polygon
+    padding_size: tuple[int, int] = (0, 0)  # (height, width)
 
     def to_file(self, path: str):
         with open(path, "wb") as f:

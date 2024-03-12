@@ -168,9 +168,11 @@ def test_split_raster(s2_l2a_raster, processor):
 
 
 @pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
-def test_pad_raster(s2_l2a_raster, processor: RasterProcessor):
+def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
+    padding = 64
+    image_size = (480, 480)
     padded_raster = processor.pad_raster(
-        s2_l2a_raster, image_size=(480, 480), padding=64
+        s2_l2a_raster, image_size=image_size, padding=padding
     )
 
     padded_raster.to_file("tests/assets/test_out_pad.tif")
@@ -181,6 +183,12 @@ def test_pad_raster(s2_l2a_raster, processor: RasterProcessor):
     assert padded_raster.content != s2_l2a_raster.content
     assert isinstance(padded_raster.content, bytes)
 
+    # check padding_size is as expected
+    exp_padding_size = processor._calculate_padding_size(
+        s2_l2a_raster.to_numpy(), image_size, padding
+    )
+    assert padded_raster.padding_size == exp_padding_size
+    # check if the padded raster is the same as the expected padded raster
     with rasterio.open("tests/assets/test_exp_pad.tif") as exp_src:
         exp_image = exp_src.read()
         with rasterio.open(io.BytesIO(padded_raster.content)) as src:
