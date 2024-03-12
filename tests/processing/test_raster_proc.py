@@ -190,3 +190,33 @@ def test_split_raster(s2_l2a_raster):
             assert src.meta["nodata"] == exp_src.meta["nodata"]
 
             assert np.array_equal(image, exp_image)
+
+
+def test_pad_raster(s2_l2a_raster):
+    process = RasterioRasterProcessor()
+    padded_raster = process.pad_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
+
+    padded_raster.to_file("tests/assets/test_out_pad.tif")
+
+    assert padded_raster.size == (608, 608)
+    assert padded_raster.crs == s2_l2a_raster.crs
+    assert padded_raster.bands == s2_l2a_raster.bands
+    assert padded_raster.content != s2_l2a_raster.content
+    assert isinstance(padded_raster.content, bytes)
+
+    with rasterio.open("tests/assets/test_exp_pad.tif") as exp_src:
+        exp_image = exp_src.read()
+        with rasterio.open(io.BytesIO(padded_raster.content)) as src:
+            image = src.read()
+
+            assert image.shape == exp_image.shape
+            assert image.dtype == exp_image.dtype
+            assert src.meta["height"] == exp_src.meta["height"]
+            assert src.meta["width"] == exp_src.meta["width"]
+            assert src.meta["crs"] == exp_src.meta["crs"]
+            assert src.meta["count"] == exp_src.meta["count"]
+            assert src.meta["transform"] == exp_src.meta["transform"]
+            assert src.meta["dtype"] == exp_src.meta["dtype"]
+            assert src.meta["nodata"] == exp_src.meta["nodata"]
+
+            assert np.array_equal(image, exp_image)

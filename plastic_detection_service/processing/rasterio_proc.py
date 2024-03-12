@@ -4,7 +4,6 @@ from typing import Generator, Union
 
 import numpy as np
 import rasterio
-from rasterio.io import DatasetReader
 from rasterio.windows import Window
 from shapely.geometry import box
 
@@ -52,10 +51,9 @@ class RasterioRasterProcessor(RasterProcessor):
                 yield window, src
 
     def pad_image(
-        self, src: DatasetReader, window: Window, image_size: tuple, offset: int
+        self, image: np.ndarray, image_size=(480, 480), offset=64
     ) -> np.ndarray:
         H, W = image_size
-        image = src.read(window=window)
 
         H, W = H + offset * 2, W + offset * 2
 
@@ -63,7 +61,7 @@ class RasterioRasterProcessor(RasterProcessor):
         dh = (H - h) / 2
         dw = (W - w) / 2
 
-        image = np.pad(
+        padded_image = np.pad(
             image,
             [
                 (0, 0),
@@ -71,7 +69,7 @@ class RasterioRasterProcessor(RasterProcessor):
                 (int(np.ceil(dw)), int(np.floor(dw))),
             ],
         )
-        return image
+        return padded_image
 
     def _adjust_bounds_for_padding(self, bounds, padding, transform):
         minx, miny, maxx, maxy = bounds
@@ -105,13 +103,13 @@ class RasterioRasterProcessor(RasterProcessor):
 
         return buffer.getvalue()
 
-    def _create_raster(self, content, src, image, window, window_meta):
+    def _create_raster(self, content, image, bounds, meta):
         return Raster(
             content=content,
             size=(image.shape[1], image.shape[2]),
-            crs=window_meta["crs"].to_epsg(),
+            crs=meta["crs"].to_epsg(),
             bands=[i + 1 for i in range(image.shape[0])],
-            geometry=box(*src.window_bounds(window)),
+            geometry=box(*bounds),
         )
 
     def remove_bands(self, image):
@@ -130,8 +128,23 @@ class RasterioRasterProcessor(RasterProcessor):
                 window_byte_stream = self._write_image(image, window_meta)
 
                 yield self._create_raster(
-                    window_byte_stream, src, image, window, window_meta
+                    window_byte_stream, image, src.window_bounds(window), window_meta
                 )
+
+    def pad_raster(self, raster: Raster, image_size=(480, 480), offset=64) -> Raster:
+        with rasterio.open(io.BytesIO(raster.content)) as src:
+            meta = src.meta.copy()
+            image = self.pad_image(src.read(), image_size, offset)
+            adjusted_bounds = self._adjust_bounds_for_padding(
+                src.bounds, offset, src.transform
+            )
+            updated_meta = self._update_window_meta(meta, image)
+            updated_meta = self._update_bounds(updated_meta, adjusted_bounds)
+            byte_stream = self._write_image(image, updated_meta)
+
+            return self._create_raster(
+                byte_stream, image, adjusted_bounds, updated_meta
+            )
 
     def split_pad_raster(
         self, raster: Raster, image_size=(480, 480), offset=64
@@ -139,7 +152,8 @@ class RasterioRasterProcessor(RasterProcessor):
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
             for window, src in self.generate_windows(raster, image_size, offset):
-                image = self.pad_image(src, window, image_size, offset)
+                image = src.read(window=window)
+                image = self.pad_image(image, image_size, offset)
 
                 image = self.remove_bands(image)
                 adjusted_bounds = self._adjust_bounds_for_padding(
@@ -150,5 +164,5 @@ class RasterioRasterProcessor(RasterProcessor):
                 window_byte_stream = self._write_image(image, window_meta)
 
                 yield self._create_raster(
-                    window_byte_stream, src, image, window, window_meta
+                    window_byte_stream, image, adjusted_bounds, window_meta
                 )
