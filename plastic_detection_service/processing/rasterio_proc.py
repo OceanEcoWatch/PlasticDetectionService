@@ -73,7 +73,21 @@ class RasterioRasterProcessor(RasterProcessor):
         )
         return image
 
-    def _update_window_meta(self, meta, image, window, src):
+    def _adjust_bounds_for_padding(self, bounds, padding, transform):
+        minx, miny, maxx, maxy = bounds
+        x_padding, y_padding = padding * transform.a, padding * transform.e
+        return minx - x_padding, miny, maxx, maxy - y_padding
+
+    def _update_bounds(self, meta, new_bounds):
+        minx, miny, maxx, maxy = new_bounds
+        transform = meta["transform"]
+        new_transform = rasterio.Affine(
+            transform.a, transform.b, minx, transform.d, transform.e, maxy
+        )
+        meta["transform"] = new_transform
+        return meta
+
+    def _update_window_meta(self, meta, image):
         window_meta = meta.copy()
         window_meta.update(
             {
@@ -113,8 +127,11 @@ class RasterioRasterProcessor(RasterProcessor):
             for window, src in self.generate_windows(raster, image_size, offset):
                 image = self.pad_image(src, window, image_size, offset)
                 image = self.remove_bands(image)
-
-                window_meta = self._update_window_meta(meta, image, window, src)
+                adjusted_bounds = self._adjust_bounds_for_padding(
+                    src.window_bounds(window), offset, src.transform
+                )
+                window_meta = self._update_window_meta(meta, image)
+                window_meta = self._update_bounds(window_meta, adjusted_bounds)
                 window_byte_stream = self._write_image(image, window_meta)
 
                 yield self._create_raster(
