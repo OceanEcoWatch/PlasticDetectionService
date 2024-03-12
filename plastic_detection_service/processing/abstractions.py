@@ -27,6 +27,12 @@ class RasterProcessor(ABC):
     ) -> Raster:
         pass
 
+    @abstractmethod
+    def split_raster(
+        self, raster: Raster, image_size: tuple[int, int], padding: int
+    ) -> Generator[Raster, None, None]:
+        pass
+
 
 class VectorsProcessor(ABC):
     def filter_out_(

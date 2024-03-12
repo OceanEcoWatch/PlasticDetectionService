@@ -29,9 +29,6 @@ class RasterProcessingContext:
     ) -> Generator[Vector, None, None]:
         return self.raster_processor.to_vector(raster, field, band)
 
-    def round_pixel_values(self, raster: Raster, round_to: int) -> Raster:
-        return self.raster_processor.round_pixel_values(raster, round_to)
-
 
 class VectorsProcessingContext:
     def __init__(self, vectors_processor: VectorsProcessor):

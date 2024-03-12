@@ -116,6 +116,11 @@ class GdalRasterProcessor(RasterProcessor):
     ) -> Raster:
         raise NotImplementedError
 
+    def split_raster(
+        self, raster: Raster, image_size: tuple[int, int], padding: int
+    ) -> Generator[Raster, None, None]:
+        raise NotImplementedError
+
 
 class GdalVectorsProcessor(VectorsProcessor):
     def to_raster(self, vectors: Iterable[Vector]) -> Raster:
