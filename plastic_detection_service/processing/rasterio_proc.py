@@ -50,23 +50,26 @@ class RasterioRasterProcessor(RasterProcessor):
                 )
                 yield window, src
 
-    def pad_image(
-        self, image: np.ndarray, image_size=(480, 480), offset=64
+    def _pad_image(
+        self,
+        input_image: np.ndarray,
+        target_image_size: tuple[int, int],
+        padding_size: int,
     ) -> np.ndarray:
-        H, W = image_size
+        _, input_image_height, input_image_width = input_image.shape
 
-        H, W = H + offset * 2, W + offset * 2
+        target_height_with_padding = target_image_size[0] + padding_size * 2
+        target_width_with_padding = target_image_size[1] + padding_size * 2
 
-        _, h, w = image.shape
-        dh = (H - h) / 2
-        dw = (W - w) / 2
+        padding_height = (target_height_with_padding - input_image_height) / 2
+        padding_width = (target_width_with_padding - input_image_width) / 2
 
         padded_image = np.pad(
-            image,
+            input_image,
             [
                 (0, 0),
-                (int(np.ceil(dh)), int(np.floor(dh))),
-                (int(np.ceil(dw)), int(np.floor(dw))),
+                (int(np.ceil(padding_height)), int(np.floor(padding_height))),
+                (int(np.ceil(padding_width)), int(np.floor(padding_width))),
             ],
         )
         return padded_image
@@ -103,7 +106,9 @@ class RasterioRasterProcessor(RasterProcessor):
 
         return buffer.getvalue()
 
-    def _create_raster(self, content, image, bounds, meta):
+    def _create_raster(
+        self, content: bytes, image: np.ndarray, bounds: tuple, meta: dict
+    ):
         return Raster(
             content=content,
             size=(image.shape[1], image.shape[2]),
@@ -112,13 +117,16 @@ class RasterioRasterProcessor(RasterProcessor):
             geometry=box(*bounds),
         )
 
-    def remove_bands(self, image):
+    def _remove_bands(self, image: np.ndarray) -> np.ndarray:
         if image.shape[0] == 13:
             image = image[[L1CBANDS.index(b) for b in L2ABANDS]]
         return image
 
     def split_raster(
-        self, raster: Raster, image_size=(480, 480), offset=64
+        self,
+        raster: Raster,
+        image_size: tuple[int, int] = (480, 480),
+        offset: int = 64,
     ) -> Generator[Raster, None, None]:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
@@ -131,12 +139,17 @@ class RasterioRasterProcessor(RasterProcessor):
                     window_byte_stream, image, src.window_bounds(window), window_meta
                 )
 
-    def pad_raster(self, raster: Raster, image_size=(480, 480), offset=64) -> Raster:
+    def pad_raster(
+        self,
+        raster: Raster,
+        image_size: tuple[int, int] = (480, 480),
+        padding: int = 64,
+    ) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
-            image = self.pad_image(src.read(), image_size, offset)
+            image = self._pad_image(src.read(), image_size, padding)
             adjusted_bounds = self._adjust_bounds_for_padding(
-                src.bounds, offset, src.transform
+                src.bounds, padding, src.transform
             )
             updated_meta = self._update_window_meta(meta, image)
             updated_meta = self._update_bounds(updated_meta, adjusted_bounds)
@@ -147,17 +160,17 @@ class RasterioRasterProcessor(RasterProcessor):
             )
 
     def split_pad_raster(
-        self, raster: Raster, image_size=(480, 480), offset=64
+        self, raster: Raster, image_size=(480, 480), padding=64
     ) -> Generator[Raster, None, None]:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
-            for window, src in self.generate_windows(raster, image_size, offset):
+            for window, src in self.generate_windows(raster, image_size, padding):
                 image = src.read(window=window)
-                image = self.pad_image(image, image_size, offset)
+                image = self._pad_image(image, image_size, padding)
 
-                image = self.remove_bands(image)
+                image = self._remove_bands(image)
                 adjusted_bounds = self._adjust_bounds_for_padding(
-                    src.window_bounds(window), offset, src.transform
+                    src.window_bounds(window), padding, src.transform
                 )
                 window_meta = self._update_window_meta(meta, image)
                 window_meta = self._update_bounds(window_meta, adjusted_bounds)

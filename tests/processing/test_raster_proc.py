@@ -96,36 +96,11 @@ def test_to_vector(raster, processor: RasterProcessor):
     assert vec.geometry.bounds[3] <= raster.geometry.bounds[3]
 
 
-@pytest.mark.parametrize("processor", PROCESSORS)
-def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
-    rounded_raster = processor.round_pixel_values(raster, 5)
-
-    assert rounded_raster.size == raster.size
-    assert rounded_raster.bands == raster.bands
-    assert rounded_raster.crs == raster.crs
-    assert rounded_raster.geometry == raster.geometry
-    assert rounded_raster.content != raster.content
-
-    # check if all values are rounded
-    for i in range(len(raster.bands)):
-        assert (rounded_raster.to_numpy()[i] % 5 == 0).all()
-
-    # check if the standard deviations are close
-    rounded_std = np.std(rounded_raster.to_numpy())
-    original_std = np.std(raster.to_numpy())
-    assert np.isclose(original_std, rounded_std, rtol=0.02)
-
-    # check the mean values
-    rounded_mean = np.mean(rounded_raster.to_numpy())
-    original_mean = np.mean(raster.to_numpy())
-    assert np.isclose(original_mean, rounded_mean, rtol=0.2)
-
-
-def test_split_pad_raster(s2_l2a_raster):
-    process = RasterioRasterProcessor()
+@pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
+def test_split_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
     exp_np = np.load("tests/assets/test_split_pad_image.npy")
     split_raster = next(
-        process.split_pad_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
+        processor.split_pad_raster(s2_l2a_raster, image_size=(480, 480), padding=64)
     )
 
     split_raster.to_file("tests/assets/test_out_split_pad.tif")
@@ -160,10 +135,10 @@ def test_split_pad_raster(s2_l2a_raster):
             assert np.array_equal(image, exp_image)
 
 
-def test_split_raster(s2_l2a_raster):
-    process = RasterioRasterProcessor()
+@pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
+def test_split_raster(s2_l2a_raster, processor):
     split_raster = next(
-        process.split_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
+        processor.split_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
     )
 
     split_raster.to_file("tests/assets/test_out_split.tif")
@@ -192,9 +167,11 @@ def test_split_raster(s2_l2a_raster):
             assert np.array_equal(image, exp_image)
 
 
-def test_pad_raster(s2_l2a_raster):
-    process = RasterioRasterProcessor()
-    padded_raster = process.pad_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
+@pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
+def test_pad_raster(s2_l2a_raster, processor: RasterProcessor):
+    padded_raster = processor.pad_raster(
+        s2_l2a_raster, image_size=(480, 480), padding=64
+    )
 
     padded_raster.to_file("tests/assets/test_out_pad.tif")
 

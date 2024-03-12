@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generator, Iterable, Union
+from typing import Generator, Iterable
 
 from plastic_detection_service.models import Raster, Vector
 
@@ -22,7 +22,9 @@ class RasterProcessor(ABC):
         pass
 
     @abstractmethod
-    def round_pixel_values(self, raster: Raster, round_to: Union[int, float]) -> Raster:
+    def pad_raster(
+        self, raster: Raster, image_size: tuple[int, int], padding: int
+    ) -> Raster:
         pass
 
 
