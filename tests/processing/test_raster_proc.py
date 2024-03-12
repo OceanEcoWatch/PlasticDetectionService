@@ -123,12 +123,12 @@ def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
 
 def test_split_pad_raster(s2_l2a_raster):
     process = RasterioRasterProcessor()
-    exp_np = np.load("tests/assets/test_split_image.npy")
+    exp_np = np.load("tests/assets/test_split_pad_image.npy")
     split_raster = next(
         process.split_pad_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
     )
 
-    split_raster.to_file("tests/assets/test_out_split.tif")
+    split_raster.to_file("tests/assets/test_out_split_pad.tif")
 
     assert split_raster.size == (608, 608)
     assert split_raster.crs == s2_l2a_raster.crs
@@ -142,6 +142,38 @@ def test_split_pad_raster(s2_l2a_raster):
     assert np.array_equal(split_raster.to_numpy(), exp_np)
 
     #
+    with rasterio.open("tests/assets/test_exp_split_pad.tif") as exp_src:
+        exp_image = exp_src.read()
+        with rasterio.open(io.BytesIO(split_raster.content)) as src:
+            image = src.read()
+
+            assert image.shape == exp_image.shape
+            assert image.dtype == exp_image.dtype
+            assert src.meta["height"] == exp_src.meta["height"]
+            assert src.meta["width"] == exp_src.meta["width"]
+            assert src.meta["crs"] == exp_src.meta["crs"]
+            assert src.meta["count"] == exp_src.meta["count"]
+            assert src.meta["transform"] == exp_src.meta["transform"]
+            assert src.meta["dtype"] == exp_src.meta["dtype"]
+            assert src.meta["nodata"] == exp_src.meta["nodata"]
+
+            assert np.array_equal(image, exp_image)
+
+
+def test_split_raster(s2_l2a_raster):
+    process = RasterioRasterProcessor()
+    split_raster = next(
+        process.split_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
+    )
+
+    split_raster.to_file("tests/assets/test_out_split.tif")
+
+    assert split_raster.size == (480, 480)
+    assert split_raster.crs == s2_l2a_raster.crs
+    assert split_raster.bands == s2_l2a_raster.bands
+    assert split_raster.content != s2_l2a_raster.content
+    assert isinstance(split_raster.content, bytes)
+
     with rasterio.open("tests/assets/test_exp_split.tif") as exp_src:
         exp_image = exp_src.read()
         with rasterio.open(io.BytesIO(split_raster.content)) as src:

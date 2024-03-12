@@ -119,6 +119,20 @@ class RasterioRasterProcessor(RasterProcessor):
             image = image[[L1CBANDS.index(b) for b in L2ABANDS]]
         return image
 
+    def split_raster(
+        self, raster: Raster, image_size=(480, 480), offset=64
+    ) -> Generator[Raster, None, None]:
+        with rasterio.open(io.BytesIO(raster.content)) as src:
+            meta = src.meta.copy()
+            for window, src in self.generate_windows(raster, image_size, offset):
+                image = src.read(window=window)
+                window_meta = self._update_window_meta(meta, image)
+                window_byte_stream = self._write_image(image, window_meta)
+
+                yield self._create_raster(
+                    window_byte_stream, src, image, window, window_meta
+                )
+
     def split_pad_raster(
         self, raster: Raster, image_size=(480, 480), offset=64
     ) -> Generator[Raster, None, None]:
@@ -126,6 +140,7 @@ class RasterioRasterProcessor(RasterProcessor):
             meta = src.meta.copy()
             for window, src in self.generate_windows(raster, image_size, offset):
                 image = self.pad_image(src, window, image_size, offset)
+
                 image = self.remove_bands(image)
                 adjusted_bounds = self._adjust_bounds_for_padding(
                     src.window_bounds(window), offset, src.transform
