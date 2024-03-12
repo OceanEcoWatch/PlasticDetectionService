@@ -121,12 +121,13 @@ def test_round_pixel_values(processor: RasterProcessor, raster: Raster, ds):
     assert np.isclose(original_mean, rounded_mean, rtol=0.2)
 
 
-def test_split_pad_raster(s2_l2a_response, s2_l2a_raster, s2_l2a_rasterio):
+def test_split_pad_raster(s2_l2a_raster):
     process = RasterioRasterProcessor()
-
+    exp_np = np.load("tests/assets/test_split_image.npy")
     split_raster = next(
         process.split_pad_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
     )
+
     split_raster.to_file("tests/assets/test_out_split.tif")
 
     assert split_raster.size == (608, 608)
@@ -134,20 +135,25 @@ def test_split_pad_raster(s2_l2a_response, s2_l2a_raster, s2_l2a_rasterio):
     assert split_raster.bands == s2_l2a_raster.bands[:12]
     assert split_raster.content != s2_l2a_raster.content
     assert isinstance(split_raster.content, bytes)
-    exp_np = np.load("tests/assets/test_split_image.npy")
-    # TODO save the exp_np to a tiff file to check if geometries can be alligned with original image
-
     assert split_raster.to_numpy().shape == exp_np.shape
     assert split_raster.to_numpy().dtype == exp_np.dtype
 
+    assert np.array_equal(split_raster.to_numpy(), exp_np)
+
+    #
     with rasterio.open("tests/assets/test_exp_split.tif") as exp_src:
         exp_image = exp_src.read()
         with rasterio.open(io.BytesIO(split_raster.content)) as src:
             image = src.read()
 
-            assert np.array_equal(exp_image, image)
-            assert image.shape == (12, 608, 608)
-            assert image.dtype == np.uint16
-            assert src.meta["height"] == 608
-            assert src.meta["width"] == 608
-            assert src.meta["crs"] == s2_l2a_raster.crs
+            assert image.shape == exp_image.shape
+            assert image.dtype == exp_image.dtype
+            assert src.meta["height"] == exp_src.meta["height"]
+            assert src.meta["width"] == exp_src.meta["width"]
+            assert src.meta["crs"] == exp_src.meta["crs"]
+            assert src.meta["count"] == exp_src.meta["count"]
+            assert src.meta["transform"] == exp_src.meta["transform"]
+            assert src.meta["dtype"] == exp_src.meta["dtype"]
+            assert src.meta["nodata"] == exp_src.meta["nodata"]
+
+            assert np.array_equal(image, exp_image)

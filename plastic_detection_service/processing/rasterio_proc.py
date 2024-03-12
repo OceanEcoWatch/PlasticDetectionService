@@ -7,6 +7,7 @@ import rasterio
 from rasterio.windows import Window
 from shapely.geometry import box
 
+from plastic_detection_service.config import L1CBANDS, L2ABANDS
 from plastic_detection_service.models import Raster, Vector
 
 from .abstractions import RasterProcessor
@@ -33,15 +34,19 @@ class RasterioRasterProcessor(RasterProcessor):
     def generate_windows(self, raster: Raster, image_size=(480, 480), offset=64):
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
-            H, W = image_size
-            rows = np.arange(0, meta["height"], H)
-            cols = np.arange(0, meta["width"], W)
+
+            rows = np.arange(0, meta["height"], image_size[0])
+            cols = np.arange(0, meta["width"], image_size[1])
             image_window = Window(0, 0, meta["width"], meta["height"])
 
             for r, c in product(rows, cols):
-                H, W = image_size
                 window = image_window.intersection(
-                    Window(c - offset, r - offset, W + offset, H + offset)
+                    Window(
+                        c - offset,
+                        r - offset,
+                        image_size[1] + offset,
+                        image_size[0] + offset,
+                    )
                 )
                 yield window, src
 
@@ -54,6 +59,7 @@ class RasterioRasterProcessor(RasterProcessor):
         _, h, w = image.shape
         dh = (H - h) / 2
         dw = (W - w) / 2
+
         image = np.pad(
             image,
             [
@@ -63,6 +69,11 @@ class RasterioRasterProcessor(RasterProcessor):
             ],
         )
         return image
+
+    def adjust_bounds_for_padding(self, bounds, padding, transform):
+        minx, miny, maxx, maxy = bounds
+        x_padding, y_padding = padding * transform.a, padding * transform.e
+        return minx - x_padding, miny - y_padding, maxx + x_padding, maxy + y_padding
 
     def update_bounds(self, meta, new_bounds):
         minx, miny, maxx, maxy = new_bounds
@@ -77,9 +88,9 @@ class RasterioRasterProcessor(RasterProcessor):
         window_meta = meta.copy()
         window_meta.update(
             {
+                "count": image.shape[0],
                 "height": image.shape[1],
                 "width": image.shape[2],
-                "count": image.shape[0],
             }
         )
         return self.update_bounds(window_meta, src.window_bounds(window))
@@ -101,15 +112,19 @@ class RasterioRasterProcessor(RasterProcessor):
         )
 
     def remove_bands(self, image):
-        if image.shape[0] > 12:
-            return image[0:12]
+        if image.shape[0] == 13:
+            image = image[[L1CBANDS.index(b) for b in L2ABANDS]]
+        return image
 
-    def split_pad_raster(self, raster: Raster, image_size=(480, 480), offset=64):
+    def split_pad_raster(
+        self, raster: Raster, image_size=(480, 480), offset=64
+    ) -> Generator[Raster, None, None]:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
             for window, src in self.generate_windows(raster, image_size, offset):
                 image = self.pad_image(src, window, image_size, offset)
                 image = self.remove_bands(image)
+
                 window_meta = self.update_window_meta(meta, image, window, src)
                 window_byte_stream = self.write_image(image, window_meta)
 
