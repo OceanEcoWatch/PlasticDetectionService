@@ -135,6 +135,7 @@ def test_split_pad_raster(s2_l2a_raster):
     assert split_raster.bands == s2_l2a_raster.bands[:12]
     assert split_raster.content != s2_l2a_raster.content
     assert isinstance(split_raster.content, bytes)
+
     assert split_raster.to_numpy().shape == exp_np.shape
     assert split_raster.to_numpy().dtype == exp_np.dtype
 

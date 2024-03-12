@@ -4,6 +4,7 @@ from typing import Generator, Union
 
 import numpy as np
 import rasterio
+from rasterio.io import DatasetReader
 from rasterio.windows import Window
 from shapely.geometry import box
 
@@ -50,7 +51,9 @@ class RasterioRasterProcessor(RasterProcessor):
                 )
                 yield window, src
 
-    def pad_image(self, src, window, image_size=(480, 480), offset=64):
+    def pad_image(
+        self, src: DatasetReader, window: Window, image_size: tuple, offset: int
+    ) -> np.ndarray:
         H, W = image_size
         image = src.read(window=window)
 
@@ -70,21 +73,7 @@ class RasterioRasterProcessor(RasterProcessor):
         )
         return image
 
-    def adjust_bounds_for_padding(self, bounds, padding, transform):
-        minx, miny, maxx, maxy = bounds
-        x_padding, y_padding = padding * transform.a, padding * transform.e
-        return minx - x_padding, miny - y_padding, maxx + x_padding, maxy + y_padding
-
-    def update_bounds(self, meta, new_bounds):
-        minx, miny, maxx, maxy = new_bounds
-        transform = meta["transform"]
-        new_transform = rasterio.Affine(
-            transform.a, transform.b, minx, transform.d, transform.e, maxy
-        )
-        meta["transform"] = new_transform
-        return meta
-
-    def update_window_meta(self, meta, image, window, src):
+    def _update_window_meta(self, meta, image, window, src):
         window_meta = meta.copy()
         window_meta.update(
             {
@@ -93,16 +82,16 @@ class RasterioRasterProcessor(RasterProcessor):
                 "width": image.shape[2],
             }
         )
-        return self.update_bounds(window_meta, src.window_bounds(window))
+        return window_meta
 
-    def write_image(self, image, meta):
+    def _write_image(self, image, meta):
         buffer = io.BytesIO()
         with rasterio.open(buffer, "w+", **meta) as mem_dst:
             mem_dst.write(image)
 
         return buffer.getvalue()
 
-    def create_raster(self, content, src, image, window, window_meta):
+    def _create_raster(self, content, src, image, window, window_meta):
         return Raster(
             content=content,
             size=(image.shape[1], image.shape[2]),
@@ -125,9 +114,9 @@ class RasterioRasterProcessor(RasterProcessor):
                 image = self.pad_image(src, window, image_size, offset)
                 image = self.remove_bands(image)
 
-                window_meta = self.update_window_meta(meta, image, window, src)
-                window_byte_stream = self.write_image(image, window_meta)
+                window_meta = self._update_window_meta(meta, image, window, src)
+                window_byte_stream = self._write_image(image, window_meta)
 
-                yield self.create_raster(
+                yield self._create_raster(
                     window_byte_stream, src, image, window, window_meta
                 )
