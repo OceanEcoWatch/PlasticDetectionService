@@ -2,6 +2,8 @@ rasterio
 sentinelhub
 shapely
 python-dotenv
+
+pytest
 black
 isort
 ruff
