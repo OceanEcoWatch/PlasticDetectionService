@@ -196,12 +196,13 @@ class RasterioRasterProcessor(RasterProcessor):
     def pad_raster(
         self,
         raster: Raster,
-        image_size: tuple[int, int] = (480, 480),
         padding: int = 64,
     ) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
-            padding_size = self._calculate_padding_size(src.read(), image_size, padding)
+            padding_size = self._calculate_padding_size(
+                src.read(), raster.size, padding
+            )
             image = self._pad_image(src.read(), padding_size)
             adjusted_bounds = self._adjust_bounds_for_padding(
                 src.bounds, padding_size, src.transform

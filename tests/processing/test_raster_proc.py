@@ -170,14 +170,15 @@ def test_split_raster(s2_l2a_raster, processor):
 @pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
 def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
     padding = 64
-    image_size = (480, 480)
-    padded_raster = processor.pad_raster(
-        s2_l2a_raster, image_size=image_size, padding=padding
-    )
+    image_size = (s2_l2a_raster.size[0], s2_l2a_raster.size[1])
+    padded_raster = processor.pad_raster(s2_l2a_raster, padding=padding)
 
     padded_raster.to_file("tests/assets/test_out_pad.tif")
 
-    assert padded_raster.size == (608, 608)
+    assert padded_raster.size == (
+        image_size[0] + 2 * padding,
+        image_size[1] + 2 * padding,
+    )
     assert padded_raster.crs == s2_l2a_raster.crs
     assert padded_raster.bands == s2_l2a_raster.bands
     assert padded_raster.content != s2_l2a_raster.content
@@ -209,9 +210,7 @@ def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
 
 @pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
 def test_unpad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
-    padded_raster = processor.pad_raster(
-        s2_l2a_raster, image_size=(480, 480), padding=64
-    )
+    padded_raster = processor.pad_raster(s2_l2a_raster, padding=64)
     unpadded_raster = processor.unpad_raster(padded_raster)
 
     unpadded_raster.to_file("tests/assets/test_out_unpad.tif")

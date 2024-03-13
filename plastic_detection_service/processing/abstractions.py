@@ -22,9 +22,11 @@ class RasterProcessor(ABC):
         pass
 
     @abstractmethod
-    def pad_raster(
-        self, raster: Raster, image_size: tuple[int, int], padding: int
-    ) -> Raster:
+    def pad_raster(self, raster: Raster, padding: int) -> Raster:
+        pass
+
+    @abstractmethod
+    def unpad_raster(self, raster: Raster) -> Raster:
         pass
 
     @abstractmethod

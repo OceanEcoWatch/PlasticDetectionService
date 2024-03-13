@@ -121,6 +121,9 @@ class GdalRasterProcessor(RasterProcessor):
     ) -> Generator[Raster, None, None]:
         raise NotImplementedError
 
+    def unpad_raster(self, raster: Raster) -> Raster:
+        raise NotImplementedError
+
 
 class GdalVectorsProcessor(VectorsProcessor):
     def to_raster(self, vectors: Iterable[Vector]) -> Raster:
