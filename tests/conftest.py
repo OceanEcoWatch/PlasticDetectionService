@@ -1,6 +1,5 @@
 import pytest
 import rasterio
-from osgeo import gdal
 from shapely.geometry import Polygon, box
 
 from plastic_detection_service.models import Raster, Vector
@@ -23,7 +22,7 @@ def s2_l2a_rasterio():
 @pytest.fixture
 def s2_l2a_raster(s2_l2a_rasterio, s2_l2a_response):
     src, image, meta = s2_l2a_rasterio
-    print(box(*src.bounds))
+
     return Raster(
         content=s2_l2a_response,
         size=(meta["width"], meta["height"]),
@@ -40,39 +39,30 @@ def content():
 
 
 @pytest.fixture
-def ds(content):
-    _temp_file = "/vsimem/temp.tif"
-    gdal.FileFromMemBuffer(_temp_file, content)
-    yield gdal.Open(_temp_file)
-
-    gdal.Unlink(_temp_file)
+def rasterio_ds():
+    src = rasterio.open("tests/assets/test_exp_pred.tif")
+    yield src
+    src.close()
 
 
 @pytest.fixture
-def crs(ds):
-    srs = gdal.osr.SpatialReference()
-    srs.ImportFromWkt(ds.GetProjection())
-    return int(srs.GetAttrValue("AUTHORITY", 1))
+def crs(rasterio_ds) -> int:
+    crs = rasterio_ds.crs
+    return crs.to_epsg()
 
 
 @pytest.fixture
-def rast_geometry(ds):
-    gt = ds.GetGeoTransform()
-
-    xmin = gt[0]
-    ymax = gt[3]
-    xmax = xmin + gt[1] * ds.RasterXSize
-    ymin = ymax + gt[5] * ds.RasterYSize
-    return box(xmin, ymin, xmax, ymax)
+def rast_geometry(rasterio_ds):
+    return box(*rasterio_ds.bounds)
 
 
 @pytest.fixture
-def raster(content, ds, crs, rast_geometry):
+def raster(content, rasterio_ds, crs, rast_geometry):
     return Raster(
         content=content,
-        size=(ds.RasterXSize, ds.RasterYSize),
+        size=(rasterio_ds.width, rasterio_ds.height),
         crs=crs,
-        bands=[i for i in range(1, ds.RasterCount + 1)],
+        bands=[i for i in range(1, rasterio_ds.count + 1)],
         geometry=rast_geometry,
     )
 

@@ -4,9 +4,12 @@ from shapely.geometry import Polygon
 from plastic_detection_service.models import Vector
 from plastic_detection_service.processing.abstractions import VectorsProcessor
 from plastic_detection_service.processing.context import VectorsProcessingContext
-from plastic_detection_service.processing.gdal_proc import GdalVectorsProcessor
+from plastic_detection_service.processing.rasterio_proc import RasterioVectorsProcessor
 
-PROCESSORS = [GdalVectorsProcessor(), VectorsProcessingContext(GdalVectorsProcessor())]
+PROCESSORS = [
+    RasterioVectorsProcessor(),
+    VectorsProcessingContext(RasterioVectorsProcessor()),
+]
 
 
 @pytest.fixture

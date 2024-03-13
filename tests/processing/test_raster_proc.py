@@ -33,7 +33,7 @@ def _calculate_padding_size(
 
 
 @pytest.mark.parametrize("processor", PROCESSORS)
-def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
+def test_reproject_raster(raster: Raster, processor: RasterProcessor):
     target_crs = 4326
     target_bands = [1]
     file = f"tests/assets/test_out_reprojected{type(processor)}.tif"
@@ -85,7 +85,7 @@ def test_to_vector(raster, processor: RasterProcessor):
         assert vec.geometry.bounds[3] <= raster.geometry.bounds[3]
 
 
-@pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
+@pytest.mark.parametrize("processor", PROCESSORS)
 def test_split_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
     exp_np = np.load("tests/assets/test_split_pad_image.npy")
     split_raster = next(

@@ -10,10 +10,10 @@ def test_raster_to_numpy(raster: Raster):
     assert numpy_arr.shape == (len(raster.bands), raster.size[1], raster.size[0])
 
 
-def test_raster_to_numpy_same_as_gdal(raster: Raster, ds):
+def test_raster_to_numpy_same_as_rasterio(raster: Raster, rasterio_ds):
     numpy_arr = raster.to_numpy()
     for i in range(len(raster.bands)):
-        assert (numpy_arr[i] == ds.GetRasterBand(i + 1).ReadAsArray()).all()
+        assert (numpy_arr[i] == rasterio_ds.read(i + 1)).all()
 
 
 def test_raster_to_file(raster: Raster):

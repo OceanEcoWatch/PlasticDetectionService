@@ -1,6 +1,6 @@
 import io
 from itertools import product
-from typing import Generator
+from typing import Generator, Iterable
 
 import numpy as np
 import rasterio
@@ -14,7 +14,7 @@ from shapely.geometry import box, shape
 from plastic_detection_service.config import L1CBANDS, L2ABANDS
 from plastic_detection_service.models import Raster, Vector
 
-from .abstractions import RasterProcessor
+from .abstractions import RasterProcessor, VectorsProcessor
 
 
 class RasterioRasterProcessor(RasterProcessor):
@@ -303,3 +303,8 @@ class RasterioRasterProcessor(RasterProcessor):
                     window_meta,
                     padding_size,
                 )
+
+
+class RasterioVectorsProcessor(VectorsProcessor):
+    def to_raster(self, vectors: Iterable[Vector]) -> Raster:
+        raise NotImplementedError

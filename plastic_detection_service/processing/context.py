@@ -40,6 +40,11 @@ class RasterProcessingContext:
     ) -> Generator[Raster, None, None]:
         return self.raster_processor.split_raster(raster, image_size, padding)
 
+    def split_pad_raster(
+        self, raster: Raster, image_size: tuple[int, int], padding: int
+    ) -> Generator[Raster, None, None]:
+        return self.raster_processor.split_pad_raster(raster, image_size, padding)
+
 
 class VectorsProcessingContext:
     def __init__(self, vectors_processor: VectorsProcessor):
