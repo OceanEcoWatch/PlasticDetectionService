@@ -218,11 +218,11 @@ class RasterioRasterProcessor(RasterProcessor):
         self,
         raster: Raster,
         image_size: tuple[int, int] = (480, 480),
-        offset: int = 64,
+        padding: int = 64,
     ) -> Generator[Raster, None, None]:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
-            for window, src in self.generate_windows(raster, image_size, offset):
+            for window, src in self.generate_windows(raster, image_size, padding):
                 image = src.read(window=window)
                 window_meta = self._update_window_meta(meta, image)
                 window_byte_stream = self._write_image(image, window_meta)

@@ -3,7 +3,6 @@ import io
 import numpy as np
 import pytest
 import rasterio
-from osgeo import gdal
 from shapely.geometry import Polygon
 
 from plastic_detection_service.models import Raster
@@ -11,67 +10,49 @@ from plastic_detection_service.processing.abstractions import RasterProcessor
 from plastic_detection_service.processing.context import (
     RasterProcessingContext,
 )
-from plastic_detection_service.processing.gdal_proc import (
-    GdalRasterProcessor,
-)
 from plastic_detection_service.processing.rasterio_proc import RasterioRasterProcessor
 
 PROCESSORS = [
-    GdalRasterProcessor(),
-    RasterProcessingContext(GdalRasterProcessor()),
     RasterioRasterProcessor(),
+    RasterProcessingContext(RasterioRasterProcessor()),
 ]
 
 
-def test_get_gdal_ds_from_memory(content, crs):
-    processor = GdalRasterProcessor()
+def _calculate_padding_size(
+    image: np.ndarray, target_image_size: tuple[int, int], padding: int
+) -> tuple[int, int]:
+    _, input_image_height, input_image_width = image.shape
 
-    ds = processor._get_gdal_ds_from_memory(content)
-    assert isinstance(ds, gdal.Dataset)
-    assert ds.RasterCount == 1
-    assert ds.RasterXSize == 500
-    assert ds.RasterYSize == 500
+    target_height_with_padding = target_image_size[0] + padding * 2
+    target_width_with_padding = target_image_size[1] + padding * 2
 
-    srs = gdal.osr.SpatialReference()
-    srs.ImportFromWkt(ds.GetProjection())
-    assert int(srs.GetAttrValue("AUTHORITY", 1)) == crs
+    padding_height = round(target_height_with_padding - input_image_height) / 2
+    padding_width = round(target_width_with_padding - input_image_width) / 2
 
-
-def test_get_epsg_from_ds(ds, crs):
-    processor = GdalRasterProcessor()
-    assert processor._get_epsg_from_ds(ds) == crs
-
-
-def test_get_raster_geometry(ds, rast_geometry):
-    processor = GdalRasterProcessor()
-    assert processor._get_raster_geometry(ds) == rast_geometry
-
-
-def test_ds_to_raster(ds, content, rast_geometry, crs):
-    processor = GdalRasterProcessor()
-    raster = processor._ds_to_raster(ds)
-    assert raster.crs == crs
-    assert raster.bands == [i for i in range(1, ds.RasterCount + 1)]
-    assert raster.size == (ds.RasterXSize, ds.RasterYSize)
-    assert raster.content == content
-    assert raster.geometry == rast_geometry
+    return int(padding_height), int(padding_width)
 
 
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
-    reprojected_raster = processor.reproject_raster(raster, 4326, [1], "nearest")
-    reprojected_raster.to_file("tests/assets/test_out_reprojected.tif")
-    assert reprojected_raster.crs == 4326
-    assert reprojected_raster.bands == [1]
+    target_crs = 4326
+    target_bands = [1]
+    file = f"tests/assets/test_out_reprojected{type(processor)}.tif"
+    reprojected_raster = processor.reproject_raster(
+        raster, target_crs, target_bands, "nearest"
+    )
+    reprojected_raster.to_file(file)
+    assert reprojected_raster.crs == target_crs
+    assert reprojected_raster.bands == target_bands
     assert isinstance(reprojected_raster, Raster)
 
     # Compare the means of the rasters
-    out_ds = gdal.Open("tests/assets/test_out_reprojected.tif")
-    numpy_array = out_ds.GetRasterBand(1).ReadAsArray()
+    with rasterio.open(file) as src:
+        numpy_array = src.read(1)
+
     original_mean = np.mean(numpy_array)
-    reprojected_mean = np.mean(ds.GetRasterBand(1).ReadAsArray())
+    reprojected_mean = np.mean(reprojected_raster.to_numpy())
     assert np.isclose(
-        original_mean, reprojected_mean, rtol=0.05
+        original_mean, reprojected_mean, rtol=0.03
     )  # Allow a relative tolerance of 5%
 
     # check if the reprojected geometry coordinates are in degrees
@@ -143,10 +124,10 @@ def test_split_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
             assert np.array_equal(image, exp_image)
 
 
-@pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
-def test_split_raster(s2_l2a_raster, processor):
+@pytest.mark.parametrize("processor", PROCESSORS)
+def test_split_raster(s2_l2a_raster, processor: RasterProcessor):
     split_raster = next(
-        processor.split_raster(s2_l2a_raster, image_size=(480, 480), offset=64)
+        processor.split_raster(s2_l2a_raster, image_size=(480, 480), padding=64)
     )
 
     split_raster.to_file("tests/assets/test_out_split.tif")
@@ -175,7 +156,7 @@ def test_split_raster(s2_l2a_raster, processor):
             assert np.array_equal(image, exp_image)
 
 
-@pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
+@pytest.mark.parametrize("processor", PROCESSORS)
 def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
     padding = 64
     image_size = (s2_l2a_raster.size[0], s2_l2a_raster.size[1])
@@ -193,7 +174,7 @@ def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
     assert isinstance(padded_raster.content, bytes)
 
     # check padding_size is as expected
-    exp_padding_size = processor._calculate_padding_size(
+    exp_padding_size = _calculate_padding_size(
         s2_l2a_raster.to_numpy(), image_size, padding
     )
     assert padded_raster.padding_size == exp_padding_size
@@ -216,7 +197,7 @@ def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
             assert np.array_equal(image, exp_image)
 
 
-@pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
+@pytest.mark.parametrize("processor", PROCESSORS)
 def test_unpad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
     padded_raster = processor.pad_raster(s2_l2a_raster, padding=64)
     unpadded_raster = processor.unpad_raster(padded_raster)
