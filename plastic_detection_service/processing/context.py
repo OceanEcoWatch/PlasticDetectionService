@@ -24,10 +24,8 @@ class RasterProcessingContext:
             raster, target_crs, target_bands, resample_alg
         )
 
-    def to_vector(
-        self, raster: Raster, field: str, band: int = 1
-    ) -> Generator[Vector, None, None]:
-        return self.raster_processor.to_vector(raster, field, band)
+    def to_vector(self, raster: Raster, band: int = 1) -> Generator[Vector, None, None]:
+        return self.raster_processor.to_vector(raster, band)
 
     def pad_raster(self, raster: Raster, padding: int) -> Raster:
         return self.raster_processor.pad_raster(raster, padding)

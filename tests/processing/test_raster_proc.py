@@ -63,7 +63,6 @@ def test_to_vector(raster, processor: RasterProcessor):
     vectors = list(
         processor.to_vector(
             raster=raster,
-            field="pixel_value",
             band=1,
         )
     )

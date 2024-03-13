@@ -1,6 +1,6 @@
 import io
 from itertools import product
-from typing import Generator, Iterable
+from typing import Generator, Iterable, Optional
 
 import numpy as np
 import rasterio
@@ -22,10 +22,11 @@ class RasterioRasterProcessor(RasterProcessor):
         self,
         raster: Raster,
         target_crs: int,
-        target_bands: list[int],
+        target_bands: Optional[Iterable[int]] = None,
         resample_alg: str = "nearest",
     ) -> Raster:
         target_crs = CRS.from_epsg(target_crs)
+        target_bands = target_bands or raster.bands
         with rasterio.open(io.BytesIO(raster.content)) as src:
             transform, width, height = calculate_default_transform(
                 src.crs, target_crs, src.width, src.height, *src.bounds
@@ -56,9 +57,7 @@ class RasterioRasterProcessor(RasterProcessor):
                     geometry=box(*dst.bounds),
                 )
 
-    def to_vector(
-        self, raster: Raster, field: str, band: int = 1
-    ) -> Generator[Vector, None, None]:
+    def to_vector(self, raster: Raster, band: int = 1) -> Generator[Vector, None, None]:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             image = src.read(band)
             meta = src.meta.copy()

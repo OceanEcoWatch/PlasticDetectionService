@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Generator, Iterable
 
+from git import Optional
+
 from plastic_detection_service.models import Raster, Vector
 
 
@@ -10,15 +12,13 @@ class RasterProcessor(ABC):
         self,
         raster: Raster,
         target_crs: int,
-        target_bands: list[int],
+        target_bands: Optional[Iterable[int]] = None,
         resample_alg: str = "nearest",
     ) -> Raster:
         pass
 
     @abstractmethod
-    def to_vector(
-        self, raster: Raster, field: str, band: int = 1
-    ) -> Generator[Vector, None, None]:
+    def to_vector(self, raster: Raster, band: int = 1) -> Generator[Vector, None, None]:
         pass
 
     @abstractmethod
