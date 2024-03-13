@@ -188,7 +188,7 @@ def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
         s2_l2a_raster.to_numpy(), image_size, padding
     )
     assert padded_raster.padding_size == exp_padding_size
-    # check if the padded raster is the same as the expected padded raster
+
     with rasterio.open("tests/assets/test_exp_pad.tif") as exp_src:
         exp_image = exp_src.read()
         with rasterio.open(io.BytesIO(padded_raster.content)) as src:
@@ -205,3 +205,23 @@ def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
             assert src.meta["nodata"] == exp_src.meta["nodata"]
 
             assert np.array_equal(image, exp_image)
+
+
+@pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
+def test_unpad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
+    padded_raster = processor.pad_raster(
+        s2_l2a_raster, image_size=(480, 480), padding=64
+    )
+    unpadded_raster = processor.unpad_raster(padded_raster)
+
+    unpadded_raster.to_file("tests/assets/test_out_unpad.tif")
+
+    # check if the unpadded raster is the same as the original raster
+    assert unpadded_raster.size == s2_l2a_raster.size
+    assert unpadded_raster.crs == s2_l2a_raster.crs
+    assert unpadded_raster.bands == s2_l2a_raster.bands
+
+    assert isinstance(unpadded_raster.content, bytes)
+    assert unpadded_raster.padding_size == (0, 0)
+    assert unpadded_raster.geometry == s2_l2a_raster.geometry
+    assert np.array_equal(unpadded_raster.to_numpy(), s2_l2a_raster.to_numpy())

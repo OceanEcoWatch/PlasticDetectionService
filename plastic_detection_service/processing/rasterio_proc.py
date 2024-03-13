@@ -50,10 +50,48 @@ class RasterioRasterProcessor(RasterProcessor):
                 )
                 yield window, src
 
-    def _adjust_bounds_for_padding(self, bounds, padding, transform):
+    def _calculate_padding_size(
+        self, image: np.ndarray, target_image_size: tuple[int, int], padding: int
+    ) -> tuple[int, int]:
+        _, input_image_height, input_image_width = image.shape
+
+        target_height_with_padding = target_image_size[0] + padding * 2
+        target_width_with_padding = target_image_size[1] + padding * 2
+
+        padding_height = round(target_height_with_padding - input_image_height) / 2
+        padding_width = round(target_width_with_padding - input_image_width) / 2
+
+        return int(padding_height), int(padding_width)
+
+    def _adjust_bounds_for_padding(
+        self,
+        bounds: tuple[float, float, float, float],
+        padding_size: tuple[int, int],
+        transform: rasterio.Affine,
+    ):
+        padding_height, padding_width = padding_size
         minx, miny, maxx, maxy = bounds
-        x_padding, y_padding = padding * transform.a, padding * transform.e
+        x_padding, y_padding = (
+            padding_width * transform.a,
+            padding_height * transform.e,
+        )
+
         return minx - x_padding, miny, maxx, maxy - y_padding
+
+    def _adjust_bounds_for_unpadding(
+        self,
+        bounds: tuple[float, float, float, float],
+        padding_size: tuple[int, int],
+        transform: rasterio.Affine,
+    ):
+        padding_height, padding_width = padding_size
+        minx, miny, maxx, maxy = bounds
+        x_padding, y_padding = (
+            padding_width * transform.a,
+            padding_height * transform.e,
+        )
+
+        return minx + x_padding, miny - y_padding, maxx - x_padding, maxy + y_padding
 
     def _update_bounds(self, meta, new_bounds):
         minx, miny, maxx, maxy = new_bounds
@@ -103,19 +141,6 @@ class RasterioRasterProcessor(RasterProcessor):
         if image.shape[0] == 13:
             image = image[[L1CBANDS.index(b) for b in L2ABANDS]]
         return image
-
-    def _calculate_padding_size(
-        self, image: np.ndarray, target_image_size: tuple[int, int], padding: int
-    ) -> tuple[int, int]:
-        _, input_image_height, input_image_width = image.shape
-
-        target_height_with_padding = target_image_size[0] + padding * 2
-        target_width_with_padding = target_image_size[1] + padding * 2
-
-        padding_height = (target_height_with_padding - input_image_height) / 2
-        padding_width = (target_width_with_padding - input_image_width) / 2
-
-        return (int(padding_height), int(padding_width))
 
     def _pad_image(
         self,
@@ -179,7 +204,7 @@ class RasterioRasterProcessor(RasterProcessor):
             padding_size = self._calculate_padding_size(src.read(), image_size, padding)
             image = self._pad_image(src.read(), padding_size)
             adjusted_bounds = self._adjust_bounds_for_padding(
-                src.bounds, padding, src.transform
+                src.bounds, padding_size, src.transform
             )
             updated_meta = self._update_window_meta(meta, image)
             updated_meta = self._update_bounds(updated_meta, adjusted_bounds)
@@ -196,24 +221,22 @@ class RasterioRasterProcessor(RasterProcessor):
     def unpad_raster(
         self,
         raster: Raster,
-        window: Window,
     ) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
-            image = src.read(window=window)
+            image = src.read()
             image = self._unpad_image(image, raster.padding_size)
 
-            updated_meta = src.meta.copy()
-            updated_meta.update(
-                {
-                    "count": image.shape[0],
-                    "height": image.shape[1],
-                    "width": image.shape[2],
-                }
+            adjusted_bounds = self._adjust_bounds_for_unpadding(
+                src.bounds, raster.padding_size, src.transform
             )
+            updated_meta = self._update_window_meta(src.meta, image)
+            updated_meta = self._update_bounds(updated_meta, adjusted_bounds)
             byte_stream = self._write_image(image, updated_meta)
-
+            print(raster.padding_size)
+            print(adjusted_bounds)
+            print(updated_meta)
             return self._create_raster(
-                byte_stream, image, src.window_bounds(window), updated_meta
+                byte_stream, image, adjusted_bounds, updated_meta, (0, 0)
             )
 
     def split_pad_raster(
@@ -228,7 +251,7 @@ class RasterioRasterProcessor(RasterProcessor):
 
                 image = self._remove_bands(image)
                 adjusted_bounds = self._adjust_bounds_for_padding(
-                    src.window_bounds(window), padding, src.transform
+                    src.window_bounds(window), padding_size, src.transform
                 )
                 window_meta = self._update_window_meta(meta, image)
                 window_meta = self._update_bounds(window_meta, adjusted_bounds)
