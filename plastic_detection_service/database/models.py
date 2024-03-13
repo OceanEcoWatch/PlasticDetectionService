@@ -18,14 +18,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import create_database, database_exists
 
-from plastic_detection_service.config import POSTGIS_URL
+from plastic_detection_service.config import DATABASE_URL
 from plastic_detection_service.models import DownloadResponse, Raster, Vector
 
 Base = declarative_base()
 
 
 def get_db_engine():
-    return create_engine(POSTGIS_URL, echo=False)
+    return create_engine(DATABASE_URL, echo=False)
 
 
 def create_postgis_db(engine):
