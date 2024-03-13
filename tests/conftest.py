@@ -5,6 +5,10 @@ from shapely.geometry import Polygon, box
 
 from plastic_detection_service.models import Raster, Vector
 
+TEST_S3_BUCKET_NAME = "test-sagemaker-studio-768912473174-0ryazmj34j9"
+TEST_S3_IMAGE_NAME = "test_out_pad.tif"
+TEST_S3_IMAGE_PATH = f"s3://{TEST_S3_BUCKET_NAME}/{TEST_S3_IMAGE_NAME}"
+
 
 @pytest.fixture
 def s2_l2a_response():

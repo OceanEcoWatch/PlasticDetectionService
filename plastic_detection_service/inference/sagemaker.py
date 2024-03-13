@@ -1,4 +1,5 @@
 import logging
+from typing import Union
 
 import boto3
 from botocore.exceptions import ClientError
@@ -9,7 +10,7 @@ LOGGER = logging.getLogger(__name__)
 def invoke(
     endpoint_name: str,
     content_type: str,
-    payload: bytes,
+    payload: Union[str, bytes],
     retry_count: int = 0,
     max_retries: int = 10,
 ) -> bytes:

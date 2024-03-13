@@ -4,8 +4,9 @@ from typing import Generator, Union
 
 import numpy as np
 import rasterio
+from rasterio.features import shapes
 from rasterio.windows import Window
-from shapely.geometry import box
+from shapely.geometry import box, shape
 
 from plastic_detection_service.config import L1CBANDS, L2ABANDS
 from plastic_detection_service.models import Raster, Vector
@@ -26,7 +27,15 @@ class RasterioRasterProcessor(RasterProcessor):
     def to_vector(
         self, raster: Raster, field: str, band: int = 1
     ) -> Generator[Vector, None, None]:
-        raise NotImplementedError
+        with rasterio.open(io.BytesIO(raster.content)) as src:
+            image = src.read(band)
+            meta = src.meta.copy()
+            for geom, val in shapes(image, transform=src.transform):
+                yield Vector(
+                    pixel_value=round(val),
+                    geometry=shape(geom),
+                    crs=meta["crs"].to_epsg(),
+                )
 
     def round_pixel_values(self, raster: Raster, round_to: Union[int, float]) -> Raster:
         raise NotImplementedError

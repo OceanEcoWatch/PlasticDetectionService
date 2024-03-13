@@ -16,7 +16,11 @@ from plastic_detection_service.processing.gdal_proc import (
 )
 from plastic_detection_service.processing.rasterio_proc import RasterioRasterProcessor
 
-PROCESSORS = [GdalRasterProcessor(), RasterProcessingContext(GdalRasterProcessor())]
+PROCESSORS = [
+    GdalRasterProcessor(),
+    RasterProcessingContext(GdalRasterProcessor()),
+    RasterioRasterProcessor(),
+]
 
 
 def test_get_gdal_ds_from_memory(content, crs):
