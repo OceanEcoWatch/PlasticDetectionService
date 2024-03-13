@@ -1,7 +1,13 @@
 rasterio
-sentinelhub
-shapely
 python-dotenv
+sqlalchemy
+geoalchemy2
+shapely
+sentinelhub
+psycopg2-binary
+geoalchemy2
+sqlalchemy_utils
+boto3
 
 pytest
 black
