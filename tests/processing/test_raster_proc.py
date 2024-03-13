@@ -20,6 +20,7 @@ PROCESSORS = [
     GdalRasterProcessor(),
     RasterProcessingContext(GdalRasterProcessor()),
     RasterioRasterProcessor(),
+    RasterProcessingContext(RasterioRasterProcessor()),
 ]
 
 
@@ -59,19 +60,25 @@ def test_ds_to_raster(ds, content, rast_geometry, crs):
 
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
-    reprojected_raster = processor.reproject_raster(raster, 4326, [1], "nearest")
-    reprojected_raster.to_file("tests/assets/test_out_reprojected.tif")
-    assert reprojected_raster.crs == 4326
-    assert reprojected_raster.bands == [1]
+    target_crs = 4326
+    target_bands = [1]
+    file = f"tests/assets/test_out_reprojected{type(processor)}.tif"
+    reprojected_raster = processor.reproject_raster(
+        raster, target_crs, target_bands, "nearest"
+    )
+    reprojected_raster.to_file(file)
+    assert reprojected_raster.crs == target_crs
+    assert reprojected_raster.bands == target_bands
     assert isinstance(reprojected_raster, Raster)
 
     # Compare the means of the rasters
-    out_ds = gdal.Open("tests/assets/test_out_reprojected.tif")
-    numpy_array = out_ds.GetRasterBand(1).ReadAsArray()
+    with rasterio.open(file) as src:
+        numpy_array = src.read(1)
+
     original_mean = np.mean(numpy_array)
-    reprojected_mean = np.mean(ds.GetRasterBand(1).ReadAsArray())
+    reprojected_mean = np.mean(reprojected_raster.to_numpy())
     assert np.isclose(
-        original_mean, reprojected_mean, rtol=0.05
+        original_mean, reprojected_mean, rtol=0.03
     )  # Allow a relative tolerance of 5%
 
     # check if the reprojected geometry coordinates are in degrees
