@@ -1,10 +1,13 @@
 import io
 from itertools import product
-from typing import Generator, Union
+from typing import Generator
 
 import numpy as np
 import rasterio
+from rasterio.crs import CRS
+from rasterio.enums import Resampling
 from rasterio.features import shapes
+from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
 from shapely.geometry import box, shape
 
@@ -22,7 +25,36 @@ class RasterioRasterProcessor(RasterProcessor):
         target_bands: list[int],
         resample_alg: str = "nearest",
     ) -> Raster:
-        raise NotImplementedError
+        target_crs = CRS.from_epsg(target_crs)
+        with rasterio.open(io.BytesIO(raster.content)) as src:
+            transform, width, height = calculate_default_transform(
+                src.crs, target_crs, src.width, src.height, *src.bounds
+            )
+            kwargs = src.meta.copy()
+            kwargs.update(
+                {
+                    "crs": target_crs,
+                    "transform": transform,
+                    "width": width,
+                    "height": height,
+                }
+            )
+            with rasterio.open(io.BytesIO(raster.content), "w", **kwargs) as dst:
+                for band in target_bands:
+                    reproject(
+                        source=rasterio.band(src, band),
+                        destination=rasterio.band(dst, band),
+                        dst_transform=transform,
+                        dst_crs=target_crs,
+                        resampling=Resampling[resample_alg],
+                    )
+                return Raster(
+                    content=self._write_image(dst.read(), dst.meta),
+                    size=(dst.width, dst.height),
+                    crs=dst.crs.to_epsg(),
+                    bands=target_bands,
+                    geometry=box(*dst.bounds),
+                )
 
     def to_vector(
         self, raster: Raster, field: str, band: int = 1
@@ -36,9 +68,6 @@ class RasterioRasterProcessor(RasterProcessor):
                     geometry=shape(geom),
                     crs=meta["crs"].to_epsg(),
                 )
-
-    def round_pixel_values(self, raster: Raster, round_to: Union[int, float]) -> Raster:
-        raise NotImplementedError
 
     def generate_windows(self, raster: Raster, image_size=(480, 480), offset=64):
         with rasterio.open(io.BytesIO(raster.content)) as src:

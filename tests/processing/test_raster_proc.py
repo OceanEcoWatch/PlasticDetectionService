@@ -83,21 +83,25 @@ def test_reproject_raster(ds, raster: Raster, processor: RasterProcessor):
 
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_to_vector(raster, processor: RasterProcessor):
-    vectors = processor.to_vector(
-        raster=raster,
-        field="pixel_value",
-        band=1,
+    vectors = list(
+        processor.to_vector(
+            raster=raster,
+            field="pixel_value",
+            band=1,
+        )
     )
-    vec = next(vectors)
-    assert isinstance(vec.pixel_value, int)
-    assert isinstance(vec.geometry, Polygon)
-    assert vec.crs == raster.crs
+    assert len(vectors) == 14311
 
-    # test if geometry is within the bounds of the raster
-    assert vec.geometry.bounds[0] >= raster.geometry.bounds[0]
-    assert vec.geometry.bounds[1] >= raster.geometry.bounds[1]
-    assert vec.geometry.bounds[2] <= raster.geometry.bounds[2]
-    assert vec.geometry.bounds[3] <= raster.geometry.bounds[3]
+    for vec in vectors:
+        assert isinstance(vec.pixel_value, int)
+        assert isinstance(vec.geometry, Polygon)
+        assert vec.crs == raster.crs
+
+        # test if geometry is within the bounds of the raster
+        assert vec.geometry.bounds[0] >= raster.geometry.bounds[0]
+        assert vec.geometry.bounds[1] >= raster.geometry.bounds[1]
+        assert vec.geometry.bounds[2] <= raster.geometry.bounds[2]
+        assert vec.geometry.bounds[3] <= raster.geometry.bounds[3]
 
 
 @pytest.mark.parametrize("processor", [RasterioRasterProcessor()])
