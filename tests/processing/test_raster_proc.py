@@ -33,27 +33,23 @@ def _calculate_padding_size(
 
 
 @pytest.mark.parametrize("processor", PROCESSORS)
-def test_reproject_raster(raster: Raster, processor: RasterProcessor):
+def test_reproject_raster(raster: Raster, processor: RasterProcessor, rasterio_ds):
     target_crs = 4326
     target_bands = [1]
-    file = f"tests/assets/test_out_reprojected{type(processor)}.tif"
+    out_file = f"tests/assets/test_out_reprojected_{processor.__class__.__name__}.tif"
     reprojected_raster = processor.reproject_raster(
         raster, target_crs, target_bands, "nearest"
     )
-    reprojected_raster.to_file(file)
+    reprojected_raster.to_file(out_file)
     assert reprojected_raster.crs == target_crs
     assert reprojected_raster.bands == target_bands
     assert isinstance(reprojected_raster, Raster)
 
-    # Compare the means of the rasters
-    with rasterio.open(file) as src:
-        numpy_array = src.read(1)
-
-    original_mean = np.mean(numpy_array)
+    original_mean = rasterio_ds.read().mean()
     reprojected_mean = np.mean(reprojected_raster.to_numpy())
     assert np.isclose(
         original_mean, reprojected_mean, rtol=0.03
-    )  # Allow a relative tolerance of 5%
+    )  # Allow a relative tolerance of 3%
 
     # check if the reprojected geometry coordinates are in degrees
     assert reprojected_raster.geometry.bounds[0] > -180
@@ -88,11 +84,12 @@ def test_to_vector(raster, processor: RasterProcessor):
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_split_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
     exp_np = np.load("tests/assets/test_split_pad_image.npy")
+    out_file = f"tests/assets/test_out_split_pad_{processor.__class__.__name__}.tif"
     split_raster = next(
         processor.split_pad_raster(s2_l2a_raster, image_size=(480, 480), padding=64)
     )
 
-    split_raster.to_file("tests/assets/test_out_split_pad.tif")
+    split_raster.to_file(out_file)
 
     assert split_raster.size == (608, 608)
     assert split_raster.crs == s2_l2a_raster.crs
@@ -126,11 +123,12 @@ def test_split_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
 
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_split_raster(s2_l2a_raster, processor: RasterProcessor):
+    out_file = f"tests/assets/test_out_split_{processor.__class__.__name__}.tif"
     split_raster = next(
         processor.split_raster(s2_l2a_raster, image_size=(480, 480), padding=64)
     )
 
-    split_raster.to_file("tests/assets/test_out_split.tif")
+    split_raster.to_file(out_file)
 
     assert split_raster.size == (480, 480)
     assert split_raster.crs == s2_l2a_raster.crs
@@ -158,11 +156,12 @@ def test_split_raster(s2_l2a_raster, processor: RasterProcessor):
 
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
+    out_file = f"tests/assets/test_out_pad_{processor.__class__.__name__}.tif"
     padding = 64
     image_size = (s2_l2a_raster.size[0], s2_l2a_raster.size[1])
     padded_raster = processor.pad_raster(s2_l2a_raster, padding=padding)
 
-    padded_raster.to_file("tests/assets/test_out_pad.tif")
+    padded_raster.to_file(out_file)
 
     assert padded_raster.size == (
         image_size[0] + 2 * padding,
@@ -199,10 +198,11 @@ def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
 
 @pytest.mark.parametrize("processor", PROCESSORS)
 def test_unpad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
+    out_file = f"tests/assets/test_out_unpad_{processor.__class__.__name__}.tif"
     padded_raster = processor.pad_raster(s2_l2a_raster, padding=64)
     unpadded_raster = processor.unpad_raster(padded_raster)
 
-    unpadded_raster.to_file("tests/assets/test_out_unpad.tif")
+    unpadded_raster.to_file(out_file)
 
     # check if the unpadded raster is the same as the original raster
     assert unpadded_raster.size == s2_l2a_raster.size
