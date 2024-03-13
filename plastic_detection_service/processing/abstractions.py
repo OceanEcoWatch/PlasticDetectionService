@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generator, Iterable
-
-from git import Optional
+from typing import Generator, Iterable, Optional
 
 from plastic_detection_service.models import Raster, Vector
 
