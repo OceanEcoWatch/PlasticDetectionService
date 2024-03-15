@@ -7,8 +7,11 @@ import rasterio
 from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.features import shapes
+from rasterio.io import DatasetWriter
+from rasterio.transform import from_bounds
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
+from scipy.ndimage import gaussian_filter
 from shapely.geometry import box, shape
 
 from plastic_detection_service.config import L1CBANDS, L2ABANDS
@@ -18,6 +21,9 @@ from .abstractions import RasterProcessor, VectorsProcessor
 
 
 class RasterioRasterProcessor(RasterProcessor):
+    WINDOW_SIZE = (480, 480)
+    OFFSET = 64
+
     def reproject_raster(
         self,
         raster: Raster,
@@ -53,7 +59,7 @@ class RasterioRasterProcessor(RasterProcessor):
                     content=self._write_image(dst.read(), dst.meta),
                     size=(dst.width, dst.height),
                     crs=dst.crs.to_epsg(),
-                    bands=target_bands,
+                    bands=list(target_bands),
                     geometry=box(*dst.bounds),
                 )
 
@@ -68,7 +74,7 @@ class RasterioRasterProcessor(RasterProcessor):
                     crs=meta["crs"].to_epsg(),
                 )
 
-    def generate_windows(self, raster: Raster, image_size=(480, 480), offset=64):
+    def generate_windows(self, raster: Raster, image_size=WINDOW_SIZE, offset=OFFSET):
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
 
@@ -216,8 +222,8 @@ class RasterioRasterProcessor(RasterProcessor):
     def split_raster(
         self,
         raster: Raster,
-        image_size: tuple[int, int] = (480, 480),
-        padding: int = 64,
+        image_size: tuple[int, int] = WINDOW_SIZE,
+        padding: int = OFFSET,
     ) -> Generator[Raster, None, None]:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
@@ -233,7 +239,7 @@ class RasterioRasterProcessor(RasterProcessor):
     def pad_raster(
         self,
         raster: Raster,
-        padding: int = 64,
+        padding: int = OFFSET,
     ) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
@@ -270,15 +276,13 @@ class RasterioRasterProcessor(RasterProcessor):
             updated_meta = self._update_window_meta(src.meta, image)
             updated_meta = self._update_bounds(updated_meta, adjusted_bounds)
             byte_stream = self._write_image(image, updated_meta)
-            print(raster.padding_size)
-            print(adjusted_bounds)
-            print(updated_meta)
+
             return self._create_raster(
                 byte_stream, image, adjusted_bounds, updated_meta, (0, 0)
             )
 
     def split_pad_raster(
-        self, raster: Raster, image_size=(480, 480), padding=64
+        self, raster: Raster, image_size=WINDOW_SIZE, padding=OFFSET
     ) -> Generator[Raster, None, None]:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
@@ -302,6 +306,68 @@ class RasterioRasterProcessor(RasterProcessor):
                     window_meta,
                     padding_size,
                 )
+
+    def merge_rasters(
+        self,
+        rasters: Iterable[Raster],
+        target_raster: Raster,
+        offset: int = OFFSET,
+        handle_overlap: bool = False,
+    ) -> Raster:
+        buffer = io.BytesIO()
+        minx, miny, maxx, maxy = target_raster.geometry.bounds
+        with rasterio.open(
+            buffer,
+            "w+",
+            driver="GTiff",
+            width=target_raster.size[0],
+            height=target_raster.size[1],
+            count=len(target_raster.bands),
+            dtype="uint8",
+            crs=CRS.from_epsg(target_raster.crs),
+            transform=from_bounds(
+                minx, miny, maxx, maxy, target_raster.size[0], target_raster.size[1]
+            ),
+        ) as dst:
+            for raster in rasters:
+                raster = self._merge(raster, dst, offset, handle_overlap)
+
+            return self._create_raster(
+                self._write_image(dst.read(), dst.meta),
+                dst.read(),
+                dst.bounds,
+                dst.meta,
+            )
+
+    def _merge(
+        self,
+        raster: Raster,
+        dst: DatasetWriter,
+        offset: int = OFFSET,
+        handle_overlap: bool = False,
+    ):
+        """Merge the raster with the destination raster."""
+        with rasterio.open(io.BytesIO(raster.content)) as src:
+            y_score = src.read(1)
+            width, height = src.width, src.height
+
+        window = Window(0, 0, width, height)
+        data = dst.read(window=window)[0] / 255
+        overlap = data > 0
+
+        if overlap.any() and handle_overlap:
+            dx, dy = np.gradient(overlap.astype(float))
+            g = np.abs(dx) + np.abs(dy)
+            transition = gaussian_filter(g, sigma=offset / 2)
+            transition /= transition.max()
+            transition[~overlap] = 1.0
+
+            y_score = transition * y_score + (1 - transition) * data
+
+        writedata = (np.expand_dims(y_score, 0).astype(np.float32) * 255).astype(
+            np.uint8
+        )
+        dst.write(writedata, window=window)
 
 
 class RasterioVectorsProcessor(VectorsProcessor):

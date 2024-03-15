@@ -43,6 +43,17 @@ class RasterProcessingContext:
     ) -> Generator[Raster, None, None]:
         return self.raster_processor.split_pad_raster(raster, image_size, padding)
 
+    def merge_rasters(
+        self,
+        rasters: Iterable[Raster],
+        target_raster: Raster,
+        offset: int,
+        handle_overlap: bool = False,
+    ) -> Raster:
+        return self.raster_processor.merge_rasters(
+            rasters, target_raster, offset, handle_overlap
+        )
+
 
 class VectorsProcessingContext:
     def __init__(self, vectors_processor: VectorsProcessor):

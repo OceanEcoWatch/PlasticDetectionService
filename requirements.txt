@@ -8,6 +8,7 @@ psycopg2-binary
 geoalchemy2
 sqlalchemy_utils
 boto3
+scikit-learn
 
 pytest
 black

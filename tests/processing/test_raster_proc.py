@@ -18,6 +18,13 @@ PROCESSORS = [
 ]
 
 
+@pytest.fixture
+def processor(s2_l2a_response, s2_l2a_raster, s2_l2a_rasterio):
+    """Yield rasterio"""
+    for proc in PROCESSORS:
+        yield proc(s2_l2a_raster)
+
+
 def _calculate_padding_size(
     image: np.ndarray, target_image_size: tuple[int, int], padding: int
 ) -> tuple[int, int]:
@@ -154,7 +161,7 @@ def test_split_raster(s2_l2a_raster, processor: RasterProcessor):
 
 
 @pytest.mark.parametrize("processor", PROCESSORS)
-def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
+def test_pad_raster(s2_l2a_raster, processor: RasterProcessor):
     out_file = f"tests/assets/test_out_pad_{processor.__class__.__name__}.tif"
     padding = 64
     image_size = (s2_l2a_raster.size[0], s2_l2a_raster.size[1])
@@ -196,7 +203,7 @@ def test_pad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
 
 
 @pytest.mark.parametrize("processor", PROCESSORS)
-def test_unpad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
+def test_unpad_raster(s2_l2a_raster, processor: RasterProcessor):
     out_file = f"tests/assets/test_out_unpad_{processor.__class__.__name__}.tif"
     padded_raster = processor.pad_raster(s2_l2a_raster, padding=64)
     unpadded_raster = processor.unpad_raster(padded_raster)
@@ -212,3 +219,16 @@ def test_unpad_raster(s2_l2a_raster, processor: RasterioRasterProcessor):
     assert unpadded_raster.padding_size == (0, 0)
     assert unpadded_raster.geometry == s2_l2a_raster.geometry
     assert np.array_equal(unpadded_raster.to_numpy(), s2_l2a_raster.to_numpy())
+
+
+@pytest.mark.parametrize("processor", PROCESSORS)
+def test_merge_rasters(s2_l2a_raster, processor: RasterProcessor):
+    rasters = processor.split_raster(s2_l2a_raster, image_size=(480, 480), padding=64)
+    merged = processor.merge_rasters(rasters, s2_l2a_raster, 64, False)
+    assert merged.size == s2_l2a_raster.size
+    assert merged.crs == s2_l2a_raster.crs
+    assert merged.bands == [1]
+    assert isinstance(merged.content, bytes)
+    assert merged.padding_size == (0, 0)
+    assert merged.geometry == s2_l2a_raster.geometry
+    assert np.array_equal(merged.to_numpy(), s2_l2a_raster.to_numpy())

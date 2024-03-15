@@ -5,6 +5,9 @@ from plastic_detection_service.models import Raster, Vector
 
 
 class RasterProcessor(ABC):
+    WINDOW_SIZE = (480, 480)
+    OFFSET = 64
+
     @abstractmethod
     def reproject_raster(
         self,
@@ -37,6 +40,16 @@ class RasterProcessor(ABC):
     def split_pad_raster(
         self, raster: Raster, image_size: tuple[int, int], padding: int
     ) -> Generator[Raster, None, None]:
+        pass
+
+    @abstractmethod
+    def merge_rasters(
+        self,
+        rasters: Iterable[Raster],
+        target_raster: Raster,
+        offset: int,
+        handle_overlap: bool = False,
+    ) -> Raster:
         pass
 
 
