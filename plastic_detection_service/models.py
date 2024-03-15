@@ -26,6 +26,7 @@ class DownloadResponse:
 class Raster:
     content: bytes
     size: tuple[int, int]  # (height, width)
+    dtype: str
     crs: int
     bands: list[int]
     geometry: Polygon

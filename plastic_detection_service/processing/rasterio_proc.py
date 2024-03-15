@@ -24,6 +24,24 @@ class RasterioRasterProcessor(RasterProcessor):
     WINDOW_SIZE = (480, 480)
     OFFSET = 64
 
+    def _create_raster(
+        self,
+        content: bytes,
+        image: np.ndarray,
+        bounds: tuple,
+        meta: dict,
+        padding_size: tuple[int, int] = (0, 0),
+    ):
+        return Raster(
+            content=content,
+            size=(image.shape[1], image.shape[2]),
+            dtype=meta["dtype"],
+            crs=meta["crs"].to_epsg(),
+            bands=[i + 1 for i in range(image.shape[0])],
+            geometry=box(*bounds),
+            padding_size=padding_size,
+        )
+
     def reproject_raster(
         self,
         raster: Raster,
@@ -55,12 +73,11 @@ class RasterioRasterProcessor(RasterProcessor):
                         dst_crs=target_crs,
                         resampling=Resampling[resample_alg],
                     )
-                return Raster(
-                    content=self._write_image(dst.read(), dst.meta),
-                    size=(dst.width, dst.height),
-                    crs=dst.crs.to_epsg(),
-                    bands=list(target_bands),
-                    geometry=box(*dst.bounds),
+                return self._create_raster(
+                    self._write_image(dst.read(), dst.meta),
+                    dst.read(),
+                    dst.bounds,
+                    dst.meta,
                 )
 
     def to_vector(self, raster: Raster, band: int = 1) -> Generator[Vector, None, None]:
@@ -162,23 +179,6 @@ class RasterioRasterProcessor(RasterProcessor):
             mem_dst.write(image)
 
         return buffer.getvalue()
-
-    def _create_raster(
-        self,
-        content: bytes,
-        image: np.ndarray,
-        bounds: tuple,
-        meta: dict,
-        padding_size: tuple[int, int] = (0, 0),
-    ):
-        return Raster(
-            content=content,
-            size=(image.shape[1], image.shape[2]),
-            crs=meta["crs"].to_epsg(),
-            bands=[i + 1 for i in range(image.shape[0])],
-            geometry=box(*bounds),
-            padding_size=padding_size,
-        )
 
     def _remove_bands(self, image: np.ndarray) -> np.ndarray:
         if image.shape[0] == 13:
@@ -322,8 +322,8 @@ class RasterioRasterProcessor(RasterProcessor):
             driver="GTiff",
             width=target_raster.size[0],
             height=target_raster.size[1],
-            count=len(target_raster.bands),
-            dtype="uint8",
+            count=1,  # only works with 1 band for now
+            dtype=target_raster.dtype,
             crs=CRS.from_epsg(target_raster.crs),
             transform=from_bounds(
                 minx, miny, maxx, maxy, target_raster.size[0], target_raster.size[1]

@@ -226,6 +226,7 @@ def test_merge_rasters(s2_l2a_raster, processor: RasterProcessor):
     rasters = processor.split_raster(s2_l2a_raster, image_size=(480, 480), padding=64)
     merged = processor.merge_rasters(rasters, s2_l2a_raster, 64, False)
     assert merged.size == s2_l2a_raster.size
+    assert merged.dtype == s2_l2a_raster.dtype
     assert merged.crs == s2_l2a_raster.crs
     assert merged.bands == [1]
     assert isinstance(merged.content, bytes)

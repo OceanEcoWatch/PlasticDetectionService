@@ -26,6 +26,7 @@ def s2_l2a_raster(s2_l2a_rasterio, s2_l2a_response):
     return Raster(
         content=s2_l2a_response,
         size=(meta["width"], meta["height"]),
+        dtype=meta["dtype"],
         crs=meta["crs"].to_epsg(),
         bands=[i for i in range(1, meta["count"] + 1)],
         geometry=box(*src.bounds),
@@ -61,6 +62,7 @@ def raster(content, rasterio_ds, crs, rast_geometry):
     return Raster(
         content=content,
         size=(rasterio_ds.width, rasterio_ds.height),
+        dtype=rasterio_ds.meta["dtype"],
         crs=crs,
         bands=[i for i in range(1, rasterio_ds.count + 1)],
         geometry=rast_geometry,
