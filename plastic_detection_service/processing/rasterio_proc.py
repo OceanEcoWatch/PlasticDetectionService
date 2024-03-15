@@ -322,7 +322,7 @@ class RasterioRasterProcessor(RasterProcessor):
             driver="GTiff",
             width=target_raster.size[0],
             height=target_raster.size[1],
-            count=1,  # only works with 1 band for now
+            count=len(target_raster.bands),
             dtype=target_raster.dtype,
             crs=CRS.from_epsg(target_raster.crs),
             transform=from_bounds(
