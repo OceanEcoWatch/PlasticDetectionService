@@ -1,66 +1,34 @@
 from abc import ABC, abstractmethod
-from typing import Generator, Iterable, Optional
+from typing import Generator, Iterator
 
 from plastic_detection_service.models import Raster, Vector
 
 
-class RasterProcessor(ABC):
-    WINDOW_SIZE = (480, 480)
-    OFFSET = 64
-
+class RasterOperationStrategy(ABC):
     @abstractmethod
-    def reproject_raster(
-        self,
-        raster: Raster,
-        target_crs: int,
-        target_bands: Optional[Iterable[int]] = None,
-        resample_alg: str = "nearest",
-    ) -> Raster:
-        pass
-
-    @abstractmethod
-    def to_vector(self, raster: Raster, band: int = 1) -> Generator[Vector, None, None]:
-        pass
-
-    @abstractmethod
-    def pad_raster(self, raster: Raster, padding: int) -> Raster:
-        pass
-
-    @abstractmethod
-    def unpad_raster(self, raster: Raster) -> Raster:
-        pass
-
-    @abstractmethod
-    def split_raster(
-        self, raster: Raster, image_size: tuple[int, int], padding: int
-    ) -> Generator[Raster, None, None]:
-        pass
-
-    @abstractmethod
-    def split_pad_raster(
-        self, raster: Raster, image_size: tuple[int, int], padding: int
-    ) -> Generator[Raster, None, None]:
-        pass
-
-    @abstractmethod
-    def merge_rasters(
-        self,
-        rasters: Iterable[Raster],
-        target_raster: Raster,
-        offset: int,
-        handle_overlap: bool = False,
-    ) -> Raster:
+    def execute(self, rasters: Raster) -> Raster:
         pass
 
 
-class VectorsProcessor(ABC):
-    def filter_out_(
-        self, vectors: Iterable[Vector], threshold: int
-    ) -> Generator[Vector, None, None]:
-        for v in vectors:
-            if v.pixel_value > threshold:
-                yield v
-
+class RasterToVectorStrategy(ABC):
     @abstractmethod
-    def to_raster(self, vectors: Iterable[Vector]) -> Raster:
+    def execute(self, raster: Raster) -> Generator[Vector, None, None]:
+        pass
+
+
+class RasterSplitStrategy(ABC):
+    @abstractmethod
+    def execute(self, raster: Raster) -> Generator[Raster, None, None]:
+        pass
+
+
+class RasterMergeStrategy(ABC):
+    @abstractmethod
+    def execute(self, rasters: Iterator[Raster]) -> Raster:
+        pass
+
+
+class VectorOperationStrategy(ABC):
+    @abstractmethod
+    def execute(self, vectors: Iterator[Vector]) -> Iterator[Vector]:
         pass

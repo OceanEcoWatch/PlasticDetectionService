@@ -52,7 +52,7 @@ class Vector:
     @property
     def geojson(self) -> dict:
         if self.crs != 4326:
-            raise ValueError("Only EPSG:4326 is supported")
+            raise ValueError("Only EPSG:4326 format is supported for GeoJSON")
         return {
             "type": "Feature",
             "geometry": self.geometry.__geo_interface__,
