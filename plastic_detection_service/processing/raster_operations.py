@@ -407,7 +407,7 @@ class RasterInference(RasterOperationStrategy):
             print("size of raster content in MB: ", raster_size_mb)
 
             np_buffer = np.frombuffer(
-                self.inference_func(raster.content), dtype=np.uint8
+                self.inference_func(raster.content), dtype=np.float32
             )
             prediction = np_buffer.reshape(1, meta["height"], meta["width"])
 
