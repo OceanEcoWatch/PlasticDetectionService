@@ -8,9 +8,9 @@ from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.features import shapes
 from rasterio.merge import merge
-from rasterio.transform import from_bounds
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
+from scipy.ndimage import gaussian_filter
 from shapely.geometry import box, shape
 
 from plastic_detection_service.models import Raster, Vector
@@ -302,47 +302,20 @@ class RasterioRasterSplit(RasterSplitStrategy):
 
 
 class RasterioRasterMerge(RasterOperationStrategy):
-    def __init__(
-        self, target_raster: Raster, offset: int = 64, smooth_overlap: bool = False
-    ):
+    def __init__(self, offset: int = 64, smooth_overlap: bool = False):
         self.offset = offset
         self.smooth_overlap = smooth_overlap
-        self.target_raster = target_raster
+
         self.buffer = io.BytesIO()
-
-    def transform_target_raster(self):
-        minx, miny, maxx, maxy = self.target_raster.geometry.bounds
-        return from_bounds(
-            minx,
-            miny,
-            maxx,
-            maxy,
-            self.target_raster.size[0],
-            self.target_raster.size[1],
-        )
-
-    def open_writeable_raster(self):
-        return rasterio.open(
-            self.buffer,
-            "w+",
-            driver="GTiff",
-            width=self.target_raster.size[0],
-            height=self.target_raster.size[1],
-            count=len(self.target_raster.bands),
-            dtype=self.target_raster.dtype,
-            crs=CRS.from_epsg(self.target_raster.crs),
-            transform=self.transform_target_raster(),
-        )
 
     def execute(
         self,
         rasters: Iterable[Raster],
     ) -> Raster:
         srcs = [rasterio.open(io.BytesIO(r.content)) for r in rasters]
+
         mosaic, out_trans = merge(srcs)
         out_meta = srcs[0].meta.copy()
-        for src in srcs:
-            src.close()
 
         out_meta.update(
             {
@@ -350,20 +323,47 @@ class RasterioRasterMerge(RasterOperationStrategy):
                 "height": mosaic.shape[1],
                 "width": mosaic.shape[2],
                 "transform": out_trans,
-                "dtype": mosaic.dtype,  # TODO: check why this cannot be visualized in qgis
+                "dtype": rasterio.float32,  # TODO check why only float van be visualized in QGIS
             }
         )
 
         with rasterio.open(self.buffer, "w+", **out_meta) as dst:
-            dst.write(mosaic)
+            if self.smooth_overlap:
+                for src in srcs:
+                    self._apply_smooth_overlap(src, dst)
+            else:
+                dst.write(mosaic)
 
         return _create_raster(
             self.buffer.getvalue(),
             mosaic,
-            self.target_raster.geometry.bounds,
+            dst.bounds,
             out_meta,
             (0, 0),
         )
+
+    def _apply_smooth_overlap(
+        self, src: rasterio.DatasetReader, dst: rasterio.DatasetReader
+    ):
+        bands = src.count
+        for band in range(1, bands + 1):
+            window = src.window(*src.bounds)
+            existing_data = dst.read(band, window=window) / 255
+            incoming_data = src.read(band, window=window)
+
+            overlap = existing_data > 0
+            if overlap.any():
+                dx, dy = np.gradient(overlap.astype(float))
+                g = np.abs(dx) + np.abs(dy)
+                transition = gaussian_filter(g, sigma=self.offset)
+                transition = transition / transition.max()
+                transition[~overlap] = 1.0
+
+                smoothed_data = (
+                    transition * incoming_data + (1 - transition) * existing_data
+                )
+                writedata = smoothed_data.astype(np.float32)
+                dst.write(writedata, window=window)
 
 
 class RasterioRemoveBand(RasterOperationStrategy):
