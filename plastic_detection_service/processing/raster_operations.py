@@ -272,6 +272,7 @@ class RasterioRasterSplit(RasterSplitStrategy):
             ):
                 image = src.read(window=window)
                 window_meta = _update_window_meta(meta, image)
+                window_meta = _update_bounds(window_meta, src.window_bounds(window))
                 window_byte_stream = _write_image(image, window_meta)
 
                 yield _create_raster(
@@ -285,7 +286,6 @@ class RasterioRasterSplit(RasterSplitStrategy):
     def _generate_windows(self, raster: Raster, image_size, offset):
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
-
             rows = np.arange(0, meta["height"], image_size[0])
             cols = np.arange(0, meta["width"], image_size[1])
             image_window = Window(0, 0, meta["width"], meta["height"])
@@ -341,7 +341,7 @@ class RasterioRasterMerge(RasterOperationStrategy):
     ) -> Raster:
         with self.open_writeable_raster() as dst:
             for raster in rasters:
-                raster = self._merge(raster, dst, self.offset, self.smooth_overlap)
+                self._merge(raster, dst, self.offset, self.smooth_overlap)
 
             return _create_raster(
                 _write_image(dst.read(), dst.meta),
