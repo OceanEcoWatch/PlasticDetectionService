@@ -6,6 +6,7 @@ import rasterio
 from shapely.geometry import Polygon
 
 from plastic_detection_service.models import Raster
+from plastic_detection_service.processing.merge_callable import smooth_overlap_callable
 from plastic_detection_service.processing.raster_operations import (
     CompositeRasterOperation,
     RasterInference,
@@ -16,7 +17,6 @@ from plastic_detection_service.processing.raster_operations import (
     RasterioRasterToVector,
     RasterioRasterUnpad,
     RasterioRemoveBand,
-    smooth_overlap_callable,
 )
 
 
@@ -296,6 +296,7 @@ def test_merge_rasters_smooth_overlap(s2_l2a_raster):
     assert isinstance(merged.content, bytes)
     assert merged.padding_size == (0, 0)
     assert merged.geometry == s2_l2a_raster.geometry
+    assert np.array_equal(merged.to_numpy(), s2_l2a_raster.to_numpy())
 
     with rasterio.open(io.BytesIO(s2_l2a_raster.content)) as src:
         exp_image = src.read()
@@ -314,10 +315,14 @@ def test_merge_rasters_smooth_overlap(s2_l2a_raster):
     assert meta["transform"] == exp_meta["transform"]
     assert meta["dtype"] == "float32"
 
+    assert np.array_equal(image, exp_image)
+
     assert merged.size == s2_l2a_raster.size
     assert merged.crs == s2_l2a_raster.crs
     assert merged.bands == s2_l2a_raster.bands
     assert merged.padding_size == (0, 0)
+    assert merge_strategy.merge_method == smooth_overlap_callable
+    assert merge_strategy.offset == 64
 
 
 def test_remove_band(s2_l2a_raster):
