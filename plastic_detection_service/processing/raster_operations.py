@@ -7,11 +7,10 @@ import rasterio
 from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.features import shapes
-from rasterio.io import DatasetWriter
+from rasterio.merge import merge
 from rasterio.transform import from_bounds
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
-from scipy.ndimage import gaussian_filter
 from shapely.geometry import box, shape
 
 from plastic_detection_service.models import Raster, Vector
@@ -339,45 +338,32 @@ class RasterioRasterMerge(RasterOperationStrategy):
         self,
         rasters: Iterable[Raster],
     ) -> Raster:
-        with self.open_writeable_raster() as dst:
-            for raster in rasters:
-                self._merge(raster, dst, self.offset, self.smooth_overlap)
+        srcs = [rasterio.open(io.BytesIO(r.content)) for r in rasters]
+        mosaic, out_trans = merge(srcs)
+        out_meta = srcs[0].meta.copy()
+        for src in srcs:
+            src.close()
 
-            return _create_raster(
-                _write_image(dst.read(), dst.meta),
-                dst.read(),
-                dst.bounds,
-                dst.meta,
-                raster.padding_size,
-            )
+        out_meta.update(
+            {
+                "driver": "GTiff",
+                "height": mosaic.shape[1],
+                "width": mosaic.shape[2],
+                "transform": out_trans,
+                "dtype": mosaic.dtype,  # TODO: check why this cannot be visualized in qgis
+            }
+        )
 
-    def _merge(
-        self,
-        raster: Raster,
-        dst: DatasetWriter,
-        offset: int,
-        smooth_overlap: bool,
-    ):
-        with rasterio.open(io.BytesIO(raster.content)) as src:
-            for bidx in range(1, src.count + 1):
-                y_score = src.read(bidx)
-                width, height = src.width, src.height
+        with rasterio.open(self.buffer, "w+", **out_meta) as dst:
+            dst.write(mosaic)
 
-                window = Window(0, 0, width, height)
-                data = dst.read(bidx, window=window) / 255
-                overlap = data > 0
-
-                if overlap.any() and smooth_overlap:
-                    dx, dy = np.gradient(overlap.astype(float))
-                    g = np.abs(dx) + np.abs(dy)
-                    transition = gaussian_filter(g, sigma=offset / 2)
-                    transition /= transition.max()
-                    transition[~overlap] = 1.0
-
-                writedata = (
-                    np.expand_dims(y_score, 0).astype(np.float32) * 255
-                ).astype(np.uint8)
-                dst.write(writedata, window=window, indexes=bidx)
+        return _create_raster(
+            self.buffer.getvalue(),
+            mosaic,
+            self.target_raster.geometry.bounds,
+            out_meta,
+            (0, 0),
+        )
 
 
 class RasterioRemoveBand(RasterOperationStrategy):
