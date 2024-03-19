@@ -50,7 +50,7 @@ def _create_raster(
     image: np.ndarray,
     bounds: tuple,
     meta: dict,
-    padding_size: tuple[int, int] = (0, 0),
+    padding_size: tuple[int, int],
 ):
     return Raster(
         content=content,
@@ -63,7 +63,7 @@ def _create_raster(
     )
 
 
-def _write_image(image, meta):
+def _write_image(image: np.ndarray, meta: dict) -> bytes:
     buffer = io.BytesIO()
     with rasterio.open(buffer, "w+", **meta) as mem_dst:
         mem_dst.write(image)
@@ -112,6 +112,7 @@ class RasterioRasterReproject(RasterOperationStrategy):
                     dst.read(),
                     dst.bounds,
                     dst.meta,
+                    raster.padding_size,
                 )
 
 
@@ -205,6 +206,7 @@ class RasterioRasterPad(RasterOperationStrategy):
 class RasterioRasterUnpad(RasterOperationStrategy):
     def execute(self, raster: Raster) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
+            print("padding size: ", raster.padding_size)
             image = src.read()
             image = self._unpad_image(image, raster.padding_size)
 
@@ -273,7 +275,11 @@ class RasterioRasterSplit(RasterSplitStrategy):
                 window_byte_stream = _write_image(image, window_meta)
 
                 yield _create_raster(
-                    window_byte_stream, image, src.window_bounds(window), window_meta
+                    window_byte_stream,
+                    image,
+                    src.window_bounds(window),
+                    window_meta,
+                    raster.padding_size,
                 )
 
     def _generate_windows(self, raster: Raster, image_size, offset):
@@ -342,6 +348,7 @@ class RasterioRasterMerge(RasterOperationStrategy):
                 dst.read(),
                 dst.bounds,
                 dst.meta,
+                raster.padding_size,
             )
 
     def _merge(
@@ -373,25 +380,32 @@ class RasterioRasterMerge(RasterOperationStrategy):
                 dst.write(writedata, window=window, indexes=bidx)
 
 
-class RasterioRasterCount(RasterOperationStrategy):
+class RasterioRemoveBand(RasterOperationStrategy):
+    def __init__(self, band: int):
+        self.band = band - 1
+
     def execute(self, raster: Raster) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
-            return Raster(
-                content=raster.content,
-                size=(src.width, src.height),
-                dtype=src.meta["dtype"],
-                crs=src.meta["crs"].to_epsg(),
-                bands=[i for i in range(1, src.meta["count"] + 1)],
-                geometry=box(*src.bounds),
+            meta = src.meta.copy()
+            image = src.read()
+            image = np.delete(image, self.band, axis=0)
+            meta.update(
+                {
+                    "count": image.shape[0],
+                    "height": image.shape[1],
+                    "width": image.shape[2],
+                }
+            )
+            return _create_raster(
+                _write_image(image, meta),
+                image,
+                src.bounds,
+                meta,
+                raster.padding_size,
             )
 
 
-class InferenceRasterError(Exception):
-    def __init__(self, message: str):
-        super().__init__(message)
-
-
-class RasterInferenceOperation(RasterOperationStrategy):
+class RasterInference(RasterOperationStrategy):
     def __init__(self, inference_func: Callable[[bytes], bytes]):
         self.inference_func = inference_func
 
@@ -399,8 +413,11 @@ class RasterInferenceOperation(RasterOperationStrategy):
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
 
+            raster_size_mb = len(raster.content) / 1024 / 1024
+            print("size of raster content in MB: ", raster_size_mb)
+
             np_buffer = np.frombuffer(
-                self.inference_func(raster.content), dtype=meta["dtype"]
+                self.inference_func(raster.content), dtype=np.uint8
             )
             prediction = np_buffer.reshape(1, meta["height"], meta["width"])
 
@@ -418,6 +435,7 @@ class RasterInferenceOperation(RasterOperationStrategy):
                 prediction,
                 src.bounds,
                 meta,
+                raster.padding_size,
             )
 
 

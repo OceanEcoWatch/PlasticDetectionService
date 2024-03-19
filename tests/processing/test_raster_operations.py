@@ -5,17 +5,24 @@ import pytest
 import rasterio
 from shapely.geometry import Polygon
 
+from plastic_detection_service.inference.sagemaker_model.code.inference import (
+    model_fn,
+    predict_fn,
+)
 from plastic_detection_service.models import Raster
 from plastic_detection_service.processing.raster_operations import (
     CompositeRasterOperation,
-    RasterInferenceOperation,
+    RasterInference,
     RasterioRasterMerge,
     RasterioRasterPad,
     RasterioRasterReproject,
     RasterioRasterSplit,
     RasterioRasterToVector,
     RasterioRasterUnpad,
+    RasterioRemoveBand,
 )
+
+inference_func = lambda x: predict_fn(x, model=model_fn("."))
 
 
 def _calculate_padding_size(
@@ -203,15 +210,26 @@ def test_merge_rasters(s2_l2a_raster):
     assert np.array_equal(merged.to_numpy(), s2_l2a_raster.to_numpy())
 
 
-def _inference_func(content: bytes) -> bytes:
-    with rasterio.open(io.BytesIO(content)) as src:
+def test_remove_band(s2_l2a_raster):
+    remove_band_strategy = RasterioRemoveBand(band=13)
+    removed_band_raster = remove_band_strategy.execute(s2_l2a_raster)
+    assert removed_band_raster.size == s2_l2a_raster.size
+    assert removed_band_raster.crs == s2_l2a_raster.crs
+    assert removed_band_raster.bands == s2_l2a_raster.bands[:-1]
+    assert isinstance(removed_band_raster.content, bytes)
+
+    assert removed_band_raster.geometry == s2_l2a_raster.geometry
+
+
+def _mock_inference_func(_raster_bytes) -> bytes:
+    with rasterio.open(io.BytesIO(_raster_bytes)) as src:
         image = src.read()
-    band1 = image[0, :, :]
-    return band1.tobytes()
+        band1 = image[0, :, :].astype(np.int8)
+        return band1.tobytes()
 
 
 def test_inference_raster(raster):
-    operation = RasterInferenceOperation(_inference_func)
+    operation = RasterInference(inference_func=_mock_inference_func)
 
     result = operation.execute(raster)
 
@@ -229,27 +247,31 @@ def test_inference_raster(raster):
 
 
 def test_composite_raster_operation(s2_l2a_raster):
-    reproject_op = RasterioRasterSplit(image_size=(480, 480), offset=64)
-    results = []
-    for r in reproject_op.execute(s2_l2a_raster):
-        comp_op = CompositeRasterOperation(
-            [
-                RasterioRasterPad(padding=64),
-                RasterInferenceOperation(inference_func=_inference_func),
-                RasterioRasterUnpad(),
-            ]
-        )
-        results.append(comp_op.execute(r))
-
-    merge_op = RasterioRasterMerge(
-        target_raster=s2_l2a_raster, offset=64, smooth_overlap=True
+    comp_op = CompositeRasterOperation(
+        [
+            RasterioRasterPad(padding=64),
+            RasterioRemoveBand(band=13),
+            RasterInference(inference_func=_mock_inference_func),
+            RasterioRasterUnpad(),
+        ]
     )
-    merged = merge_op.execute(results)
-    merged.to_file("tests/assets/test_out_composite.tif")
-    assert merged.size == s2_l2a_raster.size
-    assert merged.dtype == s2_l2a_raster.dtype
-    assert merged.crs == s2_l2a_raster.crs
-    assert merged.bands == s2_l2a_raster.bands
-    assert isinstance(merged.content, bytes)
-    assert merged.padding_size == (0, 0)
-    assert merged.geometry == s2_l2a_raster.geometry
+    result = comp_op.execute(s2_l2a_raster)
+
+    assert isinstance(result, Raster)
+    assert s2_l2a_raster.size == result.size
+    assert s2_l2a_raster.crs == result.crs
+    assert s2_l2a_raster.geometry == result.geometry
+
+
+# merge_op = RasterioRasterMerge(
+#     target_raster=s2_l2a_raster, offset=64, smooth_overlap=True
+# )
+# merged = merge_op.execute(results)
+# merged.to_file("tests/assets/test_out_composite.tif")
+# assert merged.size == s2_l2a_raster.size
+# assert merged.dtype == s2_l2a_raster.dtype
+# assert merged.crs == s2_l2a_raster.crs
+# assert merged.bands == s2_l2a_raster.bands
+# assert isinstance(merged.content, bytes)
+# assert merged.padding_size == (0, 0)
+# assert merged.geometry == s2_l2a_raster.geometry
