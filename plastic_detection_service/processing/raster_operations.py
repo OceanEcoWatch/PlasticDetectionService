@@ -1,6 +1,6 @@
 import io
 from itertools import product
-from typing import Callable, Generator, Iterable, Optional
+from typing import Callable, Generator, Iterable, Optional, Union
 
 import numpy as np
 import rasterio
@@ -301,10 +301,56 @@ class RasterioRasterSplit(RasterSplitStrategy):
                 yield window, src
 
 
+def smooth_overlap_callable(
+    merged_data,
+    new_data,
+    merged_mask,
+    new_mask,
+    index=None,
+    roff=None,
+    coff=None,
+    sigma=64,
+):
+    overlap = merged_mask & new_mask
+
+    if overlap.any():
+        # Calculate the gradient of the overlap mask
+        dx, dy = np.gradient(overlap.astype(float))
+        g = np.abs(dx) + np.abs(dy)
+
+        # Smooth the gradient to create a transition mask
+        transition = gaussian_filter(g, sigma=sigma)
+        transition /= transition.max()
+        transition[overlap] = 1.0
+
+        # Applying the blending logic correctly
+        for band in range(merged_data.shape[0]):
+            # Only blend where there's overlap
+            blend_area = (transition < 1) & overlap
+            merged_data[band][blend_area] = (
+                transition[blend_area] * new_data[band][blend_area]
+                + (1 - transition[blend_area]) * merged_data[band][blend_area]
+            )
+
+    else:
+        # Simplified approach for cases without overlap
+        for band in range(merged_data.shape[0]):
+            # Considering new_mask to directly replace data in areas without overlap
+            # Ensure this direct replacement logic matches your requirements
+            replace_area = ~new_mask
+            merged_data[band][replace_area] = new_data[band][replace_area]
+
+
 class RasterioRasterMerge(RasterOperationStrategy):
-    def __init__(self, offset: int = 64, smooth_overlap: bool = False):
+    def __init__(
+        self,
+        offset: int = 64,
+        merge_method: Union[str, Callable] = "first",
+        bands: Optional[list[int]] = None,
+    ):
         self.offset = offset
-        self.smooth_overlap = smooth_overlap
+        self.merge_method = merge_method
+        self.bands = bands
 
         self.buffer = io.BytesIO()
 
@@ -314,7 +360,7 @@ class RasterioRasterMerge(RasterOperationStrategy):
     ) -> Raster:
         srcs = [rasterio.open(io.BytesIO(r.content)) for r in rasters]
 
-        mosaic, out_trans = merge(srcs)
+        mosaic, out_trans = merge(srcs, method=self.merge_method, nodata=0)
         out_meta = srcs[0].meta.copy()
 
         out_meta.update(
@@ -323,16 +369,15 @@ class RasterioRasterMerge(RasterOperationStrategy):
                 "height": mosaic.shape[1],
                 "width": mosaic.shape[2],
                 "transform": out_trans,
-                "dtype": rasterio.float32,  # TODO check why only float van be visualized in QGIS
+                "dtype": rasterio.float32,
             }
         )
+        if self.bands:
+            out_meta["count"] = len(self.bands)
+            mosaic = mosaic[self.bands]
 
         with rasterio.open(self.buffer, "w+", **out_meta) as dst:
-            if self.smooth_overlap:
-                for src in srcs:
-                    self._apply_smooth_overlap(src, dst)
-            else:
-                dst.write(mosaic)
+            dst.write(mosaic)
 
         return _create_raster(
             self.buffer.getvalue(),
@@ -345,10 +390,9 @@ class RasterioRasterMerge(RasterOperationStrategy):
     def _apply_smooth_overlap(
         self, src: rasterio.DatasetReader, dst: rasterio.DatasetReader
     ):
-        bands = src.count
-        for band in range(1, bands + 1):
+        for band in dst.indexes:
             window = src.window(*src.bounds)
-            existing_data = dst.read(band, window=window) / 255
+            existing_data = dst.read(band, window=window)
             incoming_data = src.read(band, window=window)
 
             overlap = existing_data > 0
@@ -359,11 +403,11 @@ class RasterioRasterMerge(RasterOperationStrategy):
                 transition = transition / transition.max()
                 transition[~overlap] = 1.0
 
-                smoothed_data = (
+                incoming_data = (
                     transition * incoming_data + (1 - transition) * existing_data
                 )
-                writedata = smoothed_data.astype(np.float32)
-                dst.write(writedata, window=window)
+            writedata = incoming_data.astype(np.float32) * 255
+            dst.write(writedata, window=window, indexes=band)
 
 
 class RasterioRemoveBand(RasterOperationStrategy):

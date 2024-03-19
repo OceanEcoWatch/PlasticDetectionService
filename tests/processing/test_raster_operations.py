@@ -16,6 +16,7 @@ from plastic_detection_service.processing.raster_operations import (
     RasterioRasterToVector,
     RasterioRasterUnpad,
     RasterioRemoveBand,
+    smooth_overlap_callable,
 )
 
 
@@ -236,7 +237,7 @@ def test_unpad_split_rasters(s2_l2a_raster):
 
 
 def test_merge_rasters(s2_l2a_raster):
-    merge_strategy = RasterioRasterMerge(offset=64, smooth_overlap=False)
+    merge_strategy = RasterioRasterMerge(offset=64)
     split_strategy = RasterioRasterSplit(image_size=(480, 480), offset=64)
     rasters = list(split_strategy.execute(s2_l2a_raster))
     merged = merge_strategy.execute(rasters)
@@ -279,7 +280,9 @@ def test_merge_rasters(s2_l2a_raster):
 
 
 def test_merge_rasters_smooth_overlap(s2_l2a_raster):
-    merge_strategy = RasterioRasterMerge(offset=64, smooth_overlap=True)
+    merge_strategy = RasterioRasterMerge(
+        offset=64, merge_method=smooth_overlap_callable
+    )
     split_strategy = RasterioRasterSplit(image_size=(480, 480), offset=64)
     rasters = list(split_strategy.execute(s2_l2a_raster))
     merged = merge_strategy.execute(rasters)
