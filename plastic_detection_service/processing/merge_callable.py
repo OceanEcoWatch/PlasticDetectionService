@@ -2,13 +2,6 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 
 
-def pre121_max(old_data, new_data, old_nodata, new_nodata, **kwargs):
-    mask = np.logical_and(~old_nodata, ~new_nodata)
-    old_data[mask] = np.maximum(old_data[mask], new_data[mask])
-    mask = np.logical_and(old_nodata, ~new_nodata)
-    old_data[mask] = new_data[mask]
-
-
 def smooth_overlap_callable(
     merged_data,
     new_data,
