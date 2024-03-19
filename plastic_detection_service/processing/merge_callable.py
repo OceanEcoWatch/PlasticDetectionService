@@ -37,6 +37,5 @@ def smooth_overlap_callable(
         # Simplified approach for cases without overlap
         for band in range(merged_data.shape[0]):
             # Considering new_mask to directly replace data in areas without overlap
-            # Ensure this direct replacement logic matches your requirements
             replace_area = ~new_mask
             merged_data[band][replace_area] = new_data[band][replace_area]

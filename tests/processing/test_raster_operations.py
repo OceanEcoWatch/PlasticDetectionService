@@ -317,6 +317,7 @@ def test_inference_raster(raster):
 
 
 def test_composite_raster_operation(s2_l2a_raster):
+    split_op = RasterioRasterSplit(image_size=(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
             RasterioRasterPad(padding=64),
@@ -325,23 +326,19 @@ def test_composite_raster_operation(s2_l2a_raster):
             RasterioRasterUnpad(),
         ]
     )
-    result = comp_op.execute(s2_l2a_raster)
+    results = []
+    for raster in split_op.execute(s2_l2a_raster):
+        result = comp_op.execute(raster)
+        results.append(result)
 
-    assert isinstance(result, Raster)
-    assert s2_l2a_raster.size == result.size
-    assert s2_l2a_raster.crs == result.crs
-    assert s2_l2a_raster.geometry == result.geometry
+    merge_op = RasterioRasterMerge(offset=64, merge_method=smooth_overlap_callable)
 
-
-# merge_op = RasterioRasterMerge(
-#     target_raster=s2_l2a_raster, offset=64, smooth_overlap=True
-# )
-# merged = merge_op.execute(results)
-# merged.to_file("tests/assets/test_out_composite.tif")
-# assert merged.size == s2_l2a_raster.size
-# assert merged.dtype == s2_l2a_raster.dtype
-# assert merged.crs == s2_l2a_raster.crs
-# assert merged.bands == s2_l2a_raster.bands
-# assert isinstance(merged.content, bytes)
-# assert merged.padding_size == (0, 0)
-# assert merged.geometry == s2_l2a_raster.geometry
+    merged = merge_op.execute(results)
+    merged.to_file("tests/assets/test_out_composite.tif")
+    assert merged.size == s2_l2a_raster.size
+    assert merged.dtype == "float32"
+    assert merged.crs == s2_l2a_raster.crs
+    assert merged.bands == [1]
+    assert isinstance(merged.content, bytes)
+    assert merged.padding_size == (0, 0)
+    assert merged.geometry == s2_l2a_raster.geometry
