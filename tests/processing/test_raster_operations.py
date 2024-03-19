@@ -5,11 +5,15 @@ import pytest
 import rasterio
 from shapely.geometry import Polygon
 
+from plastic_detection_service.inference.inference_callback import (
+    local_inference_callback,
+)
 from plastic_detection_service.models import Raster
 from plastic_detection_service.processing.merge_callable import smooth_overlap_callable
 from plastic_detection_service.processing.raster_operations import (
     CompositeRasterOperation,
     RasterInference,
+    RasterioDtypeConversion,
     RasterioRasterMerge,
     RasterioRasterPad,
     RasterioRasterReproject,
@@ -158,17 +162,18 @@ def test_pad_raster(s2_l2a_raster):
     image_size = (s2_l2a_raster.size[0], s2_l2a_raster.size[1])
     padded_raster = processor.execute(s2_l2a_raster)
 
-    assert padded_raster.size == (
-        image_size[0] + 2 * padding,
-        image_size[1] + 2 * padding,
-    )
+    assert padded_raster.size == (640, 640)
     assert padded_raster.crs == s2_l2a_raster.crs
     assert padded_raster.bands == s2_l2a_raster.bands
     assert padded_raster.content != s2_l2a_raster.content
     assert isinstance(padded_raster.content, bytes)
 
+    # check padding size is divisible by 32
+    assert padded_raster.size[0] % 32 == 0
+    assert padded_raster.size[1] % 32 == 0
+
     # check padding_size is as expected
-    exp_padding_size = _calculate_padding_size(
+    exp_padding_size = processor._calculate_padding_size(
         s2_l2a_raster.to_numpy(), image_size, padding
     )
     assert padded_raster.padding_size == exp_padding_size
@@ -253,7 +258,7 @@ def test_merge_rasters(s2_l2a_raster, merge_method):
         f"tests/assets/test_out_merge_{merge_method if isinstance(merge_method, str) else 'custom'}.tif"
     )
     assert merged.size == s2_l2a_raster.size
-    assert merged.dtype == "float32"
+    assert merged.dtype == s2_l2a_raster.dtype
     assert merged.crs == s2_l2a_raster.crs
     assert merged.bands == s2_l2a_raster.bands
     assert isinstance(merged.content, bytes)
@@ -270,13 +275,13 @@ def test_merge_rasters(s2_l2a_raster, merge_method):
         meta = src.meta.copy()
 
     assert image.shape == exp_image.shape
-    assert image.dtype == "float32"
+    assert image.dtype == exp_image.dtype
     assert meta["height"] == exp_meta["height"]
     assert meta["width"] == exp_meta["width"]
     assert meta["crs"] == exp_meta["crs"]
     assert meta["count"] == exp_meta["count"]
     assert meta["transform"] == exp_meta["transform"]
-    assert meta["dtype"] == "float32"
+    assert meta["dtype"] == exp_meta["dtype"]
 
     assert np.array_equal(image, exp_image)
 
@@ -298,6 +303,18 @@ def test_remove_band(s2_l2a_raster):
     assert removed_band_raster.geometry == s2_l2a_raster.geometry
 
 
+def test_dtype_conversion(s2_l2a_raster):
+    dtype = "uint8"
+    strategy = RasterioDtypeConversion(dtype=dtype)
+    converted_raster = strategy.execute(s2_l2a_raster)
+    assert converted_raster.size == s2_l2a_raster.size
+    assert converted_raster.crs == s2_l2a_raster.crs
+    assert converted_raster.bands == s2_l2a_raster.bands
+    assert converted_raster.dtype == dtype
+    assert isinstance(converted_raster.content, bytes)
+    assert converted_raster.geometry == s2_l2a_raster.geometry
+
+
 def test_inference_raster(s2_l2a_raster):
     operation = RasterInference(inference_func=_mock_inference_func)
 
@@ -314,19 +331,14 @@ def test_inference_raster(s2_l2a_raster):
     assert isinstance(result.content, bytes)
 
 
-@pytest.mark.parametrize(
-    "infer_callback",
-    [
-        _mock_inference_func,
-    ],
-)
-def test_composite_raster_operation(s2_l2a_raster, infer_callback):
+def test_composite_raster_operation(s2_l2a_raster):
     split_op = RasterioRasterSplit(image_size=(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=infer_callback),
+            RasterInference(inference_func=_mock_inference_func),
+            RasterioDtypeConversion(dtype="uint8"),
             RasterioRasterUnpad(),
         ]
     )
@@ -338,11 +350,47 @@ def test_composite_raster_operation(s2_l2a_raster, infer_callback):
     merge_op = RasterioRasterMerge(offset=64, merge_method=smooth_overlap_callable)
 
     merged = merge_op.execute(results)
-    merged.to_file(f"tests/assets/test_out_merge_{infer_callback.__name__}.tif")
+    merged.to_file(
+        f"tests/assets/test_out_composite_{_mock_inference_func.__name__}.tif"
+    )
     assert merged.size == s2_l2a_raster.size
-    assert merged.dtype == "float32"
+    assert merged.dtype == "uint8"
     assert merged.crs == s2_l2a_raster.crs
     assert merged.bands == [1]
     assert isinstance(merged.content, bytes)
     assert merged.padding_size == (0, 0)
     assert merged.geometry == s2_l2a_raster.geometry
+
+
+@pytest.mark.slow
+def test_composite_raster_real_inference(s2_l2a_raster, raster):
+    split_op = RasterioRasterSplit(image_size=(480, 480), offset=64)
+    comp_op = CompositeRasterOperation(
+        [
+            RasterioRasterPad(padding=64),
+            RasterioRemoveBand(band=13),
+            RasterInference(inference_func=local_inference_callback),
+            RasterioDtypeConversion(dtype="uint8"),
+            RasterioRasterUnpad(),
+        ]
+    )
+    results = []
+    for r in split_op.execute(s2_l2a_raster):
+        result = comp_op.execute(r)
+        results.append(result)
+
+    merge_op = RasterioRasterMerge(offset=64, merge_method=smooth_overlap_callable)
+
+    merged = merge_op.execute(results)
+    merged.to_file(
+        f"tests/assets/test_out_composite_{_mock_inference_func.__name__}.tif"
+    )
+
+    assert merged.size == raster.size
+    assert merged.dtype == raster.dtype
+    assert merged.crs == raster.crs
+    assert merged.bands == [1]
+    assert isinstance(merged.content, bytes)
+    assert merged.padding_size == (0, 0)
+    assert merged.geometry == raster.geometry
+    assert np.isclose(merged.to_numpy(), raster.to_numpy(), rtol=0.03).all()

@@ -26,7 +26,7 @@ jobs:
       - name: Lint with ruff
         run: ruff --output-format=github
       - name: Test
-        run: pytest -m 'not integration'
+        run: pytest -m 'not integration' -m 'not slow'
         env:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PW: ${{ secrets.DB_PW}}

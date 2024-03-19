@@ -27,7 +27,7 @@ def predict(
         LOGGER.info("Predicted")
         if isinstance(out, tuple):
             LOGGER.info("Tuple output detected")
-            y_score, y_pred = out
+            y_score, y_pred = model(x)
             LOGGER.info("Converting to numpy")
             y_score = y_score.squeeze().cpu().numpy()
             y_pred = y_pred.squeeze().cpu().numpy()

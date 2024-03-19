@@ -61,7 +61,7 @@ def rast_geometry(rasterio_ds):
 def raster(content, rasterio_ds, crs, rast_geometry):
     return Raster(
         content=content,
-        size=(rasterio_ds.width, rasterio_ds.height),
+        size=(rasterio_ds.meta["width"], rasterio_ds.meta["height"]),
         dtype=rasterio_ds.meta["dtype"],
         crs=crs,
         bands=[i for i in range(1, rasterio_ds.count + 1)],

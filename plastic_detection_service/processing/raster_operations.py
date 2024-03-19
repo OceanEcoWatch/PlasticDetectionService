@@ -132,8 +132,9 @@ class RasterioRasterToVector(RasterToVectorStrategy):
 
 
 class RasterioRasterPad(RasterOperationStrategy):
-    def __init__(self, padding: int = 64):
+    def __init__(self, padding: int = 64, divisible_by: int = 32):
         self.padding = padding
+        self.divisible_by = divisible_by
 
     def execute(self, raster: Raster) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
@@ -157,6 +158,14 @@ class RasterioRasterPad(RasterOperationStrategy):
                 padding_size,
             )
 
+    def _ensure_image_size_is_divisible_by(self, image_size: tuple[int, int]):
+        height, width = image_size
+        if height % 32 != 0:
+            height = height + (self.divisible_by - (height % self.divisible_by))
+        if width % 32 != 0:
+            width = width + (self.divisible_by - (width % self.divisible_by))
+        return height, width
+
     def _pad_image(
         self,
         input_image: np.ndarray,
@@ -171,20 +180,35 @@ class RasterioRasterPad(RasterOperationStrategy):
                 (padding_width, padding_width),
             ),
         )
+
         return padded_image
+
+    def _calculate_target_image_size(
+        self, image: np.ndarray, padding: int
+    ) -> tuple[int, int]:
+        _, input_image_height, input_image_width = image.shape
+        target_image_size = (
+            input_image_height + padding * 2,
+            input_image_width + padding * 2,
+        )
+        return self._ensure_image_size_is_divisible_by(target_image_size)
 
     def _calculate_padding_size(
         self, image: np.ndarray, target_image_size: tuple[int, int], padding: int
     ) -> tuple[int, int]:
         _, input_image_height, input_image_width = image.shape
 
-        target_height_with_padding = target_image_size[0] + padding * 2
-        target_width_with_padding = target_image_size[1] + padding * 2
+        target_height_with_padding, target_width_with_padding = (
+            self._calculate_target_image_size(image, padding)
+        )
 
-        padding_height = round(target_height_with_padding - input_image_height) / 2
-        padding_width = round(target_width_with_padding - input_image_width) / 2
+        padding_height = (target_height_with_padding - input_image_height) / 2
+        padding_width = (target_width_with_padding - input_image_width) / 2
 
-        return int(padding_height), int(padding_width)
+        padding_height = int(np.ceil(padding_height))
+        padding_width = int(np.ceil(padding_width))
+
+        return padding_height, padding_width
 
     def _adjust_bounds_for_padding(
         self,
@@ -319,7 +343,7 @@ class RasterioRasterMerge(RasterOperationStrategy):
         rasters: Iterable[Raster],
     ) -> Raster:
         srcs = [rasterio.open(io.BytesIO(r.content)) for r in rasters]
-        print(self.merge_method)
+
         mosaic, out_trans = merge(srcs, method=self.merge_method, nodata=0)
         out_meta = srcs[0].meta.copy()
 
@@ -329,7 +353,7 @@ class RasterioRasterMerge(RasterOperationStrategy):
                 "height": mosaic.shape[1],
                 "width": mosaic.shape[2],
                 "transform": out_trans,
-                "dtype": rasterio.float32,
+                "dtype": mosaic.dtype,
             }
         )
         if self.bands:
@@ -384,6 +408,28 @@ class RasterioRemoveBand(RasterOperationStrategy):
                     "count": image.shape[0],
                     "height": image.shape[1],
                     "width": image.shape[2],
+                }
+            )
+            return _create_raster(
+                _write_image(image, meta),
+                image,
+                src.bounds,
+                meta,
+                raster.padding_size,
+            )
+
+
+class RasterioDtypeConversion(RasterOperationStrategy):
+    def __init__(self, dtype: str):
+        self.dtype = dtype
+
+    def execute(self, raster: Raster) -> Raster:
+        with rasterio.open(io.BytesIO(raster.content)) as src:
+            meta = src.meta.copy()
+            image = src.read().astype(self.dtype)
+            meta.update(
+                {
+                    "dtype": self.dtype,
                 }
             )
             return _create_raster(
