@@ -135,7 +135,6 @@ class RasterioRasterToVector(RasterToVectorStrategy):
             meta = src.meta.copy()
 
             transform = src.transform
-            resolution = src.res
 
             if not np.issubdtype(image.dtype, np.integer):
                 raise ValueError(
