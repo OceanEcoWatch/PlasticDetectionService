@@ -11,9 +11,8 @@ from rasterio.merge import merge
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
 from scipy.ndimage import gaussian_filter
-from shapely.geometry import box
+from shapely.geometry import Point, box
 
-from plastic_detection_service.aws.s3 import LOGGER
 from plastic_detection_service.models import Raster, Vector
 
 from .abstractions import (
@@ -136,24 +135,20 @@ class RasterioRasterToVector(RasterToVectorStrategy):
             meta = src.meta.copy()
 
             transform = src.transform
+            resolution = src.res
 
-            if image.dtype != np.uint8 and image.dtype != np.uint16:
+            if not np.issubdtype(image.dtype, np.integer):
                 raise ValueError(
-                    "Only uint8 and uint16 data types are supported to convert to Vector, "
-                    "please use RasterioRasterDtypeConversion to convert the data type to uint8 or uint16."
+                    "Raster band must be of integer type to convert to vector"
                 )
             for (row, col), value in np.ndenumerate(image):
                 if value <= 0:
                     continue
-
-                left, top = transform * (col, row)
-                right, bottom = transform * (col + 1, row + 1)
-
-                polygon = box(left, bottom, right, top)
+                x, y = transform * (col + 0.5, row + 0.5)
 
                 yield Vector(
                     pixel_value=round(value),
-                    geometry=polygon,
+                    geometry=Point(x, y),
                     crs=meta["crs"].to_epsg(),
                 )
 
