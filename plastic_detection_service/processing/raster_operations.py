@@ -1,4 +1,5 @@
 import io
+import logging
 from itertools import product
 from typing import Callable, Generator, Iterable, Optional, Union
 
@@ -6,13 +7,13 @@ import numpy as np
 import rasterio
 from rasterio.crs import CRS
 from rasterio.enums import Resampling
-from rasterio.features import shapes
 from rasterio.merge import merge
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
 from scipy.ndimage import gaussian_filter
-from shapely.geometry import box, shape
+from shapely.geometry import box
 
+from plastic_detection_service.aws.s3 import LOGGER
 from plastic_detection_service.models import Raster, Vector
 
 from .abstractions import (
@@ -20,6 +21,8 @@ from .abstractions import (
     RasterSplitStrategy,
     RasterToVectorStrategy,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _update_bounds(meta, new_bounds):
@@ -50,13 +53,20 @@ def _create_raster(
     bounds: tuple,
     meta: dict,
     padding_size: tuple[int, int],
+    removed_band: Optional[int] = None,
 ):
+    if removed_band:
+        bands = [i + 1 for i in range(image.shape[0])]
+        bands.remove(removed_band)
+    else:
+        bands = [i + 1 for i in range(image.shape[0])]
+
     return Raster(
         content=content,
         size=(image.shape[1], image.shape[2]),
-        dtype=meta["dtype"],
+        dtype=image.dtype,
         crs=meta["crs"].to_epsg(),
-        bands=[i + 1 for i in range(image.shape[0])],
+        bands=bands,
         geometry=box(*bounds),
         padding_size=padding_size,
     )
@@ -97,6 +107,7 @@ class RasterioRasterReproject(RasterOperationStrategy):
                     "height": height,
                 }
             )
+
             with rasterio.open(io.BytesIO(raster.content), "w", **kwargs) as dst:
                 for band in target_bands:
                     reproject(
@@ -123,10 +134,26 @@ class RasterioRasterToVector(RasterToVectorStrategy):
         with rasterio.open(io.BytesIO(raster.content)) as src:
             image = src.read(self.band)
             meta = src.meta.copy()
-            for geom, val in shapes(image, transform=src.transform):
+
+            transform = src.transform
+
+            if image.dtype != np.uint8 and image.dtype != np.uint16:
+                raise ValueError(
+                    "Only uint8 and uint16 data types are supported to convert to Vector, "
+                    "please use RasterioRasterDtypeConversion to convert the data type to uint8 or uint16."
+                )
+            for (row, col), value in np.ndenumerate(image):
+                if value <= 0:
+                    continue
+
+                left, top = transform * (col, row)
+                right, bottom = transform * (col + 1, row + 1)
+
+                polygon = box(left, bottom, right, top)
+
                 yield Vector(
-                    pixel_value=round(val),
-                    geometry=shape(geom),
+                    pixel_value=round(value),
+                    geometry=polygon,
                     crs=meta["crs"].to_epsg(),
                 )
 
@@ -396,37 +423,82 @@ class RasterioRasterMerge(RasterOperationStrategy):
 
 class RasterioRemoveBand(RasterOperationStrategy):
     def __init__(self, band: int):
-        self.band = band - 1
+        self.band = band
+        self.band_index = band - 1
 
     def execute(self, raster: Raster) -> Raster:
+        try:
+            raster.bands[self.band_index]
+        except IndexError:
+            LOGGER.warning(f"Band {self.band} does not exist in raster, skipping")
+            return raster
+
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
             image = src.read()
-            image = np.delete(image, self.band, axis=0)
+
+            removed_band_image = np.delete(image, self.band_index, axis=0)
+            LOGGER.info(f"Removed band {self.band} from raster")
             meta.update(
                 {
-                    "count": image.shape[0],
-                    "height": image.shape[1],
-                    "width": image.shape[2],
+                    "count": removed_band_image.shape[0],
+                    "height": removed_band_image.shape[1],
+                    "width": removed_band_image.shape[2],
                 }
             )
+
+            print("meta: ", meta)
             return _create_raster(
-                _write_image(image, meta),
-                image,
+                _write_image(removed_band_image, meta),
+                removed_band_image,
                 src.bounds,
                 meta,
                 raster.padding_size,
+                removed_band=self.band,
             )
 
 
 class RasterioDtypeConversion(RasterOperationStrategy):
     def __init__(self, dtype: str):
         self.dtype = dtype
+        try:
+            self.np_dtype = np.dtype(dtype)
+        except TypeError:
+            raise ValueError(f"Unsupported dtype: {dtype}")
+
+    def _scale(self, image: np.ndarray) -> np.ndarray:
+        image_min = image.min()
+        image_max = image.max()
+
+        if np.issubdtype(self.np_dtype, np.integer):
+            dtype_min = np.iinfo(self.np_dtype).min
+            dtype_max = np.iinfo(self.np_dtype).max
+        elif np.issubdtype(self.np_dtype, np.floating):
+            dtype_min = 0.0
+            dtype_max = 1.0
+        else:
+            raise ValueError(
+                "Unsupported dtype: must be either integer or floating-point."
+            )
+
+        scaled_image = (
+            (image - image_min) / (image_max - image_min) * (dtype_max - dtype_min)
+            + dtype_min
+        ).astype(self.np_dtype)
+
+        return scaled_image
 
     def execute(self, raster: Raster) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
-            image = src.read().astype(self.dtype)
+            image = src.read()
+
+            if image.dtype == self.dtype:
+                LOGGER.info(f"Raster already has dtype {self.dtype}, skipping")
+                return raster
+
+            image = self._scale(image)
+
             meta.update(
                 {
                     "dtype": self.dtype,
@@ -450,7 +522,7 @@ class RasterInference(RasterOperationStrategy):
             meta = src.meta.copy()
 
             raster_size_mb = len(raster.content) / 1024 / 1024
-            print("size of raster content in MB: ", raster_size_mb)
+            LOGGER.info("size of raster content in MB: ", raster_size_mb)
 
             np_buffer = np.frombuffer(
                 self.inference_func(raster.content), dtype=np.float32

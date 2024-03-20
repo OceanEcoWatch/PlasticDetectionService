@@ -7,13 +7,13 @@ from plastic_detection_service.models import Raster, Vector
 
 @pytest.fixture
 def s2_l2a_response():
-    with open("tests/assets/test_response.tiff", "rb") as f:
+    with open("tests/assets/test_exp_response_durban20190424.tiff", "rb") as f:
         return f.read()
 
 
 @pytest.fixture
 def s2_l2a_rasterio():
-    with rasterio.open("tests/assets/test_response.tiff") as src:
+    with rasterio.open("tests/assets/test_exp_response_durban20190424.tiff") as src:
         image = src.read()
         meta = src.meta.copy()
         return src, image, meta
@@ -25,6 +25,39 @@ def s2_l2a_raster(s2_l2a_rasterio, s2_l2a_response):
 
     return Raster(
         content=s2_l2a_response,
+        size=(meta["width"], meta["height"]),
+        dtype=meta["dtype"],
+        crs=meta["crs"].to_epsg(),
+        bands=[i for i in range(1, meta["count"] + 1)],
+        geometry=box(*src.bounds),
+    )
+
+
+@pytest.fixture
+def pred_durban_first_split():
+    with open(
+        "tests/assets/test_exp_pred_durban_first_split.tif",
+        "rb",
+    ) as f:
+        return f.read()
+
+
+@pytest.fixture
+def pred_durban_first_split_rasterio():
+    with rasterio.open("tests/assets/test_exp_pred_durban_first_split.tif") as src:
+        image = src.read()
+        meta = src.meta.copy()
+        return src, image, meta
+
+
+@pytest.fixture
+def pred_durban_first_split_raster(
+    pred_durban_first_split_rasterio, pred_durban_first_split
+):
+    src, image, meta = pred_durban_first_split_rasterio
+
+    return Raster(
+        content=pred_durban_first_split,
         size=(meta["width"], meta["height"]),
         dtype=meta["dtype"],
         crs=meta["crs"].to_epsg(),
