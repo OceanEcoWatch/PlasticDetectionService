@@ -135,7 +135,7 @@ class PredictionRaster(Base):
     @classmethod
     def from_raster(cls, raster: Raster, image_id: int, model_id: int, raster_url: str):
         return cls(
-            raster_url="test_raster_url",
+            raster_url=raster_url,
             dtype=raster.dtype,
             image_width=raster.size[0],
             image_height=raster.size[1],
