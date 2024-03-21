@@ -4,6 +4,7 @@ import pytest
 from geoalchemy2.shape import from_shape
 from shapely.geometry.polygon import Polygon
 from sqlalchemy import create_engine
+from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session, create_session
 from sqlalchemy_utils import create_database, database_exists
 
@@ -143,6 +144,75 @@ def test_insert_mock_session(mock_session, download_response, db_raster, db_vect
     assert len(scls_vectors) == 1
     assert scls_vectors[0].pixel_value == 1
     assert scls_vectors[0].image_id == image.id
+
+
+@pytest.mark.integration
+def test_image_invalid_dtype(test_session):
+    image = Image(
+        image_id="test_image_id",
+        image_url="test_image_url",
+        timestamp=datetime.datetime.now(),
+        dtype="INVALID",
+        image_width=10,
+        image_height=10,
+        bands=3,
+        provider="test_data_collection",
+        bbox=from_shape(Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])),
+    )
+    test_session.add(image)
+    with pytest.raises(DataError):
+        test_session.commit()
+
+
+@pytest.mark.integration
+def test_image_invalid_band(test_session):
+    image = Image(
+        image_id="test_image_id",
+        image_url="test_image_url",
+        timestamp=datetime.datetime.now(),
+        dtype="uint8",
+        image_width=10,
+        image_height=10,
+        bands=0,
+        provider="test_data_collection",
+        bbox=from_shape(Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])),
+    )
+    test_session.add(image)
+    with pytest.raises(IntegrityError):
+        test_session.commit()
+
+
+@pytest.mark.integration
+def test_image_unique_constraint(test_session):
+    image = Image(
+        image_id="test_image_id",
+        image_url="test_image_url",
+        timestamp=datetime.datetime(2021, 1, 1, 0, 0, 0),  # same timestamp
+        dtype="uint8",
+        image_width=10,
+        image_height=10,
+        bands=3,
+        provider="test_data_collection",
+        bbox=from_shape(Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])),
+    )
+    duplicate_image = Image(
+        image_id="test_image_id",
+        image_url="test_image_url",
+        timestamp=datetime.datetime(2021, 1, 1, 0, 0, 0),  # same timestamp
+        dtype="uint8",
+        image_width=10,
+        image_height=10,
+        bands=3,
+        provider="test_data_collection",
+        bbox=from_shape(Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])),
+    )
+
+    test_session.add(image)
+    test_session.commit()
+
+    test_session.add(duplicate_image)
+    with pytest.raises(IntegrityError):
+        test_session.commit()
 
 
 @pytest.mark.integration

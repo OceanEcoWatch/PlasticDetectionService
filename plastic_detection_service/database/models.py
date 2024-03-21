@@ -40,7 +40,7 @@ class Image(Base):
     )
     image_width = Column(Integer, nullable=False)
     image_height = Column(Integer, nullable=False)
-    bands = Column(Integer, CheckConstraint("bands>0 AND bands<=20"), nullable=False)
+    bands = Column(Integer, CheckConstraint("bands>0 AND bands<=100"), nullable=False)
     provider = Column(ConstraintString, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
