@@ -1,5 +1,17 @@
 from typing import NamedTuple
 
+IMAGE_DTYPES = [
+    "uint8",
+    "uint16",
+    "uint32",
+    "uint64",
+    "int16",
+    "int32",
+    "int64",
+    "float32",
+    "float64",
+]
+
 
 class BoundingBox(NamedTuple):
     min_x: float

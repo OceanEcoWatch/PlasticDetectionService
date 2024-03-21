@@ -6,6 +6,7 @@ from geoalchemy2.shape import from_shape
 from sqlalchemy import (
     Column,
     DateTime,
+    Enum,
     ForeignKey,
     Integer,
     String,
@@ -13,7 +14,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship
 
-from plastic_detection_service.models import DownloadResponse, Raster, Vector
+from plastic_detection_service.models import (
+    DownloadResponse,
+    Raster,
+    Vector,
+)
+from plastic_detection_service.types import IMAGE_DTYPES
 
 Base = declarative_base()
 
@@ -25,6 +31,10 @@ class Image(Base):
     image_id = Column(String, nullable=False)
     image_url = Column(String, nullable=False, unique=True)
     timestamp = Column(DateTime, nullable=False)
+    dtype = Column(
+        Enum(*IMAGE_DTYPES, name="image_dtype"),
+        nullable=False,
+    )
     image_width = Column(Integer, nullable=False)
     image_height = Column(Integer, nullable=False)
     bands = Column(Integer, nullable=False)
@@ -38,6 +48,7 @@ class Image(Base):
         image_id: str,
         image_url: str,
         timestamp: datetime.datetime,
+        dtype: str,
         image_width: int,
         image_height: int,
         bands: int,
@@ -47,6 +58,7 @@ class Image(Base):
         self.image_id = image_id
         self.image_url = image_url
         self.timestamp = timestamp
+        self.dtype = dtype
         self.image_width = image_width
         self.image_height = image_height
         self.bands = bands
@@ -61,6 +73,7 @@ class Image(Base):
             image_id=response.image_id,
             image_url=image_url,
             timestamp=response.timestamp,
+            dtype=raster.dtype,
             image_width=raster.size[0],
             image_height=raster.size[1],
             bands=len(raster.bands),

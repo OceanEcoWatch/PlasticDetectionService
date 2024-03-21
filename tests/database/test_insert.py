@@ -63,7 +63,7 @@ def db_raster():
     return Raster(
         content=b"test_content",
         size=HeightWidth(height=10, width=10),
-        dtype="test_dtype",
+        dtype="uint8",
         crs=4326,
         bands=[1, 2, 3],
         geometry=Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]),

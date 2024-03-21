@@ -7,7 +7,7 @@ import rasterio
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
 
-from plastic_detection_service.types import HeightWidth
+from plastic_detection_service.types import IMAGE_DTYPES, HeightWidth
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,10 @@ class Raster:
     bands: list[int]
     geometry: Polygon
     padding_size: HeightWidth = HeightWidth(0, 0)
+
+    def __post_init__(self):
+        if self.dtype not in IMAGE_DTYPES:
+            raise ValueError(f"Invalid dtype: {self.dtype}")
 
     def to_file(self, path: str):
         with open(path, "wb") as f:
