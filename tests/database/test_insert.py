@@ -15,6 +15,7 @@ from plastic_detection_service.database.models import (
     Base,
     Image,
     Model,
+    PredictionRaster,
     PredictionVector,
     SceneClassificationVector,
 )
@@ -137,10 +138,13 @@ def db_vectors():
 def test_insert_mock_session(mock_session, download_response, db_raster, db_vectors):
     insert = Insert(mock_session)
     image = insert.insert_image(download_response, db_raster, "test_image_url")
+
     model = insert.insert_model("test_model_id", "test_model_url")
-    prediction_vectors = insert.insert_prediction_vectors(
-        db_vectors, image.id, model.id
+    raster = insert.insert_prediction_raster(
+        db_raster, image.id, model.id, "test_raster_url"
     )
+    prediction_vectors = insert.insert_prediction_vectors(db_vectors, raster.id)
+
     scls_vectors = insert.insert_scls_vectors(db_vectors, image.id)
 
     assert image.image_id == download_response.image_id
@@ -156,14 +160,18 @@ def test_insert_mock_session(mock_session, download_response, db_raster, db_vect
     assert model.model_id == "test_model_id"
     assert model.model_url == "test_model_url"
 
-    assert len(prediction_vectors) == db_vectors[0].pixel_value
-    assert prediction_vectors[0].pixel_value == db_vectors[0].pixel_value
-    assert prediction_vectors[0].image_id == image.id
-    assert prediction_vectors[0].model_id == model.id
+    assert raster.raster_url == "test_raster_url"
+    assert raster.dtype == db_raster.dtype
+    assert raster.image_id == image.id
+    assert raster.model_id == model.id
+
+    assert len(prediction_vectors) == 1
+    assert prediction_vectors[0].prediction_raster_id == raster.id
 
     assert len(scls_vectors) == 1
-    assert scls_vectors[0].pixel_value == 1
     assert scls_vectors[0].image_id == image.id
+
+    assert len(mock_session.queries) == 5
 
 
 @pytest.mark.integration
@@ -217,13 +225,13 @@ def test_image_unique_constraint(test_session):
     )
     duplicate_image = Image(
         image_id="test_image_id",
-        image_url="test_image_url",
+        image_url="other_test_image_url",
         timestamp=datetime.datetime(2021, 1, 1, 0, 0, 0),  # same timestamp
         dtype="uint8",
-        image_width=10,
-        image_height=10,
-        bands=3,
-        provider="test_data_collection",
+        image_width=50,
+        image_height=50,
+        bands=5,
+        provider="other_test_data_collection",
         bbox=from_shape(Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])),
     )
 
@@ -245,21 +253,44 @@ def test_insert_db(
     insert = Insert(test_session)
     image = insert.insert_image(download_response, db_raster, "test_image_url")
     model = insert.insert_model("test_model_id", "test_model_url")
-    prediction_vectors = insert.insert_prediction_vectors(
-        db_vectors, image.id, model.id
+    raster = insert.insert_prediction_raster(
+        db_raster, image.id, model.id, "test_raster_url"
     )
-    scls_vectors = insert.insert_scls_vectors(db_vectors, image.id)
-
-    assert image.id is not None
-    assert model.id is not None
-    assert len(prediction_vectors) == 1
-    assert len(scls_vectors) == 1
-
-    assert all([pv.model_id == model.id for pv in prediction_vectors])
-    assert all([pv.image_id == image.id for pv in prediction_vectors])
-    assert all([scls.image_id == image.id for scls in scls_vectors])
+    insert.insert_prediction_vectors(
+        db_vectors,
+        raster.id,
+    )
+    insert.insert_scls_vectors(db_vectors, image.id)
 
     assert len(test_session.query(Image).all()) == 1
     assert len(test_session.query(Model).all()) == 1
+    assert len(test_session.query(PredictionRaster).all()) == 1
     assert len(test_session.query(PredictionVector).all()) == 1
     assert len(test_session.query(SceneClassificationVector).all()) == 1
+    assert test_session.query(Image).first().id == image.id
+    assert test_session.query(Model).first().id == model.id
+    assert test_session.query(PredictionRaster).first().id == raster.id
+    assert (
+        test_session.query(PredictionVector).first().prediction_raster_id == raster.id
+    )
+    assert test_session.query(SceneClassificationVector).first().image_id == image.id
+
+    assert all(
+        [
+            raster.image_id == image.id
+            for raster in test_session.query(PredictionRaster).all()
+        ]
+    )
+    assert all(
+        [
+            vector.prediction_raster_id == raster.id
+            for vector in test_session.query(PredictionVector).all()
+        ]
+    )
+
+    assert all(
+        [
+            scls.image_id == image.id
+            for scls in test_session.query(SceneClassificationVector).all()
+        ]
+    )
