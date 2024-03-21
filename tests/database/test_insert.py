@@ -9,7 +9,6 @@ from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session, create_session
 from sqlalchemy_utils import create_database, database_exists
 
-from plastic_detection_service.config import DB_NAME
 from plastic_detection_service.database.insert import Insert
 from plastic_detection_service.database.models import (
     Base,
@@ -50,21 +49,6 @@ def create_test_db():
         conn.close()
     yield engine
     engine.dispose()
-
-
-@pytest.fixture
-def mock_session():
-    class _MockSession:
-        def __init__(self):
-            self.queries = []
-
-        def add(self, obj):
-            self.queries.append(obj)
-
-        def commit(self):
-            pass
-
-    return _MockSession()
 
 
 @pytest.fixture
