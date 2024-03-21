@@ -1,5 +1,6 @@
 import datetime
 
+import psycopg2
 import pytest
 from geoalchemy2.shape import from_shape
 from shapely.geometry.polygon import Polygon
@@ -8,6 +9,7 @@ from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session, create_session
 from sqlalchemy_utils import create_database, database_exists
 
+from plastic_detection_service.config import DB_NAME
 from plastic_detection_service.database.insert import Insert
 from plastic_detection_service.database.models import (
     Base,
@@ -19,7 +21,13 @@ from plastic_detection_service.database.models import (
 from plastic_detection_service.models import DownloadResponse, Raster, Vector
 from plastic_detection_service.types import HeightWidth
 
-TEST_DB_URL = "postgresql://postgres:postgres@localhost:5432/oew_dev"
+DB_NAME = "oew_test"
+DB_USER = "postgres"
+DB_PW = "postgres"
+DB_HOST = "localhost"
+DB_PORT = "5432"
+
+TEST_DB_URL = f"postgresql://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 
 @pytest.fixture
@@ -27,13 +35,25 @@ def create_test_db():
     engine = create_engine(TEST_DB_URL)
     if not database_exists(engine.url):
         create_database(engine.url)
+        conn = psycopg2.connect(
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PW,
+            host=DB_HOST,
+            port=DB_PORT,
+        )
+        cursor = conn.cursor()
+        cursor.execute("CREATE EXTENSION postgis")
+        conn.commit()
+        cursor.close()
+        conn.close()
     yield engine
     engine.dispose()
 
 
 @pytest.fixture
 def mock_session():
-    class MockSession:
+    class _MockSession:
         def __init__(self):
             self.queries = []
 
@@ -43,7 +63,7 @@ def mock_session():
         def commit(self):
             pass
 
-    return MockSession()
+    return _MockSession()
 
 
 @pytest.fixture
