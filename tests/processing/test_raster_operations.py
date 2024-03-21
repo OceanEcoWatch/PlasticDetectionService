@@ -23,6 +23,7 @@ from plastic_detection_service.processing.raster_operations import (
     RasterioRasterUnpad,
     RasterioRemoveBand,
 )
+from plastic_detection_service.types import HeightWidth
 
 
 def _mock_inference_func(_raster_bytes) -> bytes:
@@ -30,20 +31,6 @@ def _mock_inference_func(_raster_bytes) -> bytes:
         image = src.read()
         band1 = image[0, :, :].astype(np.float32)
         return band1.tobytes()
-
-
-def _calculate_padding_size(
-    image: np.ndarray, target_image_size: tuple[int, int], padding: int
-) -> tuple[int, int]:
-    _, input_image_height, input_image_width = image.shape
-
-    target_height_with_padding = target_image_size[0] + padding * 2
-    target_width_with_padding = target_image_size[1] + padding * 2
-
-    padding_height = round(target_height_with_padding - input_image_height) / 2
-    padding_width = round(target_width_with_padding - input_image_width) / 2
-
-    return int(padding_height), int(padding_width)
 
 
 @pytest.mark.parametrize(
@@ -211,7 +198,7 @@ def test_unpad_raster(s2_l2a_raster):
 
 
 def test_unpad_split_rasters(s2_l2a_raster):
-    split_strategy = RasterioRasterSplit(image_size=(480, 480), offset=64)
+    split_strategy = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     pad_strategy = RasterioRasterPad(padding=64)
     unpad_strategy = RasterioRasterUnpad()
 
@@ -248,7 +235,7 @@ def test_unpad_split_rasters(s2_l2a_raster):
 @pytest.mark.parametrize("merge_method", ["first", smooth_overlap_callable])
 def test_merge_rasters(s2_l2a_raster, merge_method):
     merge_strategy = RasterioRasterMerge(offset=64, merge_method=merge_method)
-    split_strategy = RasterioRasterSplit(image_size=(480, 480), offset=64)
+    split_strategy = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     rasters = list(split_strategy.execute(s2_l2a_raster))
     merged = merge_strategy.execute(rasters)
     merged.to_file(
@@ -415,7 +402,9 @@ def test_inference_raster_mock(s2_l2a_raster):
 @pytest.mark.slow
 def test_inference_raster_real(s2_l2a_raster, pred_durban_first_split_raster):
     raster = next(
-        RasterioRasterSplit(image_size=(480, 480), offset=64).execute(s2_l2a_raster)
+        RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64).execute(
+            s2_l2a_raster
+        )
     )
     raster = RasterioRasterPad(padding=64).execute(raster)
     raster = RasterioRemoveBand(band=13).execute(raster)
@@ -437,7 +426,7 @@ def test_inference_raster_real(s2_l2a_raster, pred_durban_first_split_raster):
 
 
 def test_composite_raster_operation(s2_l2a_raster):
-    split_op = RasterioRasterSplit(image_size=(480, 480), offset=64)
+    split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
             RasterioRasterPad(padding=64),
@@ -469,7 +458,7 @@ def test_composite_raster_operation(s2_l2a_raster):
 
 @pytest.mark.slow
 def test_composite_raster_real_inference(s2_l2a_raster, raster):
-    split_op = RasterioRasterSplit(image_size=(480, 480), offset=64)
+    split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
             RasterioRasterPad(padding=64),
@@ -504,7 +493,7 @@ def test_composite_raster_real_inference(s2_l2a_raster, raster):
 @pytest.mark.slow
 @pytest.mark.e2e
 def test_e2e(s2_l2a_raster, raster):
-    split_op = RasterioRasterSplit(image_size=(480, 480), offset=64)
+    split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
             RasterioRasterPad(padding=64),

@@ -16,7 +16,7 @@ class DownloadResponse:
     timestamp: dt.datetime
     bbox: tuple[float, float, float, float]
     crs: int
-    image_size: tuple[int, int]
+    image_size: HeightWidth
     maxcc: float
     data_collection: str
     request_timestamp: dt.datetime

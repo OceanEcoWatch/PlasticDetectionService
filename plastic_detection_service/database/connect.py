@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from plastic_detection_service.config import DATABASE_URL
 
@@ -10,7 +10,7 @@ class DatabaseError(Exception):
         super().__init__(message)
 
 
-def create_db_session():
+def create_db_session() -> Session:
     engine = create_engine(DATABASE_URL)
     session = sessionmaker(bind=engine)
     return session()

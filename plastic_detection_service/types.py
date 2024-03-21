@@ -9,8 +9,6 @@ class BoundingBox(NamedTuple):
 
 
 class TimeRange(NamedTuple):
-    """Time range in ISO 8601 format."""
-
     start: str
     end: str
 
