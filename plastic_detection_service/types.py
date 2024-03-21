@@ -1,6 +1,7 @@
 from typing import NamedTuple
 
 IMAGE_DTYPES = [
+    "bool",
     "uint8",
     "uint16",
     "uint32",

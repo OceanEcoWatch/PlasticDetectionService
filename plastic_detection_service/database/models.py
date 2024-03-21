@@ -23,13 +23,15 @@ from plastic_detection_service.types import IMAGE_DTYPES
 
 Base = declarative_base()
 
+ConstraintString = String(255)
+
 
 class Image(Base):
     __tablename__ = "images"
 
     id = Column(Integer, primary_key=True)
-    image_id = Column(String, nullable=False)
-    image_url = Column(String, nullable=False, unique=True)
+    image_id = Column(ConstraintString, nullable=False)
+    image_url = Column(ConstraintString, nullable=False, unique=True)
     timestamp = Column(DateTime, nullable=False)
     dtype = Column(
         Enum(*IMAGE_DTYPES, name="image_dtype"),
@@ -38,7 +40,7 @@ class Image(Base):
     image_width = Column(Integer, nullable=False)
     image_height = Column(Integer, nullable=False)
     bands = Column(Integer, nullable=False)
-    provider = Column(String, nullable=False)
+    provider = Column(ConstraintString, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
     __table_args__ = (UniqueConstraint("image_id", "timestamp", "bbox"),)
@@ -86,8 +88,8 @@ class Model(Base):
     __tablename__ = "models"
 
     id = Column(Integer, primary_key=True)
-    model_id = Column(String, nullable=False)
-    model_url = Column(String, nullable=False, unique=True)
+    model_id = Column(ConstraintString, nullable=False)
+    model_url = Column(ConstraintString, nullable=False, unique=True)
 
     __table_args__ = (UniqueConstraint("model_id", "model_url"),)
 
