@@ -4,6 +4,7 @@ from geoalchemy2 import Geometry
 from geoalchemy2.elements import WKBElement
 from geoalchemy2.shape import from_shape
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     DateTime,
     Enum,
@@ -39,7 +40,7 @@ class Image(Base):
     )
     image_width = Column(Integer, nullable=False)
     image_height = Column(Integer, nullable=False)
-    bands = Column(Integer, nullable=False)
+    bands = Column(Integer, CheckConstraint("bands>0 AND bands<=20"), nullable=False)
     provider = Column(ConstraintString, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 

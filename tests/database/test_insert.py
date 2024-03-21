@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from geoalchemy2.shape import from_shape
 from shapely.geometry.polygon import Polygon
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, create_session
@@ -30,6 +31,21 @@ def create_test_db():
 
 
 @pytest.fixture
+def mock_session():
+    class MockSession:
+        def __init__(self):
+            self.queries = []
+
+        def add(self, obj):
+            self.queries.append(obj)
+
+        def commit(self):
+            pass
+
+    return MockSession()
+
+
+@pytest.fixture
 def drop_create_tables(create_test_db):
     Base.metadata.drop_all(create_test_db)
     Base.metadata.create_all(create_test_db)
@@ -40,6 +56,24 @@ def test_session(create_test_db, drop_create_tables):
     test_session = create_session(create_test_db)
     yield test_session
     test_session.close()
+
+
+@pytest.fixture
+def mock_session():
+    class MockSession:
+        def __init__(self):
+            self.queries = []
+
+        def add(self, obj):
+            self.queries.append(obj)
+
+        def commit(self):
+            pass
+
+        def bulk_save_objects(self, objs):
+            self.queries.extend(objs)
+
+    return MockSession()
 
 
 @pytest.fixture
@@ -79,19 +113,46 @@ def db_vectors():
     ]
 
 
-@pytest.fixture
-def insert(test_session):
-    return Insert(test_session)
+def test_insert_mock_session(mock_session, download_response, db_raster, db_vectors):
+    insert = Insert(mock_session)
+    image = insert.insert_image(download_response, db_raster, "test_image_url")
+    model = insert.insert_model("test_model_id", "test_model_url")
+    prediction_vectors = insert.insert_prediction_vectors(
+        db_vectors, image.id, model.id
+    )
+    scls_vectors = insert.insert_scls_vectors(db_vectors, image.id)
+
+    assert image.image_id == download_response.image_id
+    assert image.image_url == "test_image_url"
+    assert image.timestamp == download_response.timestamp
+    assert image.dtype == db_raster.dtype
+    assert image.image_width == db_raster.size.width
+    assert image.image_height == db_raster.size.height
+    assert image.bands == len(db_raster.bands)
+    assert image.provider == download_response.data_collection
+    assert image.bbox == from_shape(db_raster.geometry)
+
+    assert model.model_id == "test_model_id"
+    assert model.model_url == "test_model_url"
+
+    assert len(prediction_vectors) == db_vectors[0].pixel_value
+    assert prediction_vectors[0].pixel_value == db_vectors[0].pixel_value
+    assert prediction_vectors[0].image_id == image.id
+    assert prediction_vectors[0].model_id == model.id
+
+    assert len(scls_vectors) == 1
+    assert scls_vectors[0].pixel_value == 1
+    assert scls_vectors[0].image_id == image.id
 
 
 @pytest.mark.integration
-def test_insert_mock(
-    insert: Insert,
+def test_insert_db(
     db_raster: Raster,
     download_response: DownloadResponse,
     db_vectors: list[Vector],
     test_session: Session,
 ):
+    insert = Insert(test_session)
     image = insert.insert_image(download_response, db_raster, "test_image_url")
     model = insert.insert_model("test_model_id", "test_model_url")
     prediction_vectors = insert.insert_prediction_vectors(
