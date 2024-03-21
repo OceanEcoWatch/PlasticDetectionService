@@ -157,7 +157,6 @@ def test_pad_raster(s2_l2a_raster):
     padding = 64
     processor = RasterioRasterPad(padding=64)
 
-    image_size = (s2_l2a_raster.size[0], s2_l2a_raster.size[1])
     padded_raster = processor.execute(s2_l2a_raster)
 
     assert padded_raster.size == (640, 640)
@@ -172,7 +171,7 @@ def test_pad_raster(s2_l2a_raster):
 
     # check padding_size is as expected
     exp_padding_size = processor._calculate_padding_size(
-        s2_l2a_raster.to_numpy(), image_size, padding
+        s2_l2a_raster.to_numpy(), padding
     )
     assert padded_raster.padding_size == exp_padding_size
 

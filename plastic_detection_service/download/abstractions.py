@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from typing import Generator
 
 from plastic_detection_service.models import DownloadResponse
+from plastic_detection_service.types import BoundingBox, TimeRange
 
 
 @dataclass
 class DownloadParams(ABC):
-    bbox: tuple[float, float, float, float]
-    time_interval: tuple[str, str]
+    bbox: BoundingBox
+    time_interval: TimeRange
     maxcc: float
 
 

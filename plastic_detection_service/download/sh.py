@@ -15,6 +15,8 @@ from sentinelhub import (
 )
 from sentinelhub.api.catalog import CatalogSearchIterator
 
+from plastic_detection_service.types import BoundingBox
+
 from .abstractions import DownloadParams, DownloadResponse, DownloadStrategy
 
 
@@ -30,7 +32,7 @@ class SentinelHubDownload(DownloadStrategy):
     def __init__(self, params: SentinelHubDownloadParams):
         self.params = params
 
-    def _split_bbox(self, bbox: tuple[float, float, float, float]):
+    def _split_bbox(self, bbox: BoundingBox) -> list[BBox]:
         bbox_crs = BBox(bbox, crs=CRS.WGS84)
         return UtmZoneSplitter(
             [bbox_crs], crs=bbox_crs.crs, bbox_size=5000

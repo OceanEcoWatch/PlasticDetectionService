@@ -7,8 +7,10 @@ import rasterio
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
 
+from plastic_detection_service.types import HeightWidth
 
-@dataclass
+
+@dataclass(frozen=True)
 class DownloadResponse:
     image_id: str
     timestamp: dt.datetime
@@ -22,15 +24,15 @@ class DownloadResponse:
     headers: dict
 
 
-@dataclass
+@dataclass(frozen=True)
 class Raster:
     content: bytes
-    size: tuple[int, int]  # (height, width)
+    size: HeightWidth
     dtype: str
     crs: int
     bands: list[int]
     geometry: Polygon
-    padding_size: tuple[int, int] = (0, 0)  # (height, width)
+    padding_size: HeightWidth = HeightWidth(0, 0)
 
     def to_file(self, path: str):
         with open(path, "wb") as f:
@@ -43,7 +45,7 @@ class Raster:
         return array
 
 
-@dataclass
+@dataclass(frozen=True)
 class Vector:
     geometry: BaseGeometry
     crs: int

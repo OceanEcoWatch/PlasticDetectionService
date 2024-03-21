@@ -19,8 +19,9 @@ from plastic_detection_service.download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
 )
+from plastic_detection_service.types import BoundingBox, TimeRange
 
-TIME_INTERVAL = "2023-11-01", "2024-01-01"
+TIME_INTERVAL = TimeRange("2023-11-01", "2024-01-01")
 
 
 @pytest.fixture
@@ -44,7 +45,7 @@ def bbox_utm(bbox):
 @pytest.fixture
 def sh_download_params():
     return SentinelHubDownloadParams(
-        bbox=(
+        bbox=BoundingBox(
             120.82481750015815,
             14.619576605802296,
             120.82562856620629,
@@ -66,8 +67,6 @@ def sh_download(sh_download_params):
 
 @pytest.fixture
 def sh_request(bbox_utm):
-    time_interval = ("2023-11-03", "2023-11-03")
-
     bbox_size = bbox_to_dimensions(bbox_utm, resolution=10)
     return SentinelHubRequest(
         evalscript=L2A_12_BANDS_SCL,
@@ -75,7 +74,7 @@ def sh_request(bbox_utm):
         input_data=[
             SentinelHubRequest.input_data(
                 data_collection=DataCollection.SENTINEL2_L2A,
-                time_interval=time_interval,
+                time_interval=TIME_INTERVAL,
                 maxcc=0.1,
             )
         ],
