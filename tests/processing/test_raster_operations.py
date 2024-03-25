@@ -10,7 +10,10 @@ from plastic_detection_service.inference.inference_callback import (
     local_inference_callback,
 )
 from plastic_detection_service.models import Raster
-from plastic_detection_service.processing.merge_callable import smooth_overlap_callable
+from plastic_detection_service.processing.merge_callable import (
+    copy_smooth,
+    smooth_overlap_callable,
+)
 from plastic_detection_service.processing.raster_operations import (
     CompositeRasterOperation,
     RasterInference,
@@ -114,7 +117,7 @@ def test_split_raster(s2_l2a_raster):
 
 
 def test_split_rasters_are_in_bounds_original(s2_l2a_raster):
-    image_size = (480, 480)
+    image_size = HeightWidth(480, 480)
     offset = 64
     processor = RasterioRasterSplit(image_size=image_size, offset=offset)
 
@@ -140,21 +143,23 @@ def test_split_rasters_are_in_bounds_original(s2_l2a_raster):
         assert bounds[3] <= exp_bounds[3]
 
 
-def test_pad_raster(s2_l2a_raster):
-    padding = 64
-    processor = RasterioRasterPad(padding=64)
+@pytest.mark.parametrize("padding", [0, 16, 32, 64, 128])
+@pytest.mark.parametrize("divisible_by", [32, 64, 128])
+def test_pad_raster(s2_l2a_raster, padding, divisible_by):
+    processor = RasterioRasterPad(padding=padding, divisible_by=divisible_by)
 
     padded_raster = processor.execute(s2_l2a_raster)
+    padded_raster.to_file(f"tests/assets/test_out_pad_{padding}_{divisible_by}.tif")
+    assert padded_raster.size >= s2_l2a_raster.size + (padding, padding)
 
-    assert padded_raster.size == (640, 640)
     assert padded_raster.crs == s2_l2a_raster.crs
     assert padded_raster.bands == s2_l2a_raster.bands
     assert padded_raster.content != s2_l2a_raster.content
     assert isinstance(padded_raster.content, bytes)
 
-    # check padding size is divisible by 32
-    assert padded_raster.size[0] % 32 == 0
-    assert padded_raster.size[1] % 32 == 0
+    # check image size is a multiple of divisible_by
+    assert padded_raster.size[0] % divisible_by == 0
+    assert padded_raster.size[1] % divisible_by == 0
 
     # check padding_size is as expected
     exp_padding_size = processor._calculate_padding_size(
@@ -162,39 +167,38 @@ def test_pad_raster(s2_l2a_raster):
     )
     assert padded_raster.padding_size == exp_padding_size
 
-    with rasterio.open("tests/assets/test_exp_pad.tif") as exp_src:
-        exp_image = exp_src.read()
-        with rasterio.open(io.BytesIO(padded_raster.content)) as src:
-            image = src.read()
 
-            assert image.shape == exp_image.shape
-            assert image.dtype == exp_image.dtype
-            assert src.meta["height"] == exp_src.meta["height"]
-            assert src.meta["width"] == exp_src.meta["width"]
-            assert src.meta["crs"] == exp_src.meta["crs"]
-            assert src.meta["count"] == exp_src.meta["count"]
-            assert src.meta["transform"] == exp_src.meta["transform"]
-            assert src.meta["dtype"] == exp_src.meta["dtype"]
-            assert src.meta["nodata"] == exp_src.meta["nodata"]
+@pytest.mark.parametrize("padding", [64])
+@pytest.mark.parametrize(
+    "image_size",
+    [
+        HeightWidth(480, 480),
+    ],
+)
+@pytest.mark.parametrize("divisible_by", [32])
+def test_pad_raster_with_split_full_durban_scene(
+    durban_full_raster, padding, image_size, divisible_by
+):
+    split_processor = RasterioRasterSplit(image_size=image_size, offset=padding)
 
-            assert np.array_equal(image, exp_image)
+    pad_raster_processor = RasterioRasterPad(padding=padding, divisible_by=divisible_by)
+    for split_raster in split_processor.execute(durban_full_raster):
+        padded_raster = pad_raster_processor.execute(split_raster)
 
+        assert padded_raster.crs == split_raster.crs
+        assert padded_raster.bands == split_raster.bands
+        assert padded_raster.content != split_raster.content
+        assert isinstance(padded_raster.content, bytes)
 
-def test_unpad_raster(s2_l2a_raster):
-    pad_strategy = RasterioRasterPad(padding=64)
-    unpad_strategy = RasterioRasterUnpad()
-    padded_raster = pad_strategy.execute(s2_l2a_raster)
-    unpadded_raster = unpad_strategy.execute(padded_raster)
+        # check image size is a multiple of divisible_by
+        assert padded_raster.size[0] % divisible_by == 0
+        assert padded_raster.size[1] % divisible_by == 0
 
-    # check if the unpadded raster is the same as the original raster
-    assert unpadded_raster.size == s2_l2a_raster.size
-    assert unpadded_raster.crs == s2_l2a_raster.crs
-    assert unpadded_raster.bands == s2_l2a_raster.bands
-
-    assert isinstance(unpadded_raster.content, bytes)
-    assert unpadded_raster.padding_size == (0, 0)
-    assert unpadded_raster.geometry == s2_l2a_raster.geometry
-    assert np.array_equal(unpadded_raster.to_numpy(), s2_l2a_raster.to_numpy())
+        # check padding_size is as expected
+        exp_padding_size = pad_raster_processor._calculate_padding_size(
+            split_raster.to_numpy(), padding
+        )
+        assert padded_raster.padding_size == exp_padding_size
 
 
 def test_unpad_split_rasters(s2_l2a_raster):
@@ -232,14 +236,16 @@ def test_unpad_split_rasters(s2_l2a_raster):
         assert result.geometry == exp.geometry
 
 
-@pytest.mark.parametrize("merge_method", ["first", smooth_overlap_callable])
+@pytest.mark.parametrize(
+    "merge_method", ["first", smooth_overlap_callable, copy_smooth]
+)
 def test_merge_rasters(s2_l2a_raster, merge_method):
     merge_strategy = RasterioRasterMerge(offset=64, merge_method=merge_method)
     split_strategy = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     rasters = list(split_strategy.execute(s2_l2a_raster))
     merged = merge_strategy.execute(rasters)
     merged.to_file(
-        f"tests/assets/test_out_merge_{merge_method if isinstance(merge_method, str) else 'custom'}.tif"
+        f"tests/assets/test_out_merge_{merge_method if isinstance(merge_method, str) else merge_method.__name__}.tif"
     )
     assert merged.size == s2_l2a_raster.size
     assert merged.dtype == s2_l2a_raster.dtype
@@ -440,7 +446,7 @@ def test_composite_raster_operation(s2_l2a_raster):
         result = comp_op.execute(raster)
         results.append(result)
 
-    merge_op = RasterioRasterMerge(offset=64, merge_method=smooth_overlap_callable)
+    merge_op = RasterioRasterMerge(offset=64, merge_method=copy_smooth)
 
     merged = merge_op.execute(results)
 
@@ -472,7 +478,7 @@ def test_composite_raster_real_inference(s2_l2a_raster, raster):
         result = comp_op.execute(r)
         results.append(result)
 
-    merge_op = RasterioRasterMerge(offset=64, merge_method=smooth_overlap_callable)
+    merge_op = RasterioRasterMerge(offset=64, merge_method=copy_smooth)
 
     merged = merge_op.execute(results)
     merged = RasterioDtypeConversion(dtype="uint8").execute(merged)

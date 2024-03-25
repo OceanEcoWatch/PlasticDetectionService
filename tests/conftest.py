@@ -1,8 +1,13 @@
+import io
+
 import pytest
 import rasterio
+import requests
 from shapely.geometry import Polygon, box
 
 from plastic_detection_service.models import Raster, Vector
+
+FULL_DURBAN_SCENE = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/durban_20190424.tif"
 
 
 @pytest.fixture
@@ -106,4 +111,31 @@ def raster(content, rasterio_ds, crs, rast_geometry):
 def vector():
     return Vector(
         geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=5, crs=4326
+    )
+
+
+@pytest.fixture(scope="session")
+def durban_content():
+    return requests.get(FULL_DURBAN_SCENE).content
+
+
+@pytest.fixture
+def durban_rasterio_ds(durban_content):
+    with rasterio.open(io.BytesIO(durban_content)) as src:
+        image = src.read()
+        meta = src.meta.copy()
+        return src, image, meta
+
+
+@pytest.fixture
+def durban_full_raster(durban_rasterio_ds, durban_content):
+    src, image, meta = durban_rasterio_ds
+
+    return Raster(
+        content=durban_content,
+        size=(meta["width"], meta["height"]),
+        dtype=meta["dtype"],
+        crs=meta["crs"].to_epsg(),
+        bands=[i for i in range(1, meta["count"] + 1)],
+        geometry=box(*src.bounds),
     )

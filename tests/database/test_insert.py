@@ -3,6 +3,7 @@ import datetime
 import psycopg2
 import pytest
 from geoalchemy2.shape import from_shape
+from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from sqlalchemy import create_engine
 from sqlalchemy.exc import DataError, IntegrityError
@@ -112,14 +113,21 @@ def db_raster():
 
 @pytest.fixture
 def db_vectors():
+    return [Vector(geometry=Point(0, 0), pixel_value=1, crs=4326)]
+
+
+@pytest.fixture
+def db_scls_vectors():
     return [
         Vector(
-            geometry=Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]), crs=4326, pixel_value=1
+            geometry=Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]), pixel_value=1, crs=4326
         )
     ]
 
 
-def test_insert_mock_session(mock_session, download_response, db_raster, db_vectors):
+def test_insert_mock_session(
+    mock_session, download_response, db_raster, db_vectors, db_scls_vectors
+):
     insert = Insert(mock_session)
     image = insert.insert_image(download_response, db_raster, "test_image_url")
 
@@ -129,7 +137,7 @@ def test_insert_mock_session(mock_session, download_response, db_raster, db_vect
     )
     prediction_vectors = insert.insert_prediction_vectors(db_vectors, raster.id)
 
-    scls_vectors = insert.insert_scls_vectors(db_vectors, image.id)
+    scls_vectors = insert.insert_scls_vectors(db_scls_vectors, image.id)
 
     assert image.image_id == download_response.image_id
     assert image.image_url == "test_image_url"
@@ -232,6 +240,7 @@ def test_insert_db(
     db_raster: Raster,
     download_response: DownloadResponse,
     db_vectors: list[Vector],
+    db_scls_vectors: list[Vector],
     test_session: Session,
 ):
     insert = Insert(test_session)
@@ -244,7 +253,7 @@ def test_insert_db(
         db_vectors,
         raster.id,
     )
-    insert.insert_scls_vectors(db_vectors, image.id)
+    insert.insert_scls_vectors(db_scls_vectors, image.id)
 
     assert len(test_session.query(Image).all()) == 1
     assert len(test_session.query(Model).all()) == 1

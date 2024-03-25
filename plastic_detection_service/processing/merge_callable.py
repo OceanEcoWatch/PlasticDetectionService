@@ -39,3 +39,18 @@ def smooth_overlap_callable(
             # Considering new_mask to directly replace data in areas without overlap
             replace_area = ~new_mask
             merged_data[band][replace_area] = new_data[band][replace_area]
+
+
+def copy_smooth(merged_data, new_data, merged_mask, new_mask, sigma=64, **kwargs):
+    """Applies a Gaussian filter to the overlapping pixels."""
+    mask = np.empty_like(merged_mask, dtype="bool")
+    np.logical_and(merged_mask, new_mask, out=mask)
+    np.copyto(
+        merged_data,
+        gaussian_filter(new_data, sigma=sigma),
+        where=mask,
+        casting="unsafe",
+    )
+    np.logical_not(new_mask, out=mask)
+    np.logical_and(merged_mask, mask, out=mask)
+    np.copyto(merged_data, new_data, where=mask, casting="unsafe")

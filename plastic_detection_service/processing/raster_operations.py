@@ -138,7 +138,9 @@ class RasterioRasterToVector(RasterToVectorStrategy):
             transform = src.transform
 
             if not np.issubdtype(image.dtype, np.integer):
-                raise ValueError("Only integer rasters are supported for vectorization")
+                raise NotImplementedError(
+                    "Raster to vector conversion only supported for integer data types"
+                )
 
             for (row, col), value in np.ndenumerate(image):
                 if value <= 0:
@@ -162,6 +164,7 @@ class RasterioRasterPad(RasterOperationStrategy):
             meta = src.meta.copy()
             padding_size = self._calculate_padding_size(src.read(), self.padding)
             image = self._pad_image(src.read(), padding_size)
+
             adjusted_bounds = self._adjust_bounds_for_padding(
                 src.bounds, padding_size, src.transform
             )
@@ -177,15 +180,30 @@ class RasterioRasterPad(RasterOperationStrategy):
                 padding_size,
             )
 
-    def _ensure_image_size_is_divisible_by(
-        self, image_size: tuple[int, int]
-    ) -> tuple[int, int]:
-        height, width = image_size
-        if height % self.divisible_by != 0:
-            height = height + (self.divisible_by - (height % self.divisible_by))
-        if width % self.divisible_by != 0:
-            width = width + (self.divisible_by - (width % self.divisible_by))
-        return height, width
+    def _ensure_divisible_padding(
+        self, original_size: int, padding: int, divisible_by: int
+    ) -> int:
+        total_size = original_size + 2 * padding
+        if total_size % divisible_by == 0:
+            return padding
+        else:
+            # Calculate the shortfall and adjust padding accordingly
+            shortfall = divisible_by - (total_size % divisible_by)
+            additional_padding = shortfall // 2
+            print(padding + additional_padding)
+            return padding + additional_padding
+
+    def _calculate_padding_size(self, image: np.ndarray, padding: int) -> HeightWidth:
+        _, input_image_height, input_image_width = image.shape
+
+        padding_height = self._ensure_divisible_padding(
+            input_image_height, padding, self.divisible_by
+        )
+        padding_width = self._ensure_divisible_padding(
+            input_image_width, padding, self.divisible_by
+        )
+
+        return HeightWidth(padding_height, padding_width)
 
     def _pad_image(
         self,
@@ -197,37 +215,12 @@ class RasterioRasterPad(RasterOperationStrategy):
             input_image,
             (
                 (0, 0),
-                (padding_height, padding_height),
-                (padding_width, padding_width),
+                (int(np.ceil(padding_height)), int(np.floor(padding_height))),
+                (int(np.ceil(padding_width)), int(np.floor(padding_width))),
             ),
         )
 
         return padded_image
-
-    def _calculate_target_image_size(
-        self, image: np.ndarray, padding: int
-    ) -> tuple[int, int]:
-        _, input_image_height, input_image_width = image.shape
-        target_image_size = (
-            input_image_height + padding * 2,
-            input_image_width + padding * 2,
-        )
-        return self._ensure_image_size_is_divisible_by(target_image_size)
-
-    def _calculate_padding_size(self, image: np.ndarray, padding: int) -> HeightWidth:
-        _, input_image_height, input_image_width = image.shape
-
-        target_height_with_padding, target_width_with_padding = (
-            self._calculate_target_image_size(image, padding)
-        )
-
-        padding_height = (target_height_with_padding - input_image_height) / 2
-        padding_width = (target_width_with_padding - input_image_width) / 2
-
-        padding_height = int(np.ceil(padding_height))
-        padding_width = int(np.ceil(padding_width))
-
-        return HeightWidth(padding_height, padding_width)
 
     def _adjust_bounds_for_padding(
         self,

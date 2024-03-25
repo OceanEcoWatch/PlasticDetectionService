@@ -150,7 +150,7 @@ class PredictionVector(Base):
 
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
-    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+    geometry = Column(Geometry(geometry_type="Point", srid=4326), nullable=False)
 
     prediction_raster_id = Column(
         Integer, ForeignKey("prediction_rasters.id"), nullable=False
