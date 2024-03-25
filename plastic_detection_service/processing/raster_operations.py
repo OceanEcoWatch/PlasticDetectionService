@@ -10,7 +10,6 @@ from rasterio.enums import Resampling
 from rasterio.merge import merge
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
-from scipy.ndimage import gaussian_filter
 from shapely.geometry import Point, box
 
 from plastic_detection_service.models import Raster, Vector
@@ -127,8 +126,9 @@ class RasterioRasterReproject(RasterOperationStrategy):
 
 
 class RasterioRasterToVector(RasterToVectorStrategy):
-    def __init__(self, band: int = 1):
+    def __init__(self, band: int = 1, threshold: int = 0):
         self.band = band
+        self.threshold = threshold
 
     def execute(self, raster: Raster) -> Generator[Vector, None, None]:
         with rasterio.open(io.BytesIO(raster.content)) as src:
@@ -143,7 +143,7 @@ class RasterioRasterToVector(RasterToVectorStrategy):
                 )
 
             for (row, col), value in np.ndenumerate(image):
-                if value <= 0:
+                if value <= self.threshold:
                     continue
                 x, y = transform * (col + 0.5, row + 0.5)
 
@@ -166,34 +166,39 @@ class RasterioRasterPad(RasterOperationStrategy):
             image = self._pad_image(src.read(), padding_size)
 
             adjusted_bounds = self._adjust_bounds_for_padding(
-                src.bounds, padding_size, src.transform
+                src.bounds, padding_size[0], src.transform
             )
             updated_meta = _update_window_meta(meta, image)
             updated_meta = _update_bounds(updated_meta, adjusted_bounds)
             byte_stream = _write_image(image, updated_meta)
 
+            print("original image shape: ", src.read().shape)
+            print("padding size: ", padding_size)
+            print("padded image shape: ", image.shape)
             return _create_raster(
                 byte_stream,
                 image,
                 adjusted_bounds,
                 updated_meta,
-                padding_size,
+                padding_size[0],
             )
 
     def _ensure_divisible_padding(
         self, original_size: int, padding: int, divisible_by: int
-    ) -> int:
-        total_size = original_size + 2 * padding
-        if total_size % divisible_by == 0:
-            return padding
-        else:
-            # Calculate the shortfall and adjust padding accordingly
-            shortfall = divisible_by - (total_size % divisible_by)
-            additional_padding = shortfall // 2
-            print(padding + additional_padding)
-            return padding + additional_padding
+    ) -> float:
+        """Ensure that the original size plus padding is divisible by a given number.
+        Return the new padding size."""
+        target_size = original_size + padding
 
-    def _calculate_padding_size(self, image: np.ndarray, padding: int) -> HeightWidth:
+        while target_size % divisible_by != 0:
+            padding += 1
+            target_size = original_size + padding
+
+        return padding / 2
+
+    def _calculate_padding_size(
+        self, image: np.ndarray, padding: int
+    ) -> tuple[HeightWidth, HeightWidth]:
         _, input_image_height, input_image_width = image.shape
 
         padding_height = self._ensure_divisible_padding(
@@ -203,20 +208,19 @@ class RasterioRasterPad(RasterOperationStrategy):
             input_image_width, padding, self.divisible_by
         )
 
-        return HeightWidth(padding_height, padding_width)
+        return HeightWidth(
+            int(np.ceil(padding_height)), int(np.ceil(padding_width))
+        ), HeightWidth(int(np.floor(padding_height)), int(np.floor(padding_width)))
 
     def _pad_image(
-        self,
-        input_image: np.ndarray,
-        padding_size: tuple[int, int],
+        self, input_image: np.ndarray, padding_size: tuple[HeightWidth, HeightWidth]
     ) -> np.ndarray:
-        padding_height, padding_width = padding_size
         padded_image = np.pad(
             input_image,
             (
                 (0, 0),
-                (int(np.ceil(padding_height)), int(np.floor(padding_height))),
-                (int(np.ceil(padding_width)), int(np.floor(padding_width))),
+                (padding_size[0].height, padding_size[1].height),
+                (padding_size[0].width, padding_size[1].width),
             ),
         )
 
@@ -358,8 +362,10 @@ class RasterioRasterMerge(RasterOperationStrategy):
     ) -> Raster:
         srcs = [rasterio.open(io.BytesIO(r.content)) for r in rasters]
 
-        mosaic, out_trans = merge(srcs, method=self.merge_method, nodata=0)
+        mosaic, out_trans = merge(srcs, method=self.merge_method, nodata=0)  # type: ignore
         out_meta = srcs[0].meta.copy()
+
+        [src.close() for src in srcs]
 
         out_meta.update(
             {
@@ -384,28 +390,6 @@ class RasterioRasterMerge(RasterOperationStrategy):
             out_meta,
             HeightWidth(0, 0),
         )
-
-    def _apply_smooth_overlap(
-        self, src: rasterio.DatasetReader, dst: rasterio.DatasetReader
-    ):
-        for band in dst.indexes:
-            window = src.window(*src.bounds)
-            existing_data = dst.read(band, window=window)
-            incoming_data = src.read(band, window=window)
-
-            overlap = existing_data > 0
-            if overlap.any():
-                dx, dy = np.gradient(overlap.astype(float))
-                g = np.abs(dx) + np.abs(dy)
-                transition = gaussian_filter(g, sigma=self.offset)
-                transition = transition / transition.max()
-                transition[~overlap] = 1.0
-
-                incoming_data = (
-                    transition * incoming_data + (1 - transition) * existing_data
-                )
-            writedata = incoming_data.astype(np.float32) * 255
-            dst.write(writedata, window=window, indexes=band)
 
 
 class RasterioRemoveBand(RasterOperationStrategy):

@@ -144,12 +144,12 @@ def test_split_rasters_are_in_bounds_original(s2_l2a_raster):
 
 
 @pytest.mark.parametrize("padding", [0, 16, 32, 64, 128])
-@pytest.mark.parametrize("divisible_by", [32, 64, 128])
+@pytest.mark.parametrize("divisible_by", [16, 32, 64, 128])
 def test_pad_raster(s2_l2a_raster, padding, divisible_by):
     processor = RasterioRasterPad(padding=padding, divisible_by=divisible_by)
 
     padded_raster = processor.execute(s2_l2a_raster)
-    padded_raster.to_file(f"tests/assets/test_out_pad_{padding}_{divisible_by}.tif")
+
     assert padded_raster.size >= s2_l2a_raster.size + (padding, padding)
 
     assert padded_raster.crs == s2_l2a_raster.crs
@@ -165,25 +165,21 @@ def test_pad_raster(s2_l2a_raster, padding, divisible_by):
     exp_padding_size = processor._calculate_padding_size(
         s2_l2a_raster.to_numpy(), padding
     )
-    assert padded_raster.padding_size == exp_padding_size
+    assert padded_raster.padding_size == exp_padding_size[0]
 
 
-@pytest.mark.parametrize("padding", [64])
-@pytest.mark.parametrize(
-    "image_size",
-    [
-        HeightWidth(480, 480),
-    ],
-)
+@pytest.mark.parametrize("padding", [32])
+@pytest.mark.parametrize("image_size", [HeightWidth(480, 480)])
 @pytest.mark.parametrize("divisible_by", [32])
 def test_pad_raster_with_split_full_durban_scene(
     durban_full_raster, padding, image_size, divisible_by
 ):
     split_processor = RasterioRasterSplit(image_size=image_size, offset=padding)
 
-    pad_raster_processor = RasterioRasterPad(padding=padding, divisible_by=divisible_by)
     for split_raster in split_processor.execute(durban_full_raster):
-        padded_raster = pad_raster_processor.execute(split_raster)
+        padded_raster = RasterioRasterPad(
+            padding=padding, divisible_by=divisible_by
+        ).execute(split_raster)
 
         assert padded_raster.crs == split_raster.crs
         assert padded_raster.bands == split_raster.bands
@@ -195,10 +191,10 @@ def test_pad_raster_with_split_full_durban_scene(
         assert padded_raster.size[1] % divisible_by == 0
 
         # check padding_size is as expected
-        exp_padding_size = pad_raster_processor._calculate_padding_size(
-            split_raster.to_numpy(), padding
-        )
-        assert padded_raster.padding_size == exp_padding_size
+        exp_padding_size = RasterioRasterPad(
+            padding, divisible_by=divisible_by
+        )._calculate_padding_size(split_raster.to_numpy(), padding)
+        assert padded_raster.padding_size == exp_padding_size[0]
 
 
 def test_unpad_split_rasters(s2_l2a_raster):
