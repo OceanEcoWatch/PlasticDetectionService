@@ -1,4 +1,4 @@
-from .. import config
+from ..config import CONTENT_TYPE, ENDPOINT_NAME
 from .sagemaker import invoke
 
 
@@ -17,4 +17,4 @@ def local_inference_callback(payload: bytes) -> bytes:
 
 
 def sagemaker_inference_callback(payload: bytes) -> bytes:
-    return invoke(config.ENDPOINT_NAME, config.CONTENT_TYPE, payload)
+    return invoke(ENDPOINT_NAME, CONTENT_TYPE, payload)
