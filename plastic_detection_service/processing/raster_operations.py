@@ -66,6 +66,7 @@ def _create_raster(
         dtype=image.dtype,
         crs=meta["crs"].to_epsg(),
         bands=bands,
+        resolution=(meta["transform"].a),
         geometry=box(*bounds),
         padding_size=padding_size,
     )
