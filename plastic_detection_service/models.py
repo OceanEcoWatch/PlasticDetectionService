@@ -31,6 +31,7 @@ class Raster:
     dtype: str
     crs: int
     bands: list[int]
+    resolution: float
     geometry: Polygon
     padding_size: HeightWidth = HeightWidth(0, 0)
 

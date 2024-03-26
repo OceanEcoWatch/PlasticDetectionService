@@ -107,6 +107,7 @@ def db_raster():
         dtype="uint8",
         crs=4326,
         bands=[1, 2, 3],
+        resolution=10.0,
         geometry=Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]),
     )
 
@@ -173,6 +174,7 @@ def test_image_invalid_dtype(test_session):
         image_url="test_image_url",
         timestamp=datetime.datetime.now(),
         dtype="INVALID",
+        resolution=10.0,
         image_width=10,
         image_height=10,
         bands=3,
@@ -191,6 +193,7 @@ def test_image_invalid_band(test_session):
         image_url="test_image_url",
         timestamp=datetime.datetime.now(),
         dtype="uint8",
+        resolution=10.0,
         image_width=10,
         image_height=10,
         bands=0,
@@ -209,6 +212,7 @@ def test_image_unique_constraint(test_session):
         image_url="test_image_url",
         timestamp=datetime.datetime(2021, 1, 1, 0, 0, 0),  # same timestamp
         dtype="uint8",
+        resolution=10.0,
         image_width=10,
         image_height=10,
         bands=3,
@@ -220,6 +224,7 @@ def test_image_unique_constraint(test_session):
         image_url="other_test_image_url",
         timestamp=datetime.datetime(2021, 1, 1, 0, 0, 0),  # same timestamp
         dtype="uint8",
+        resolution=10.0,
         image_width=50,
         image_height=50,
         bands=5,

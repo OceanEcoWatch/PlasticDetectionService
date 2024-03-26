@@ -34,6 +34,7 @@ def s2_l2a_raster(s2_l2a_rasterio, s2_l2a_response):
         dtype=meta["dtype"],
         crs=meta["crs"].to_epsg(),
         bands=[i for i in range(1, meta["count"] + 1)],
+        resolution=src.res[0],
         geometry=box(*src.bounds),
     )
 
@@ -67,6 +68,7 @@ def pred_durban_first_split_raster(
         dtype=meta["dtype"],
         crs=meta["crs"].to_epsg(),
         bands=[i for i in range(1, meta["count"] + 1)],
+        resolution=src.res[0],
         geometry=box(*src.bounds),
     )
 
@@ -103,6 +105,7 @@ def raster(content, rasterio_ds, crs, rast_geometry):
         dtype=rasterio_ds.meta["dtype"],
         crs=crs,
         bands=[i for i in range(1, rasterio_ds.count + 1)],
+        resolution=rasterio_ds.res[0],
         geometry=rast_geometry,
     )
 
@@ -137,5 +140,6 @@ def durban_full_raster(durban_rasterio_ds, durban_content):
         dtype=meta["dtype"],
         crs=meta["crs"].to_epsg(),
         bands=[i for i in range(1, meta["count"] + 1)],
+        resolution=src.res[0],
         geometry=box(*src.bounds),
     )
