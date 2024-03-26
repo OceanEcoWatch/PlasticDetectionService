@@ -168,6 +168,7 @@ def test_pad_raster(s2_l2a_raster, padding, divisible_by):
     assert padded_raster.padding_size == exp_padding_size[0]
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("padding", [32])
 @pytest.mark.parametrize("image_size", [HeightWidth(480, 480)])
 @pytest.mark.parametrize("divisible_by", [32])

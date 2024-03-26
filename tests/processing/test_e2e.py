@@ -18,8 +18,8 @@ from plastic_detection_service.processing.raster_operations import (
 )
 
 
-@pytest.mark.e2e
 @pytest.mark.slow
+@pytest.mark.e2e
 def test_e2e_full_durban_scene(durban_full_raster):
     split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
