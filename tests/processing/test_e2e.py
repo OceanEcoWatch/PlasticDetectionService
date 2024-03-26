@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from plastic_detection_service.inference.inference_callback import (
@@ -41,3 +42,6 @@ def test_e2e_full_durban_scene(durban_full_raster):
     merged.to_file(
         "tests/assets/test_out_pred_durban_full.tif",
     )
+    assert merged.size == durban_full_raster.size
+    assert merged.crs == durban_full_raster.crs
+    assert np.allclose(merged.to_numpy(), durban_full_raster.to_numpy())

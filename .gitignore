@@ -3,6 +3,7 @@ sagemaker/model.tar.gz
 sagemaker/venv/
 images/
 *.xml
+tests/assets/test_out*
 #ruff
 .ruff_cache/
 
