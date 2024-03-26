@@ -1,0 +1,6 @@
+segmentation-models-pytorch
+pytorch-lightning
+torch==2.0.1
+wandb
+rasterio
+scikit-learn

@@ -17,7 +17,7 @@ DB_NAME = os.environ["DB_NAME"]
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = os.environ["DB_PORT"]
 
-POSTGIS_URL = f"postgresql://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 ENDPOINT_NAME = "MarineDebrisDetectorEndpoint"
 CONTENT_TYPE = "application/octet-stream"
@@ -37,3 +37,20 @@ SH_CONFIG = SHConfig(
 )
 
 S3_BUCKET_NAME = "sentinel-hub-images"
+
+L1CBANDS = [
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B5",
+    "B6",
+    "B7",
+    "B8",
+    "B8A",
+    "B9",
+    "B10",
+    "B11",
+    "B12",
+]
+L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]

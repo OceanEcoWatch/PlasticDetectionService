@@ -1,0 +1,42 @@
+name: Format Lint Test
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Format and Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Format with black
+        run: black .
+
+      - name: Format with isort
+        run: isort . --profile black
+      - name: Lint with ruff
+        run: ruff --output-format=github
+      - name: Test
+        run: pytest -m "not integration and not slow"
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PW: ${{ secrets.DB_PW}}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          SH_CLIENT_ID: ${{ secrets.SH_CLIENT_ID }}
+          SH_CLIENT_SECRET: ${{ secrets.SH_CLIENT_SECRET }}
+          SH_INSTANCE_ID: ${{ secrets.SH_INSTANCE_ID }}
+          SAGEMAKER_ROLE: ${{ secrets.SAGEMAKER_ROLE }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
