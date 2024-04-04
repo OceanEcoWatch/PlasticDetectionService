@@ -8,6 +8,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -39,6 +40,7 @@ class Image(Base):
         Enum(*IMAGE_DTYPES, name="image_dtype"),
         nullable=False,
     )
+    resolution = Column(Float, nullable=False)
     image_width = Column(Integer, nullable=False)
     image_height = Column(Integer, nullable=False)
     bands = Column(Integer, CheckConstraint("bands>0 AND bands<=100"), nullable=False)
@@ -51,6 +53,7 @@ class Image(Base):
         image_url: str,
         timestamp: datetime.datetime,
         dtype: str,
+        resolution: float,
         image_width: int,
         image_height: int,
         bands: int,
@@ -61,6 +64,7 @@ class Image(Base):
         self.image_url = image_url
         self.timestamp = timestamp
         self.dtype = dtype
+        self.resolution = resolution
         self.image_width = image_width
         self.image_height = image_height
         self.bands = bands
@@ -76,6 +80,7 @@ class Image(Base):
             image_url=image_url,
             timestamp=response.timestamp,
             dtype=raster.dtype,
+            resolution=raster.resolution,
             image_width=raster.size[0],
             image_height=raster.size[1],
             bands=len(raster.bands),
