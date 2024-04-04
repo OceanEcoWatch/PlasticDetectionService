@@ -3,14 +3,12 @@ import io
 import numpy as np
 import rasterio
 
-from src.processing.raster_operations import (
-    RasterioRasterSplit,
-)
+from src.raster_op.split import RasterioRasterSplit
 from src.types import HeightWidth
 
 
 def test_split_raster(s2_l2a_raster):
-    image_size = (480, 480)
+    image_size = HeightWidth(480, 480)
     offset = 64
     processor = RasterioRasterSplit(image_size=image_size, offset=offset)
 

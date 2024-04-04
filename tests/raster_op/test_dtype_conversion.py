@@ -3,7 +3,7 @@ import io
 import numpy as np
 import rasterio
 
-from src.processing.raster_operations import (
+from src.raster_op.convert import (
     RasterioDtypeConversion,
 )
 
@@ -82,5 +82,6 @@ def test_float_to_integer_scaling():
     assert scaled_image.min() >= np.iinfo(target_dtype).min
     assert scaled_image.max() <= np.iinfo(target_dtype).max
     assert all(
-        isinstance(x, np.integer) or isinstance(x, np.uint8) for x in scaled_image.flat
+        isinstance(x, np.integer) or isinstance(x, np.uint8)  # type: ignore
+        for x in scaled_image.flat  # Fix: np.uint8
     ), "Not all elements are integers"

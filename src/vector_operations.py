@@ -1,7 +1,13 @@
+from abc import ABC, abstractmethod
 from typing import Iterable
 
 from src.models import Vector
-from src.processing.abstractions import VectorOperationStrategy
+
+
+class VectorOperationStrategy(ABC):
+    @abstractmethod
+    def execute(self, vectors: Iterable[Vector]) -> Iterable[Vector]:
+        pass
 
 
 class VectorFilter(VectorOperationStrategy):

@@ -1,5 +1,67 @@
+import io
+from typing import Callable, Iterable, Optional, Union
+
 import numpy as np
+import rasterio
+from rasterio.merge import merge
 from scipy.ndimage import gaussian_filter
+
+from src.models import Raster
+from src.raster_op.utils import create_raster
+from src.types import HeightWidth
+
+from .abstractions import (
+    RasterOperationStrategy,
+)
+
+
+class RasterioRasterMerge(RasterOperationStrategy):
+    def __init__(
+        self,
+        offset: int = 64,
+        merge_method: Union[str, Callable] = "first",
+        bands: Optional[list[int]] = None,
+    ):
+        self.offset = offset
+        self.merge_method = merge_method
+        self.bands = bands
+
+        self.buffer = io.BytesIO()
+
+    def execute(
+        self,
+        rasters: Iterable[Raster],
+    ) -> Raster:
+        srcs = [rasterio.open(io.BytesIO(r.content)) for r in rasters]
+
+        mosaic, out_trans = merge(srcs, method=self.merge_method, nodata=0)  # type: ignore
+        out_meta = srcs[0].meta.copy()
+
+        [src.close() for src in srcs]
+
+        out_meta.update(
+            {
+                "driver": "GTiff",
+                "height": mosaic.shape[1],
+                "width": mosaic.shape[2],
+                "transform": out_trans,
+                "dtype": mosaic.dtype,
+            }
+        )
+        if self.bands:
+            out_meta["count"] = len(self.bands)
+            mosaic = mosaic[self.bands]
+
+        with rasterio.open(self.buffer, "w+", **out_meta) as dst:
+            dst.write(mosaic)
+
+        return create_raster(
+            self.buffer.getvalue(),
+            mosaic,
+            dst.bounds,
+            out_meta,
+            HeightWidth(0, 0),
+        )
 
 
 def smooth_overlap_callable(

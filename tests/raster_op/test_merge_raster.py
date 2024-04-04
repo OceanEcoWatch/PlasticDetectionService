@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 import rasterio
 
-from src.processing.merge_callable import (
+from src.raster_op.merge import (
+    RasterioRasterMerge,
     copy_smooth,
     smooth_overlap_callable,
 )
-from src.processing.raster_operations import (
-    RasterioRasterMerge,
+from src.raster_op.split import (
     RasterioRasterSplit,
 )
 from src.types import HeightWidth

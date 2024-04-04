@@ -7,20 +7,16 @@ from src.inference.inference_callback import (
     LocalInferenceCallback,
     RunpodInferenceCallback,
 )
-from src.processing.merge_callable import copy_smooth
-from src.processing.raster_operations import (
-    CompositeRasterOperation,
-    HeightWidth,
-    RasterInference,
-    RasterioDtypeConversion,
-    RasterioRasterMerge,
-    RasterioRasterPad,
-    RasterioRasterReproject,
-    RasterioRasterSplit,
-    RasterioRasterToVector,
-    RasterioRasterUnpad,
-    RasterioRemoveBand,
-)
+from src.raster_op.abstractions import CompositeRasterOperation
+from src.raster_op.convert import RasterioDtypeConversion
+from src.raster_op.inference import RasterInference
+from src.raster_op.merge import RasterioRasterMerge, copy_smooth
+from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
+from src.raster_op.reproject import RasterioRasterReproject
+from src.raster_op.shape import RasterioRemoveBand
+from src.raster_op.split import RasterioRasterSplit
+from src.raster_op.vectorize import RasterioRasterToVector
+from src.types import HeightWidth
 
 
 @pytest.mark.slow

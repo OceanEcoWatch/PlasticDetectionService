@@ -1,22 +1,17 @@
 import numpy as np
 import pytest
 
-from src.inference.inference_callback import (
-    LocalInferenceCallback,
-)
-from src.processing.merge_callable import (
+from src.inference.inference_callback import LocalInferenceCallback
+from src.raster_op.abstractions import CompositeRasterOperation
+from src.raster_op.convert import RasterioDtypeConversion
+from src.raster_op.inference import RasterInference
+from src.raster_op.merge import (
+    RasterioRasterMerge,
     copy_smooth,
 )
-from src.processing.raster_operations import (
-    CompositeRasterOperation,
-    RasterInference,
-    RasterioDtypeConversion,
-    RasterioRasterMerge,
-    RasterioRasterPad,
-    RasterioRasterSplit,
-    RasterioRasterUnpad,
-    RasterioRemoveBand,
-)
+from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
+from src.raster_op.shape import RasterioRemoveBand
+from src.raster_op.split import RasterioRasterSplit
 from src.types import HeightWidth
 from tests.conftest import MockInferenceCallback
 

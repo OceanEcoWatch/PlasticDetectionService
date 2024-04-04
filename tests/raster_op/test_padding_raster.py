@@ -4,11 +4,8 @@ import numpy as np
 import pytest
 import rasterio
 
-from src.processing.raster_operations import (
-    RasterioRasterPad,
-    RasterioRasterSplit,
-    RasterioRasterUnpad,
-)
+from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
+from src.raster_op.split import RasterioRasterSplit
 from src.types import HeightWidth
 
 

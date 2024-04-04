@@ -1,9 +1,7 @@
 from shapely.geometry import Point
 
 from src.models import Raster
-from src.processing.raster_operations import (
-    RasterioRasterToVector,
-)
+from src.raster_op.vectorize import RasterioRasterToVector
 
 
 def test_to_vector(raster: Raster):

@@ -2,10 +2,8 @@ import numpy as np
 import pytest
 
 from src.models import Raster
-from src.processing.raster_operations import (
-    CompositeRasterOperation,
-    RasterioRasterReproject,
-)
+from src.raster_op.abstractions import CompositeRasterOperation
+from src.raster_op.reproject import RasterioRasterReproject
 
 
 @pytest.mark.parametrize(

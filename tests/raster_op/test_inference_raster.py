@@ -6,13 +6,10 @@ from src.inference.inference_callback import (
     RunpodInferenceCallback,
 )
 from src.models import Raster
-from src.processing.raster_operations import (
-    RasterInference,
-    RasterioRasterPad,
-    RasterioRasterSplit,
-    RasterioRasterUnpad,
-    RasterioRemoveBand,
-)
+from src.raster_op.inference import RasterInference
+from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
+from src.raster_op.shape import RasterioRemoveBand
+from src.raster_op.split import RasterioRasterSplit
 from src.types import HeightWidth
 from tests.conftest import MockInferenceCallback
 

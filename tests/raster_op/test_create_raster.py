@@ -4,8 +4,8 @@ import numpy as np
 import rasterio
 
 from src.models import Raster
-from src.processing.raster_operations import (
-    _create_raster,
+from src.raster_op.utils import (
+    create_raster,
 )
 
 
@@ -17,7 +17,7 @@ def test__create_raster(raster):
     with rasterio.open(io.BytesIO(content)) as src:
         meta = src.meta.copy()
 
-        new_raster = _create_raster(
+        new_raster = create_raster(
             content=content,
             image=image,
             bounds=bounds,
