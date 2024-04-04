@@ -8,14 +8,14 @@ from runpod import Endpoint
 from src import config
 
 
-class InferenceCallback(ABC):
+class BaseInferenceCallback(ABC):
     @abstractmethod
     def __call__(self, payload: bytes) -> bytes:
         """Perform inference on the given payload."""
         pass
 
 
-class LocalInferenceCallback(InferenceCallback):
+class LocalInferenceCallback(BaseInferenceCallback):
     def __call__(self, payload: bytes) -> bytes:
         from .sagemaker_model.code.inference import (
             input_fn,
@@ -30,7 +30,7 @@ class LocalInferenceCallback(InferenceCallback):
         return output_fn(pred_array, "application/octet-stream")
 
 
-class RunpodInferenceCallback(InferenceCallback):
+class RunpodInferenceCallback(BaseInferenceCallback):
     def __call__(self, payload: bytes) -> bytes:
         encoded_payload = base64.b64encode(payload).decode("utf-8")
 

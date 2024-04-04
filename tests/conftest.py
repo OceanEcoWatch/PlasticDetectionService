@@ -1,10 +1,12 @@
 import io
 
+import numpy as np
 import pytest
 import rasterio
 import requests
 from shapely.geometry import Polygon, box
 
+from src.inference.inference_callback import BaseInferenceCallback
 from src.models import Raster, Vector
 
 FULL_DURBAN_SCENE = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/durban_20190424.tif"
@@ -143,3 +145,11 @@ def durban_full_raster(durban_rasterio_ds, durban_content):
         resolution=src.res[0],
         geometry=box(*src.bounds),
     )
+
+
+class MockInferenceCallback(BaseInferenceCallback):
+    def __call__(self, payload: bytes) -> bytes:
+        with rasterio.open(io.BytesIO(payload)) as src:
+            image = src.read()
+            band1 = image[0, :, :].astype(np.float32)
+            return band1.tobytes()
