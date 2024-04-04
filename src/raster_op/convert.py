@@ -22,28 +22,6 @@ class RasterioDtypeConversion(RasterOperationStrategy):
         except TypeError:
             raise ValueError(f"Unsupported dtype: {dtype}")
 
-    def _scale(self, image: np.ndarray) -> np.ndarray:
-        image_min = image.min()
-        image_max = image.max()
-
-        if np.issubdtype(self.np_dtype, np.integer):
-            dtype_min = np.iinfo(self.np_dtype).min
-            dtype_max = np.iinfo(self.np_dtype).max
-        elif np.issubdtype(self.np_dtype, np.floating):
-            dtype_min = 0.0
-            dtype_max = 1.0
-        else:
-            raise ValueError(
-                "Unsupported dtype: must be either integer or floating-point."
-            )
-
-        scaled_image = (
-            (image - image_min) / (image_max - image_min) * (dtype_max - dtype_min)
-            + dtype_min
-        ).astype(self.np_dtype)
-
-        return scaled_image
-
     def execute(self, raster: Raster) -> Raster:
         with rasterio.open(io.BytesIO(raster.content)) as src:
             meta = src.meta.copy()
@@ -67,3 +45,25 @@ class RasterioDtypeConversion(RasterOperationStrategy):
                 meta,
                 raster.padding_size,
             )
+
+    def _scale(self, image: np.ndarray) -> np.ndarray:
+        image_min = image.min()
+        image_max = image.max()
+
+        if np.issubdtype(self.np_dtype, np.integer):
+            dtype_min = np.iinfo(self.np_dtype).min
+            dtype_max = np.iinfo(self.np_dtype).max
+        elif np.issubdtype(self.np_dtype, np.floating):
+            dtype_min = 0.0
+            dtype_max = 1.0
+        else:
+            raise ValueError(
+                "Unsupported dtype: must be either integer or floating-point."
+            )
+
+        scaled_image = (
+            (image - image_min) / (image_max - image_min) * (dtype_max - dtype_min)
+            + dtype_min
+        ).astype(self.np_dtype)
+
+        return scaled_image

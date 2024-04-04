@@ -2,19 +2,14 @@ import datetime
 from dataclasses import dataclass
 from typing import Generator
 
-from sentinelhub import (
-    CRS,
-    BBox,
-    DataCollection,
-    MimeType,
-    SentinelHubCatalog,
-    SentinelHubRequest,
-    SHConfig,
-    UtmZoneSplitter,
-    bbox_to_dimensions,
-)
-from sentinelhub.api.catalog import CatalogSearchIterator
-
+from sentinelhub.api.catalog import CatalogSearchIterator, SentinelHubCatalog
+from sentinelhub.areas import UtmZoneSplitter
+from sentinelhub.config import SHConfig
+from sentinelhub.constants import CRS, MimeType
+from sentinelhub.data_collections import DataCollection
+from sentinelhub.geo_utils import bbox_to_dimensions
+from sentinelhub.geometry import BBox
+from sentinelhub.api.process import SentinelHubRequest
 from src.types import BoundingBox
 
 from .abstractions import DownloadParams, DownloadResponse, DownloadStrategy
@@ -50,7 +45,7 @@ class SentinelHubDownload(DownloadStrategy):
             filter=f"eo:cloud_cover<={self.params.maxcc * 100}",
         )
 
-    def _create_request(self, search_response: dict, bbox: BBox) -> SentinelHubRequest:
+    def _create_request(self, search_response: dict, bbox: BBox) -> SentinelHubRequest
         time_interval = (
             search_response["properties"]["datetime"],
             search_response["properties"]["datetime"],
