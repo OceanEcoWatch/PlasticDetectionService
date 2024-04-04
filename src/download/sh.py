@@ -28,10 +28,10 @@ class SentinelHubDownload(DownloadStrategy):
     def __init__(self, params: SentinelHubDownloadParams):
         self.params = params
 
-    def _split_bbox(self, bbox: BoundingBox) -> list[BBox]:
+    def _split_bbox(self, bbox: BoundingBox, size=4800) -> list[BBox]:
         bbox_crs = BBox(bbox, crs=CRS.WGS84)
         return UtmZoneSplitter(
-            [bbox_crs], crs=bbox_crs.crs, bbox_size=5000
+            [bbox_crs], crs=bbox_crs.crs, bbox_size=size
         ).get_bbox_list()
 
     def _search_images(

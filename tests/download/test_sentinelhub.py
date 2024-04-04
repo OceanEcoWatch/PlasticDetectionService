@@ -19,7 +19,7 @@ from src.download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
 )
-from src.types import BoundingBox, TimeRange
+from src.types import BoundingBox, HeightWidth, TimeRange
 
 TIME_INTERVAL = TimeRange("2023-11-01", "2024-01-01")
 
@@ -168,8 +168,8 @@ def test_download_images(
         )
 
         # UTM
-        assert images[0].bbox == (265000.0, 1615000.0, 270000.0, 1620000.0)
-        assert images[0].image_size == (500, 500)
+        assert images[0].bbox == (264000.0, 1612800.0, 268800.0, 1617600.0)
+        assert images[0].image_size == HeightWidth(480, 480)
         assert images[0].data_collection == DataCollection.SENTINEL2_L2A.value.api_id
         assert isinstance(images[0].request_timestamp, datetime.datetime)
 
@@ -195,8 +195,8 @@ def test_search_images_integration(sh_download: SentinelHubDownload, bbox_utm: B
 def test_download_images_integration(sh_download: SentinelHubDownload):
     time_interval = sh_download.params.time_interval
     expected_bboxes = [
-        (265000.0, 1615000.0, 270000.0, 1620000.0),
-        (265000.0, 1620000.0, 270000.0, 1625000.0),
+        (264000.0, 1612800.0, 268800.0, 1617600.0),
+        (264000.0, 1617600.0, 268800.0, 1622400.0),
     ]
     download_responses = list(sh_download.download_images())
     assert len(download_responses) == 2
@@ -209,6 +209,6 @@ def test_download_images_integration(sh_download: SentinelHubDownload):
 
         # UTM
         assert res.bbox == _bbox
-        assert res.image_size == (500, 500)
+        assert res.image_size == HeightWidth(480, 480)
         assert res.data_collection == DataCollection.SENTINEL2_L2A.value.api_id
         assert isinstance(res.request_timestamp, datetime.datetime)
