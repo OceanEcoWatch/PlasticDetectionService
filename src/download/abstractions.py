@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Generator
 
-from plastic_detection_service.models import DownloadResponse
-from plastic_detection_service.types import BoundingBox, TimeRange
+from src.models import DownloadResponse
+from src.types import BoundingBox, TimeRange
 
 
 @dataclass

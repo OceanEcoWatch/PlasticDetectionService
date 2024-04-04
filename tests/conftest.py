@@ -5,7 +5,7 @@ import rasterio
 import requests
 from shapely.geometry import Polygon, box
 
-from plastic_detection_service.models import Raster, Vector
+from src.models import Raster, Vector
 
 FULL_DURBAN_SCENE = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/durban_20190424.tif"
 

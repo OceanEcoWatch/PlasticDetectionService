@@ -1,7 +1,7 @@
 from typing import Iterable
 
-from plastic_detection_service.models import Vector
-from plastic_detection_service.processing.abstractions import VectorOperationStrategy
+from src.models import Vector
+from src.processing.abstractions import VectorOperationStrategy
 
 
 class VectorFilter(VectorOperationStrategy):

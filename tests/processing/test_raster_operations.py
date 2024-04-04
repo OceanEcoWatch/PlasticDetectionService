@@ -5,15 +5,16 @@ import pytest
 import rasterio
 from shapely.geometry import Point
 
-from plastic_detection_service.inference.inference_callback import (
-    local_inference_callback,
+from src.inference.inference_callback import (
+    LocalInferenceCallback,
+    RunpodInferenceCallback,
 )
-from plastic_detection_service.models import Raster
-from plastic_detection_service.processing.merge_callable import (
+from src.models import Raster
+from src.processing.merge_callable import (
     copy_smooth,
     smooth_overlap_callable,
 )
-from plastic_detection_service.processing.raster_operations import (
+from src.processing.raster_operations import (
     CompositeRasterOperation,
     RasterInference,
     RasterioDtypeConversion,
@@ -26,7 +27,7 @@ from plastic_detection_service.processing.raster_operations import (
     RasterioRemoveBand,
     _create_raster,
 )
-from plastic_detection_service.types import HeightWidth
+from src.types import HeightWidth
 
 
 def _mock_inference_func(_raster_bytes) -> bytes:
@@ -439,12 +440,39 @@ def test_inference_raster_real(s2_l2a_raster, pred_durban_first_split_raster):
     )
     raster = RasterioRasterPad(padding=64).execute(raster)
     raster = RasterioRemoveBand(band=13).execute(raster)
-    inference_raster = RasterInference(inference_func=local_inference_callback).execute(
+    inference_raster = RasterInference(inference_func=LocalInferenceCallback()).execute(
         raster
     )
 
     inference_raster = RasterioRasterUnpad().execute(inference_raster)
     inference_raster.to_file("tests/assets/test_out_inference.tif")
+    assert isinstance(inference_raster, Raster)
+
+    # assert pixel values are within the expected range
+    assert np.all(inference_raster.to_numpy() >= 0)
+    assert np.any(inference_raster.to_numpy() > 0)
+    assert np.all(inference_raster.to_numpy() <= 1)
+
+    assert inference_raster.size == pred_durban_first_split_raster.size
+    assert inference_raster.crs == pred_durban_first_split_raster.crs
+
+
+@pytest.mark.slow
+@pytest.mark.integration
+def test_inference_raster_real_runpod(s2_l2a_raster, pred_durban_first_split_raster):
+    raster = next(
+        RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64).execute(
+            s2_l2a_raster
+        )
+    )
+    raster = RasterioRasterPad(padding=64).execute(raster)
+    raster = RasterioRemoveBand(band=13).execute(raster)
+    inference_raster = RasterInference(
+        inference_func=RunpodInferenceCallback()
+    ).execute(raster)
+
+    inference_raster = RasterioRasterUnpad().execute(inference_raster)
+    inference_raster.to_file("tests/assets/test_out_inference_runpod.tif")
     assert isinstance(inference_raster, Raster)
 
     # assert pixel values are within the expected range
@@ -494,7 +522,7 @@ def test_composite_raster_real_inference(s2_l2a_raster, raster):
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=local_inference_callback),
+            RasterInference(inference_func=LocalInferenceCallback()),
             RasterioRasterUnpad(),
         ]
     )
@@ -508,7 +536,7 @@ def test_composite_raster_real_inference(s2_l2a_raster, raster):
     merged = merge_op.execute(results)
     merged = RasterioDtypeConversion(dtype="uint8").execute(merged)
     merged.to_file(
-        f"tests/assets/test_out_composite_{local_inference_callback.__name__}.tif"
+        f"tests/assets/test_out_composite_{LocalInferenceCallback.__name__}.tif"
     )
 
     assert merged.size == raster.size

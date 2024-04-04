@@ -3,11 +3,12 @@ import json
 import numpy as np
 import pytest
 
-from plastic_detection_service.inference.inference_callback import (
-    local_inference_callback,
+from src.inference.inference_callback import (
+    LocalInferenceCallback,
+    RunpodInferenceCallback,
 )
-from plastic_detection_service.processing.merge_callable import copy_smooth
-from plastic_detection_service.processing.raster_operations import (
+from src.processing.merge_callable import copy_smooth
+from src.processing.raster_operations import (
     CompositeRasterOperation,
     HeightWidth,
     RasterInference,
@@ -24,13 +25,16 @@ from plastic_detection_service.processing.raster_operations import (
 
 @pytest.mark.slow
 @pytest.mark.e2e
-def test_e2e(s2_l2a_raster, raster):
+@pytest.mark.parametrize(
+    "inference_func", [LocalInferenceCallback, RunpodInferenceCallback]
+)
+def test_e2e(s2_l2a_raster, raster, inference_func):
     split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=local_inference_callback),
+            RasterInference(inference_func=inference_func),
             RasterioRasterUnpad(),
         ]
     )
@@ -92,7 +96,7 @@ def test_e2e_full_durban_scene(durban_full_raster):
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=local_inference_callback),
+            RasterInference(inference_func=LocalInferenceCallback()),
             RasterioRasterUnpad(),
         ]
     )

@@ -15,7 +15,7 @@ from sentinelhub import (
 )
 from sentinelhub.api.catalog import CatalogSearchIterator
 
-from plastic_detection_service.types import BoundingBox
+from src.types import BoundingBox
 
 from .abstractions import DownloadParams, DownloadResponse, DownloadStrategy
 

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Generator, Iterator
 
-from plastic_detection_service.models import Raster, Vector
+from src.models import Raster, Vector
 
 
 class RasterOperationStrategy(ABC):

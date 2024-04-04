@@ -3,9 +3,9 @@ import io
 import click
 from sentinelhub import DataCollection, MimeType
 
-from plastic_detection_service import config
-from plastic_detection_service.aws import s3
-from plastic_detection_service.types import BoundingBox, TimeRange
+from src import config
+from src.aws import s3
+from src.types import BoundingBox, TimeRange
 
 from .abstractions import DownloadResponse
 from .evalscripts import L2A_12_BANDS_SCL

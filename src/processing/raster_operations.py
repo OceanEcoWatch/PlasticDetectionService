@@ -12,8 +12,8 @@ from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
 from shapely.geometry import Point, box
 
-from plastic_detection_service.models import Raster, Vector
-from plastic_detection_service.types import BoundingBox, HeightWidth
+from src.models import Raster, Vector
+from src.types import BoundingBox, HeightWidth
 
 from .abstractions import (
     RasterOperationStrategy,

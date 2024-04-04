@@ -1,8 +1,8 @@
 import pytest
 from shapely.geometry import Polygon
 
-from plastic_detection_service.models import Vector
-from plastic_detection_service.processing.vector_operations import VectorFilter
+from src.models import Vector
+from src.processing.vector_operations import VectorFilter
 
 
 @pytest.fixture

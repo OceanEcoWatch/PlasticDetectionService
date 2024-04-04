@@ -10,8 +10,8 @@ from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session, create_session
 from sqlalchemy_utils import create_database, database_exists
 
-from plastic_detection_service.database.insert import Insert
-from plastic_detection_service.database.models import (
+from src.database.insert import Insert
+from src.database.models import (
     Base,
     Image,
     Model,
@@ -19,8 +19,8 @@ from plastic_detection_service.database.models import (
     PredictionVector,
     SceneClassificationVector,
 )
-from plastic_detection_service.models import DownloadResponse, Raster, Vector
-from plastic_detection_service.types import HeightWidth
+from src.models import DownloadResponse, Raster, Vector
+from src.types import HeightWidth
 
 DB_NAME = "oew_test"
 DB_USER = "postgres"

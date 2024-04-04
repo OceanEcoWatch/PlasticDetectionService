@@ -16,12 +16,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship
 
-from plastic_detection_service.models import (
+from src.models import (
     DownloadResponse,
     Raster,
     Vector,
 )
-from plastic_detection_service.types import IMAGE_DTYPES
+from src.types import IMAGE_DTYPES
 
 Base = declarative_base()
 

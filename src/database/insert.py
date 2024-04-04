@@ -2,14 +2,14 @@ from typing import Iterable
 
 from sqlalchemy.orm import Session
 
-from plastic_detection_service.database.models import (
+from src.database.models import (
     Image,
     Model,
     PredictionRaster,
     PredictionVector,
     SceneClassificationVector,
 )
-from plastic_detection_service.models import DownloadResponse, Raster, Vector
+from src.models import DownloadResponse, Raster, Vector
 
 
 class Insert:
