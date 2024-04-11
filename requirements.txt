@@ -10,8 +10,3 @@ sqlalchemy_utils
 boto3
 scikit-learn
 runpod
-
-pytest
-black
-isort
-ruff
