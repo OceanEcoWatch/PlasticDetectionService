@@ -10,7 +10,7 @@ The documentation should mention quality attributes that are important for your 
 
 ## Diagrams:
 
-[system_context_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/system_context_diagram.puml)
-[container_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/container_diagram.puml)
-[component_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/component_diagram.puml)
-[code_diagram_raster_operations](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/code_diagram_raster_operations.puml)
+[system_context_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/system_context_diagram.png)
+[container_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/container_diagram.png)
+[component_diagram](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/component_diagram.png)
+[code_diagram_raster_operations](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/docs/code_diagram_raster_operations.png)
