@@ -2,7 +2,7 @@ import pytest
 from shapely.geometry import Polygon
 
 from src.models import Vector
-from src.vector_operations import VectorFilter
+from src.vector_op import VectorFilter
 
 
 @pytest.fixture

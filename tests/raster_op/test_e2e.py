@@ -9,7 +9,7 @@ from src.inference.inference_callback import (
 from src.raster_op.abstractions import CompositeRasterOperation
 from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.convert import RasterioDtypeConversion
-from src.raster_op.inference import RasterInference
+from src.raster_op.inference import RasterioInference
 from src.raster_op.merge import RasterioRasterMerge, copy_smooth
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
@@ -30,7 +30,7 @@ def test_e2e(s2_l2a_raster, raster, inference_func):
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=inference_func),
+            RasterioInference(inference_func=inference_func),
             RasterioRasterUnpad(),
         ]
     )
@@ -93,7 +93,7 @@ def test_e2e_full_durban_scene(durban_full_raster):
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=RunpodInferenceCallback()),
+            RasterioInference(inference_func=RunpodInferenceCallback()),
             RasterioRasterUnpad(),
         ]
     )

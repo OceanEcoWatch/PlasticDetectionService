@@ -15,7 +15,7 @@ from .abstractions import (
 LOGGER = logging.getLogger(__name__)
 
 
-class RasterInference(RasterOperationStrategy):
+class RasterioInference(RasterOperationStrategy):
     def __init__(self, inference_func: Callable[[bytes], bytes]):
         self.inference_func = inference_func
 

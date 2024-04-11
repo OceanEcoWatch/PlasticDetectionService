@@ -1,0 +1,25 @@
+@startuml
+package "PlasticDetectionService Container" {
+  [Main Handler]
+  [Raster Operations Component]
+  [Download Component]
+  [Inference Callable Component]
+  [Database Component]
+  [Vector Operations Component]
+}
+
+database "Database"
+component "API Handler" as APIHandler
+component "Sentinel Hub" as SentinelHub
+
+' Define relationships and flow
+[APIHandler] --> [Main Handler] : "receives download request"
+[Main Handler] --> [Download Component] : "downloads data"
+[Download Component] --> SentinelHub : "fetches satellite imagery"
+[Main Handler] --> [Raster Operations Component] : "processes raster data"
+[Main Handler] --> [Vector Operations Component] : "processes vector data"
+[Raster Operations Component] --> [Inference Callable Component] : "calls inference"
+[Main Handler] --> [Database Component] : "stores data"
+[Database Component] --> "Database" : "stores data"
+
+@enduml

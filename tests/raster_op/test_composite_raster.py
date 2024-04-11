@@ -4,7 +4,7 @@ import pytest
 from src.raster_op.abstractions import CompositeRasterOperation
 from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.convert import RasterioDtypeConversion
-from src.raster_op.inference import RasterInference
+from src.raster_op.inference import RasterioInference
 from src.raster_op.merge import (
     RasterioRasterMerge,
     copy_smooth,
@@ -21,7 +21,7 @@ def test_composite_raster_operation(s2_l2a_raster):
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=MockInferenceCallback()),
+            RasterioInference(inference_func=MockInferenceCallback()),
             RasterioRasterUnpad(),
         ]
     )
@@ -53,7 +53,7 @@ def test_composite_raster_real_inference(s2_l2a_raster, raster):
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=LocalInferenceCallback()),
+            RasterioInference(inference_func=LocalInferenceCallback()),
             RasterioRasterUnpad(),
         ]
     )
