@@ -2,7 +2,7 @@ import os
 
 import rasterio
 
-from plastic_detection_service.models import Raster
+from src.models import Raster
 
 
 def test_raster_to_numpy(raster: Raster):

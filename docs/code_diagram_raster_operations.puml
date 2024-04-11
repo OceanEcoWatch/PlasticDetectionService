@@ -1,0 +1,118 @@
+@startuml raster_op
+title Raster Operations Component
+package inference {
+abstract class BaseInferenceCallback {
+    +{abstract} __call__(payload: bytes): bytes
+}
+
+}
+
+component "rasterio <<external>>" as rasterio{
+
+}
+rasterio -[hidden]- raster_op
+package raster_op {
+abstract class RasterOperationStrategy {
+    +{abstract} execute(raster: Raster): Raster
+}
+
+abstract class RasterToVectorStrategy {
+    +{abstract} execute(raster: Raster): Generator[Vector, None, None]
+}
+
+abstract class RasterSplitStrategy {
+    +{abstract} execute(raster: Raster): Generator[Raster, None, None]
+}
+
+abstract class RasterMergeStrategy {
+    +{abstract} execute(rasters: Iterator[Raster]): Raster
+}
+
+
+class CompositeRasterOperation {
+    -strategies: Iterable[RasterOperationStrategy]
+    +execute(raster: Raster): Raster
+}
+
+CompositeRasterOperation --|> RasterOperationStrategy
+
+
+package rasterio_impl{
+class RasterioRemoveBand {
+    -band: int
+    -band_index: int
+    +execute(raster: Raster): Raster
+}
+RasterioRemoveBand --|> RasterOperationStrategy
+
+class RasterioInference {
+    inference_func: BaseInferenceCallback
+    +execute(raster: Raster): Raster
+}
+
+RasterioInference --|> RasterOperationStrategy
+RasterioInference ..> BaseInferenceCallback : needs
+
+class RasterioDtypeConversion {
+    -dtype: str
+    -np_dtype: np.dtype
+    +execute(raster: Raster): Raster
+    +_scale(image: np.ndarray): np.ndarray
+}
+
+RasterioDtypeConversion --|> RasterOperationStrategy
+
+
+
+class RasterioRasterMerge {
+    -offset: int
+    -merge_method: Union[str, Callable]
+    -bands: Optional[list[int]]
+    +execute(raster: Iterable[Raster]): Raster
+
+}
+
+RasterioRasterMerge --|> RasterMergeStrategy
+
+class RasterioRasterPad {
+    -padding: int
+    -divisible_by: int
+    +execute(raster: Raster): Raster
+    }
+class RasterioRasterUnpad {
+    +execute(raster: Raster): Raster
+}
+RasterioRasterPad --|> RasterOperationStrategy
+RasterioRasterUnpad --|> RasterOperationStrategy
+
+class RasterioRasterReproject {
+    -target_crs: int
+    -target_bands: Optional[Iterable[int]]
+    -resample_alg: str
+    +execute(raster: Raster): Raster
+
+}
+RasterioRasterReproject --|> RasterOperationStrategy
+
+class RasterioRasterSplit {
+    -image_size: HeightWidth
+    -offset: int
+    +execute(raster: Raster): Generator[Raster, None, None]
+}
+
+RasterioRasterSplit --|> RasterSplitStrategy
+
+
+    class RasterioRasterToVector {
+    -band: int
+    -threshold: int
+    +execute(raster: Raster): Generator[Vector, None, None]
+}
+RasterioRasterToVector --|> RasterToVectorStrategy
+
+}
+rasterio_impl ..> rasterio : depends on
+}
+
+
+@enduml

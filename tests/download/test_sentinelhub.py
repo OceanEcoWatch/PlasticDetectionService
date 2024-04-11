@@ -13,13 +13,13 @@ from sentinelhub import (
     bbox_to_dimensions,
 )
 
-from plastic_detection_service.config import SH_CONFIG
-from plastic_detection_service.download.evalscripts import L2A_12_BANDS_SCL
-from plastic_detection_service.download.sh import (
+from src.config import SH_CONFIG
+from src.download.evalscripts import L2A_12_BANDS_SCL
+from src.download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
 )
-from plastic_detection_service.types import BoundingBox, TimeRange
+from src.types import BoundingBox, HeightWidth, TimeRange
 
 TIME_INTERVAL = TimeRange("2023-11-01", "2024-01-01")
 
@@ -96,7 +96,7 @@ def sh_request_payload():
         return json.load(f)
 
 
-@patch("plastic_detection_service.download.sh.SentinelHubRequest.get_data")
+@patch("src.download.sh.SentinelHubRequest.get_data")
 def test_download_image(
     mock_get_data,
     sh_download: SentinelHubDownload,
@@ -142,16 +142,14 @@ def test_create_request(
     assert request.payload == sh_request_payload
 
 
-@patch("plastic_detection_service.download.sh.SentinelHubCatalog.search")
+@patch("src.download.sh.SentinelHubCatalog.search")
 def test_download_images(
     mock_search,
     sh_download: SentinelHubDownload,
     catalog_search,
 ):
     mock_search.return_value = [catalog_search]
-    with patch(
-        "plastic_detection_service.download.sh.SentinelHubRequest.get_data"
-    ) as mock_get_data:
+    with patch("src.download.sh.SentinelHubRequest.get_data") as mock_get_data:
         mock_response = MagicMock()
         mock_response.content = b"test content"
         mock_response.headers = {"Date": "Mon, 01 Jan 2000 00:00:00 GMT"}
@@ -170,8 +168,8 @@ def test_download_images(
         )
 
         # UTM
-        assert images[0].bbox == (265000.0, 1615000.0, 270000.0, 1620000.0)
-        assert images[0].image_size == (500, 500)
+        assert images[0].bbox == (264000.0, 1612800.0, 268800.0, 1617600.0)
+        assert images[0].image_size == HeightWidth(480, 480)
         assert images[0].data_collection == DataCollection.SENTINEL2_L2A.value.api_id
         assert isinstance(images[0].request_timestamp, datetime.datetime)
 
@@ -197,8 +195,8 @@ def test_search_images_integration(sh_download: SentinelHubDownload, bbox_utm: B
 def test_download_images_integration(sh_download: SentinelHubDownload):
     time_interval = sh_download.params.time_interval
     expected_bboxes = [
-        (265000.0, 1615000.0, 270000.0, 1620000.0),
-        (265000.0, 1620000.0, 270000.0, 1625000.0),
+        (264000.0, 1612800.0, 268800.0, 1617600.0),
+        (264000.0, 1617600.0, 268800.0, 1622400.0),
     ]
     download_responses = list(sh_download.download_images())
     assert len(download_responses) == 2
@@ -211,6 +209,6 @@ def test_download_images_integration(sh_download: SentinelHubDownload):
 
         # UTM
         assert res.bbox == _bbox
-        assert res.image_size == (500, 500)
+        assert res.image_size == HeightWidth(480, 480)
         assert res.data_collection == DataCollection.SENTINEL2_L2A.value.api_id
         assert isinstance(res.request_timestamp, datetime.datetime)

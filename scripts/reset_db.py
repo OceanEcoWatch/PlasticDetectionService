@@ -4,8 +4,8 @@ import psycopg2
 from sqlalchemy import create_engine, inspect
 from sqlalchemy_utils import create_database, database_exists
 
-from plastic_detection_service.config import DATABASE_URL
-from plastic_detection_service.database.models import Base
+from src.config import DATABASE_URL
+from src.database.models import Base
 
 
 def create_postgis_db(engine):

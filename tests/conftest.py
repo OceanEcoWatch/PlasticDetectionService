@@ -1,11 +1,20 @@
 import io
 
+import numpy as np
 import pytest
 import rasterio
 import requests
+import torch
 from shapely.geometry import Polygon, box
 
-from plastic_detection_service.models import Raster, Vector
+from src.inference.inference_callback import BaseInferenceCallback
+from src.models import Raster, Vector
+from src.types import HeightWidth
+from tests.marinedebrisdetector_mod.checkpoints import CHECKPOINTS
+from tests.marinedebrisdetector_mod.model.segmentation_model import (
+    SegmentationModel,
+)
+from tests.marinedebrisdetector_mod.predictor import predict
 
 FULL_DURBAN_SCENE = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/durban_20190424.tif"
 
@@ -26,11 +35,11 @@ def s2_l2a_rasterio():
 
 @pytest.fixture
 def s2_l2a_raster(s2_l2a_rasterio, s2_l2a_response):
-    src, image, meta = s2_l2a_rasterio
+    src, _, meta = s2_l2a_rasterio
 
     return Raster(
         content=s2_l2a_response,
-        size=(meta["width"], meta["height"]),
+        size=HeightWidth(meta["width"], meta["height"]),
         dtype=meta["dtype"],
         crs=meta["crs"].to_epsg(),
         bands=[i for i in range(1, meta["count"] + 1)],
@@ -60,11 +69,11 @@ def pred_durban_first_split_rasterio():
 def pred_durban_first_split_raster(
     pred_durban_first_split_rasterio, pred_durban_first_split
 ):
-    src, image, meta = pred_durban_first_split_rasterio
+    src, _, meta = pred_durban_first_split_rasterio
 
     return Raster(
         content=pred_durban_first_split,
-        size=(meta["width"], meta["height"]),
+        size=HeightWidth(meta["width"], meta["height"]),
         dtype=meta["dtype"],
         crs=meta["crs"].to_epsg(),
         bands=[i for i in range(1, meta["count"] + 1)],
@@ -101,7 +110,7 @@ def rast_geometry(rasterio_ds):
 def raster(content, rasterio_ds, crs, rast_geometry):
     return Raster(
         content=content,
-        size=(rasterio_ds.meta["width"], rasterio_ds.meta["height"]),
+        size=HeightWidth(rasterio_ds.meta["width"], rasterio_ds.meta["height"]),
         dtype=rasterio_ds.meta["dtype"],
         crs=crs,
         bands=[i for i in range(1, rasterio_ds.count + 1)],
@@ -132,14 +141,43 @@ def durban_rasterio_ds(durban_content):
 
 @pytest.fixture
 def durban_full_raster(durban_rasterio_ds, durban_content):
-    src, image, meta = durban_rasterio_ds
+    src, _, meta = durban_rasterio_ds
 
     return Raster(
         content=durban_content,
-        size=(meta["width"], meta["height"]),
+        size=HeightWidth(meta["width"], meta["height"]),
         dtype=meta["dtype"],
         crs=meta["crs"].to_epsg(),
         bands=[i for i in range(1, meta["count"] + 1)],
         resolution=src.res[0],
         geometry=box(*src.bounds),
     )
+
+
+class MockInferenceCallback(BaseInferenceCallback):
+    def __call__(self, payload: bytes) -> bytes:
+        with rasterio.open(io.BytesIO(payload)) as src:
+            image = src.read()
+            band1 = image[0, :, :].astype(np.float32)
+            return band1.tobytes()
+
+
+class LocalInferenceCallback(BaseInferenceCallback):
+    @property
+    def device(self):
+        return "cuda" if torch.cuda.is_available() else "cpu"
+
+    @property
+    def model(self):
+        model = SegmentationModel.load_from_checkpoint(
+            checkpoint_path=CHECKPOINTS["unet++1"],
+            strict=False,
+            map_location=self.device,
+        )
+        return model.to(self.device).eval()
+
+    def __call__(self, payload: bytes) -> bytes:
+        with rasterio.open(io.BytesIO(payload)) as src:
+            image = src.read()
+        pred_array = predict(self.model, image, device=self.device)
+        return pred_array.tobytes()
