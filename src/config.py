@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from sentinelhub import SHConfig
+from sentinelhub.config import SHConfig
 
 from src.dt_util import get_past_date, get_today_str
 
@@ -16,8 +16,8 @@ DB_PW = os.environ["DB_PW"]
 DB_NAME = os.environ["DB_NAME"]
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = os.environ["DB_PORT"]
-
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
 RUNPOD_ENDPOINT_ID = os.environ["RUNPOD_ENDPOINT_ID"]
 RUNPOD_API_KEY = os.environ["RUNPOD_API_KEY"]
 

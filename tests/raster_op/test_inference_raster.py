@@ -2,16 +2,15 @@ import numpy as np
 import pytest
 
 from src.inference.inference_callback import (
-    LocalInferenceCallback,
     RunpodInferenceCallback,
 )
 from src.models import Raster
+from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.inference import RasterInference
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
-from src.raster_op.shape import RasterioRemoveBand
 from src.raster_op.split import RasterioRasterSplit
 from src.types import HeightWidth
-from tests.conftest import MockInferenceCallback
+from tests.conftest import LocalInferenceCallback, MockInferenceCallback
 
 
 def test_inference_raster_mock(s2_l2a_raster):

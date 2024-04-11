@@ -40,7 +40,7 @@ class RasterioRemoveBand(RasterOperationStrategy):
                 }
             )
 
-            print("meta: ", meta)
+
             return create_raster(
                 write_image(removed_band_image, meta),
                 removed_band_image,

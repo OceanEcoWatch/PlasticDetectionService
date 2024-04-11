@@ -4,25 +4,25 @@ import numpy as np
 import pytest
 
 from src.inference.inference_callback import (
-    LocalInferenceCallback,
     RunpodInferenceCallback,
 )
 from src.raster_op.abstractions import CompositeRasterOperation
+from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterInference
 from src.raster_op.merge import RasterioRasterMerge, copy_smooth
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
-from src.raster_op.shape import RasterioRemoveBand
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.vectorize import RasterioRasterToVector
 from src.types import HeightWidth
+from tests.conftest import LocalInferenceCallback
 
 
 @pytest.mark.slow
 @pytest.mark.e2e
 @pytest.mark.parametrize(
-    "inference_func", [LocalInferenceCallback, RunpodInferenceCallback]
+    "inference_func", [LocalInferenceCallback(), RunpodInferenceCallback()]
 )
 def test_e2e(s2_l2a_raster, raster, inference_func):
     split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
@@ -86,13 +86,14 @@ def test_e2e(s2_l2a_raster, raster, inference_func):
 
 @pytest.mark.slow
 @pytest.mark.e2e
+@pytest.mark.skip(reason="This test is slow and should be run manually")
 def test_e2e_full_durban_scene(durban_full_raster):
     split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
             RasterioRasterPad(padding=64),
             RasterioRemoveBand(band=13),
-            RasterInference(inference_func=LocalInferenceCallback()),
+            RasterInference(inference_func=RunpodInferenceCallback()),
             RasterioRasterUnpad(),
         ]
     )

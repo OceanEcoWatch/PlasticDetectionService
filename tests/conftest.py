@@ -4,11 +4,17 @@ import numpy as np
 import pytest
 import rasterio
 import requests
+import torch
 from shapely.geometry import Polygon, box
 
 from src.inference.inference_callback import BaseInferenceCallback
 from src.models import Raster, Vector
 from src.types import HeightWidth
+from tests.marinedebrisdetector_mod.checkpoints import CHECKPOINTS
+from tests.marinedebrisdetector_mod.model.segmentation_model import (
+    SegmentationModel,
+)
+from tests.marinedebrisdetector_mod.predictor import predict
 
 FULL_DURBAN_SCENE = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/durban_20190424.tif"
 
@@ -154,3 +160,24 @@ class MockInferenceCallback(BaseInferenceCallback):
             image = src.read()
             band1 = image[0, :, :].astype(np.float32)
             return band1.tobytes()
+
+
+class LocalInferenceCallback(BaseInferenceCallback):
+    @property
+    def device(self):
+        return "cuda" if torch.cuda.is_available() else "cpu"
+
+    @property
+    def model(self):
+        model = SegmentationModel.load_from_checkpoint(
+            checkpoint_path=CHECKPOINTS["unet++1"],
+            strict=False,
+            map_location=self.device,
+        )
+        return model.to(self.device).eval()
+
+    def __call__(self, payload: bytes) -> bytes:
+        with rasterio.open(io.BytesIO(payload)) as src:
+            image = src.read()
+        pred_array = predict(self.model, image, device=self.device)
+        return pred_array.tobytes()

@@ -1,3 +1,8 @@
+-r requirements.txt
+pytest
+black
+isort
+ruff
 segmentation-models-pytorch
 pytorch-lightning
 torch==2.0.1

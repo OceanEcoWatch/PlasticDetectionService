@@ -2,7 +2,7 @@ import io
 
 import rasterio
 
-from src.raster_op.shape import RasterioRemoveBand
+from src.raster_op.band import RasterioRemoveBand
 
 
 def test_remove_band(s2_l2a_raster, caplog):
