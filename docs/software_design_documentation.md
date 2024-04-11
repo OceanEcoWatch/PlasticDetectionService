@@ -20,7 +20,7 @@ The documentation should mention quality attributes that are important for your 
 
 ### Component Diagram
 
-![component_diagram](diagrams/component_diagram.png?raw=true)
+![component_diagram](diagrams/compontent_diagram.png?raw=true)
 
 ### Code Diagram
 
