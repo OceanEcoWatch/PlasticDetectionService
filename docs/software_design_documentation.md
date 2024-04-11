@@ -10,7 +10,7 @@ The documentation should mention quality attributes that are important for your 
 
 ## Diagrams:
 
-[system_context_diagram](diagrams/system_context_diagram.png)
-[container_diagram](diagrams/container_diagram.png)
-[component_diagram](diagrams/component_diagram.png)
-[code_diagram_raster_operations](diagrams/code_diagram_raster_operations.png)
+[system_context_diagram](diagrams/system_context_diagram.png?raw=true)
+[container_diagram](diagrams/container_diagram.png?raw=true)
+[component_diagram](diagrams/component_diagram.png?raw=true)
+[code_diagram_raster_operations](diagrams/code_diagram_raster_operations.png?raw=true)
