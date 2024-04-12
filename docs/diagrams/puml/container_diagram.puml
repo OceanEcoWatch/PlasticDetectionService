@@ -1,4 +1,4 @@
-@startuml Container Diagram
+@startuml container_diagram
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
 LAYOUT_WITH_LEGEND()
@@ -8,10 +8,10 @@ Container(webApp, "Web App", "Browser-based", "Allows users to submit images and
 Container(api, "API", "FastAPI", "Accepts and processes requests from the Web App.")
 Container(svc, "PlasticDetectionService", "Service", "Processes images and returns detection results.")
 Container(model, "PlasticDetectionModel", "CNN", "Detects plastic in images.")
-System_Ext(sh, "SentinelHub", "API", "Provides satellite data.")
-System_Ext(s3, "Storage", "AWS S3", "Stores images")
-System_Ext(rds, "Database", "AWS RDS", "Stores detection records and user data.")
-System_Ext(runpod, "Cloud GPU", "RunPod", "Runs the detection model on images.")
+System_Ext(sh, "Satellite Data API", "Sentinel Hub")
+System_Ext(s3, "Storage", "AWS S3")
+System_Ext(rds, "Database", "AWS RDS")
+System_Ext(runpod, "Cloud GPU", "RunPod")
 
 Rel(user, webApp, "Uses")
 Rel(webApp, api, "Submits requests to", "HTTPS")

@@ -1,4 +1,4 @@
-@startuml raster_op
+@startuml code_diagram_raster_operations
 title Raster Operations Component
 package inference {
 abstract class BaseInferenceCallback {
