@@ -1,11 +1,12 @@
 import io
+import json
 
 import numpy as np
 import pytest
 import rasterio
 import requests
 import torch
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon, box, shape
 
 from src.inference.inference_callback import BaseInferenceCallback
 from src.models import Raster, Vector
@@ -124,6 +125,22 @@ def vector():
     return Vector(
         geometry=Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]), pixel_value=5, crs=4326
     )
+
+
+@pytest.fixture
+def expected_vectors():
+    with open("tests/assets/test_exp_vectors.geojson", "r") as f:
+        geojson = json.load(f)
+    vectors = []
+    for feature in geojson["features"]:
+        vectors.append(
+            Vector(
+                geometry=shape(feature["geometry"]),
+                pixel_value=int(feature["properties"]["pixel_value"]),
+                crs=4326,
+            )
+        )
+    return vectors
 
 
 @pytest.fixture(scope="session")

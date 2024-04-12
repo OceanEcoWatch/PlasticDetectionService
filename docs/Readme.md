@@ -21,4 +21,4 @@ Ultimately, the predictions will be displayed on our [mapping application](https
 
 ## Software Design Documentation
 
-![software_design_documentation](software_design_documentation.md)
+[software_design_documentation](software_design_documentation.md)

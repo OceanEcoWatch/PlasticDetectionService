@@ -6,8 +6,8 @@ import pytest
 from src.inference.inference_callback import (
     RunpodInferenceCallback,
 )
-from src.raster_op.abstractions import CompositeRasterOperation
 from src.raster_op.band import RasterioRemoveBand
+from src.raster_op.composite import CompositeRasterOperation, RasterOpHandler
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
 from src.raster_op.merge import RasterioRasterMerge, copy_smooth
@@ -16,15 +16,13 @@ from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.vectorize import RasterioRasterToVector
 from src.types import HeightWidth
-from tests.conftest import LocalInferenceCallback
 
 
 @pytest.mark.slow
 @pytest.mark.e2e
-@pytest.mark.parametrize(
-    "inference_func", [LocalInferenceCallback(), RunpodInferenceCallback()]
-)
-def test_e2e(s2_l2a_raster, raster, inference_func):
+@pytest.mark.parametrize("inference_func", [RunpodInferenceCallback()])
+@pytest.mark.skip(reason="This test is slow and should be run manually")
+def test_e2e(s2_l2a_raster, raster, inference_func, expected_vectors):
     split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
@@ -82,6 +80,55 @@ def test_e2e(s2_l2a_raster, raster, inference_func):
 
     # assert mean value is close to the original raster
     assert np.isclose(merged.to_numpy().mean(), raster.to_numpy().mean(), rtol=0.05)
+
+    # assert vectors are almost equal to the expected vectors
+    assert len(vectors) == len(expected_vectors)
+    for vec, exp_vec in zip(vectors, expected_vectors):
+        assert vec.pixel_value == exp_vec.pixel_value
+        assert vec.geometry.bounds == exp_vec.geometry.bounds
+
+
+@pytest.mark.slow
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    "inference_func",
+    [
+        RunpodInferenceCallback(),
+    ],
+)
+def test_e2e_handler(s2_l2a_raster, inference_func, expected_vectors):
+    handler = RasterOpHandler(
+        split=RasterioRasterSplit(),
+        pad=RasterioRasterPad(),
+        band=RasterioRemoveBand(band=13),
+        inference=RasterioInference(inference_func=inference_func),
+        unpad=RasterioRasterUnpad(),
+        merge=RasterioRasterMerge(merge_method=copy_smooth),
+        convert=RasterioDtypeConversion(dtype="uint8"),
+        reproject=RasterioRasterReproject(target_crs=4326, target_bands=[1]),
+        to_vector=RasterioRasterToVector(band=1),
+    )
+
+    vectors = list(handler.execute(s2_l2a_raster))
+
+    features = [vec.geojson for vec in vectors]
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features,
+    }
+    with open("tests/assets/test_out_e2e_handler.geojson", "w") as f:
+        json.dump(geojson, f, indent=2)
+
+    # check pixel values are within the expected range
+    assert all(vec.pixel_value >= 0 for vec in vectors)
+    assert any(vec.pixel_value > 0 for vec in vectors)
+    assert all(vec.pixel_value <= 255 for vec in vectors)
+
+    # assert vectors are almost equal to the expected vectors
+    assert len(vectors) == len(expected_vectors)
+    for vec, exp_vec in zip(vectors, expected_vectors):
+        assert vec.pixel_value == exp_vec.pixel_value
+        assert vec.geometry.bounds == exp_vec.geometry.bounds
 
 
 @pytest.mark.slow

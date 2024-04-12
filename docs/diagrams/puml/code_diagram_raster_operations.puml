@@ -11,6 +11,7 @@ component "rasterio <<external>>" as rasterio{
 
 }
 rasterio -[hidden]- raster_op
+
 package raster_op {
 abstract class RasterOperationStrategy {
     +{abstract} execute(raster: Raster): Raster

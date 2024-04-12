@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from src.models import Raster
-from src.raster_op.abstractions import CompositeRasterOperation
+from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.reproject import RasterioRasterReproject
 
 

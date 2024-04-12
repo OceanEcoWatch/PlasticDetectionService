@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generator, Iterable, Iterator
+from typing import Generator, Iterable
 
 from src.models import Raster, Vector
 
@@ -24,15 +24,5 @@ class RasterSplitStrategy(ABC):
 
 class RasterMergeStrategy(ABC):
     @abstractmethod
-    def execute(self, rasters: Iterator[Raster]) -> Raster:
+    def execute(self, rasters: Iterable[Raster]) -> Raster:
         pass
-
-
-class CompositeRasterOperation(RasterOperationStrategy):
-    def __init__(self, strategies: Iterable[RasterOperationStrategy]):
-        self.strategies = strategies
-
-    def execute(self, raster: Raster) -> Raster:
-        for strategy in self.strategies:
-            raster = strategy.execute(raster)
-        return raster
