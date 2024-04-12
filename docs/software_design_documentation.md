@@ -30,7 +30,7 @@ The parts of the system that I worked on are:
 
 - [PlasticDetectionModel](https://github.com/OceanEcoWatch/PlasticDetectionModel)
 - [PlasticDetecionService](https://github.com/OceanEcoWatch/PlasticDetectionService)
-- Database
+- PostGIS Database
 
 ## Quality Attributes:
 
