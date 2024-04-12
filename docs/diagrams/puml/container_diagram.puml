@@ -11,7 +11,7 @@ Container(model, "PlasticDetectionModel", "CNN", "Detects plastic in images.")
 System_Ext(sh, "SentinelHub", "API", "Provides satellite data.")
 System_Ext(s3, "Storage", "AWS S3", "Stores images")
 System_Ext(rds, "Database", "AWS RDS", "Stores detection records and user data.")
-System_Ext(runpod, "RunPod", "Cloud GPU", "Runs the detection model on images.")
+System_Ext(runpod, "Cloud GPU", "RunPod", "Runs the detection model on images.")
 
 Rel(user, webApp, "Uses")
 Rel(webApp, api, "Submits requests to", "HTTPS")

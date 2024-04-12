@@ -10,8 +10,11 @@ abstract class BaseInferenceCallback {
 component "rasterio <<external>>" as rasterio{
 
 }
-rasterio -[hidden]- raster_op
+component "shapely <<external>>" as shapely{
 
+}
+rasterio -[hidden]- raster_op
+shapely -[hidden]- raster_op
 package raster_op {
 abstract class RasterOperationStrategy {
     +{abstract} execute(raster: Raster): Raster
@@ -26,7 +29,7 @@ abstract class RasterSplitStrategy {
 }
 
 abstract class RasterMergeStrategy {
-    +{abstract} execute(rasters: Iterator[Raster]): Raster
+    +{abstract} execute(rasters: Iterable[Raster]): Raster
 }
 
 
@@ -113,6 +116,7 @@ RasterioRasterToVector --|> RasterToVectorStrategy
 
 }
 rasterio_impl ..> rasterio : depends on
+rasterio_impl ..> shapely : depends on
 }
 
 

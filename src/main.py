@@ -107,9 +107,10 @@ def main(
         to_vector=RasterioRasterToVector(band=1),
     )
     handler = MainHandler(downloader, raster_ops=raster_handler)
-    vectors = MainHandler.process(
-        handler, MainHandler.create_raster(handler, next(MainHandler.download(handler)))
-    )
+    for image in handler.download():
+        raster = handler.create_raster(image)
+        for vector in handler.process(raster):
+            print(vector)
 
 
 if __name__ == "__main__":

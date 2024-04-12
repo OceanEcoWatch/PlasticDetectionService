@@ -2,7 +2,7 @@
 
 ## Project Summary
 
-Ocean Eco Watch is a open-source project that aims to provide a web mapping application that displays marine debris predictions. The project is funded by the Prototype fund.
+Ocean Eco Watch is a open-source project that aims to provide a web mapping application that displays marine debris in coastal areas. The project is funded by the Prototype fund.
 
 Our mission is to support clean-up operations, research, and development by identifying and mapping marine debris, providing critical insights to combat this pressing challenge and foster a more sustainable relationship with our oceans.
 
