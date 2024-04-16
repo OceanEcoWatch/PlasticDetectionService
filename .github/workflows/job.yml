@@ -10,7 +10,7 @@ on:
         description: "Time interval (start_date end_date)"
         required: true
       maxcc:
-        description: "Maximum cloud coverage"
+        description: "Maximum cloud coverage(float)"
         required: true
       callback_url:
         description: "Callback URL"
