@@ -1,10 +1,9 @@
 import io
 from typing import Generator
 
-import httpx
+import click
 import rasterio
-from fastapi import BackgroundTasks, FastAPI
-from pydantic import BaseModel, HttpUrl
+import requests
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
 
@@ -33,28 +32,11 @@ from .download.sh import (
 from .raster_op.utils import create_raster
 
 
-class JobRequest(BaseModel):
-    bbox: tuple[float, float, float, float]
-    time_interval: tuple[str, str]
-    maxcc: float
-    job_id: int
-    callback_url: HttpUrl
-
-
-app = FastAPI()
-
-
-@app.post("/process-job/")
-async def process_job(request: JobRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(
-        main,
-        bbox=BoundingBox(*request.bbox),
-        time_interval=TimeRange(*request.time_interval),
-        maxcc=request.maxcc,
-        callback_url=request.callback_url,
-        job_id=request.job_id,
-    )
-    return {"message": f"Job {request.job_id} received, processing started."}
+def send_notification(url: str, status: str, details: str):
+    payload = {"status": status, "details": details}
+    response = requests.post(url, json=payload)  # add auth headers
+    response.raise_for_status()
+    return response.status_code, response.text
 
 
 class MainHandler:
@@ -85,13 +67,26 @@ class MainHandler:
         return self.raster_ops.execute(image)
 
 
-async def main(
-    bbox: BoundingBox,
-    time_interval: TimeRange,
-    maxcc: float,
-    callback_url: HttpUrl,
-    job_id: int,
-):
+@click.command()
+@click.option(
+    "--bbox",
+    nargs=4,
+    type=float,
+    help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
+)
+@click.option(
+    "--time-interval",
+    nargs=2,
+    type=str,
+    help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
+)
+@click.option("--maxcc", type=float, required=True, default=0.05)
+@click.option("--callback-url", type=str, required=True)
+def main(bbox: BoundingBox, time_interval: TimeRange, maxcc: float, callback_url: str):
+    send_notification(
+        callback_url, "received", "Request received and is being processed."
+    )
+
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
@@ -116,28 +111,29 @@ async def main(
     )
 
     handler = MainHandler(downloader, raster_ops=raster_handler)
-    for download_response in handler.download():
-        db_session = create_db_session()
 
-        raster = handler.create_raster(download_response)
-        pred_raster = handler.get_prediction_raster(raster)
-        pred_vectors = RasterioRasterToVector().execute(pred_raster)
+    try:
+        for download_response in handler.download():
+            db_session = create_db_session()
 
-        db_insert = Insert(db_session)
-        db_insert.commit_all(
-            download_response,
-            pred_raster,
-            config.RUNDPOD_MODEL_ID,
-            config.RUNPOD_ENDPOINT_ID,
-            pred_vectors,
-        )
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(
-                    callback_url, json={"status": "completed", "job_id": job_id}
-                )
-                response.raise_for_status()
-                print(f"Callback successful: {response.json()}")
+            raster = handler.create_raster(download_response)
+            pred_raster = handler.get_prediction_raster(raster)
+            pred_vectors = RasterioRasterToVector().execute(pred_raster)
 
-            except httpx.HTTPStatusError as e:
-                print(f"Callback failed: {e.response.status_code}, {e.response.text}")
+            db_insert = Insert(db_session)
+            db_insert.commit_all(
+                download_response,
+                pred_raster,
+                config.RUNDPOD_MODEL_ID,
+                config.RUNPOD_ENDPOINT_ID,
+                pred_vectors,
+            )
+    except Exception as e:
+        send_notification(callback_url, "failed", str(e))
+        raise e
+
+    send_notification(callback_url, "success", "Request completed successfully.")
+
+
+if __name__ == "__main__":
+    main()
