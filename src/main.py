@@ -54,7 +54,7 @@ async def process_job(request: JobRequest, background_tasks: BackgroundTasks):
         callback_url=request.callback_url,
         job_id=request.job_id,
     )
-    return {"message": "Job received, processing started."}
+    return {"message": f"Job {request.job_id} received, processing started."}
 
 
 class MainHandler:
