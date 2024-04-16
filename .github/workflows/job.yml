@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       bbox:
-        description: "Bounding box (min_lon, min_lat, max_lon, max_lat)"
+        description: "Bounding box (min_lon min_lat max_lon max_lat)"
         required: true
       time_interval:
-        description: "Time interval (start_date, end_date)"
+        description: "Time interval (start_date end_date)"
         required: true
       maxcc:
         description: "Maximum cloud coverage"
