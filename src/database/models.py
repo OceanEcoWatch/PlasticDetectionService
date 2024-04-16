@@ -47,6 +47,15 @@ class Image(Base):
     provider = Column(CONSTRAINT_STR, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
+    prediction_rasters = relationship(
+        "PredictionRaster", backref="image", cascade="all, delete, delete-orphan"
+    )
+    scene_classification_vectors = relationship(
+        "SceneClassificationVector",
+        backref="image",
+        cascade="all, delete, delete-orphan",
+    )
+
     def __init__(
         self,
         image_id: str,
@@ -79,7 +88,7 @@ class Image(Base):
             image_id=response.image_id,
             image_url=image_url,
             timestamp=response.timestamp,
-            dtype=raster.dtype,
+            dtype=str(raster.dtype),
             resolution=raster.resolution,
             image_width=raster.size[0],
             image_height=raster.size[1],
@@ -116,8 +125,12 @@ class PredictionRaster(Base):
 
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
     model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
-    image = relationship("Image", backref="prediction_rasters")
     model = relationship("Model", backref="prediction_rasters")
+    prediction_vectors = relationship(
+        "PredictionVector",
+        backref="prediction_raster",
+        cascade="all, delete, delete-orphan",
+    )
 
     def __init__(
         self,
@@ -141,7 +154,7 @@ class PredictionRaster(Base):
     def from_raster(cls, raster: Raster, image_id: int, model_id: int, raster_url: str):
         return cls(
             raster_url=raster_url,
-            dtype=raster.dtype,
+            dtype=str(raster.dtype),
             image_width=raster.size[0],
             image_height=raster.size[1],
             bbox=from_shape(raster.geometry),
@@ -160,8 +173,6 @@ class PredictionVector(Base):
     prediction_raster_id = Column(
         Integer, ForeignKey("prediction_rasters.id"), nullable=False
     )
-
-    prediction_raster = relationship("PredictionRaster", backref="prediction_vectors")
 
     def __init__(self, pixel_value: int, geometry: WKBElement, raster_id: int):
         self.pixel_value = pixel_value
@@ -185,8 +196,6 @@ class SceneClassificationVector(Base):
     pixel_value = Column(Integer, nullable=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
-
-    image = relationship("Image", backref="scene_classification_vectors")
 
     def __init__(self, pixel_value: int, geometry: WKBElement, image_id: int):
         self.pixel_value = pixel_value

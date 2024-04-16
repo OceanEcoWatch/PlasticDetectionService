@@ -1,0 +1,43 @@
+name: Asynchronous Processing
+
+on:
+  workflow_dispatch:
+    inputs:
+      bbox:
+        description: "Bounding box (min_lon, min_lat, max_lon, max_lat)"
+        required: true
+      time_interval:
+        description: "Time interval (start_date, end_date)"
+        required: true
+      maxcc:
+        description: "Maximum cloud coverage"
+        required: true
+
+jobs:
+  process-raster-data:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run main script
+        run: >
+          python main.py
+          --bbox ${{ github.event.inputs.bbox }}
+          --time_interval ${{ github.event.inputs.time_interval }}
+          --maxcc ${{ github.event.inputs.maxcc }}
+
+          env:
+          API_ENDPOINT: ${{ secrets.API_ENDPOINT }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}

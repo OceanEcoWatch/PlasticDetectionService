@@ -1,12 +1,11 @@
-from typing import Generator, Iterable
+from typing import Iterable
 
-from src.models import Raster, Vector
+from src.models import Raster
 
 from .abstractions import (
     RasterMergeStrategy,
     RasterOperationStrategy,
     RasterSplitStrategy,
-    RasterToVectorStrategy,
 )
 
 
@@ -20,7 +19,7 @@ class CompositeRasterOperation(RasterOperationStrategy):
         return raster
 
 
-class RasterOpHandler(RasterToVectorStrategy):
+class RasterOpHandler(RasterOperationStrategy):
     def __init__(
         self,
         split: RasterSplitStrategy,
@@ -31,7 +30,6 @@ class RasterOpHandler(RasterToVectorStrategy):
         merge: RasterMergeStrategy,
         convert: RasterOperationStrategy,
         reproject: RasterOperationStrategy,
-        to_vector: RasterToVectorStrategy,
     ):
         self.split = split
         self.pad = pad
@@ -41,12 +39,12 @@ class RasterOpHandler(RasterToVectorStrategy):
         self.merge = merge
         self.convert = convert
         self.reproject = reproject
-        self.to_vector = to_vector
 
-    def execute(self, raster: Raster) -> Generator[Vector, None, None]:
+    def execute(self, raster: Raster) -> Raster:
         rasters = []
         for window in self.split.execute(raster):
             window = self.pad.execute(window)
+
             window = self.band.execute(window)
             window = self.inference.execute(window)
             window = self.unpad.execute(window)
@@ -54,5 +52,4 @@ class RasterOpHandler(RasterToVectorStrategy):
 
         merged = self.merge.execute(rasters)
         converted = self.convert.execute(merged)
-        reprojected = self.reproject.execute(converted)
-        return self.to_vector.execute(reprojected)
+        return self.reproject.execute(converted)

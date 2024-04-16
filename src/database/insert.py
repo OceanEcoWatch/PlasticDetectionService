@@ -1,7 +1,10 @@
+import io
 from typing import Iterable
 
 from sqlalchemy.orm import Session
 
+from src import config
+from src.aws import s3
 from src.database.models import (
     Image,
     Model,
@@ -60,3 +63,31 @@ class Insert:
         self.session.bulk_save_objects(scls_vectors)
         self.session.commit()
         return scls_vectors
+
+    def commit_all(
+        self,
+        download_response: DownloadResponse,
+        raster: Raster,
+        model_id: str,
+        model_url: str,
+        vectors: Iterable[Vector],
+    ) -> tuple[Image, Model, PredictionRaster, list[PredictionVector]]:
+        image_url = s3.stream_to_s3(
+            io.BytesIO(download_response.content),
+            config.S3_BUCKET_NAME,
+            f"images/{download_response.bbox}/{download_response.image_id}.tif",
+        )
+        image = self.insert_image(download_response, raster, image_url)
+        model = self.insert_model(model_id, model_url)
+        raster_url = s3.stream_to_s3(
+            io.BytesIO(raster.content),
+            config.S3_BUCKET_NAME,
+            f"predictions/{image.id}/{model.id}.tif",
+        )
+        prediction_raster = self.insert_prediction_raster(
+            raster, image.id, model.id, raster_url
+        )
+        prediction_vectors = self.insert_prediction_vectors(
+            vectors, prediction_raster.id
+        )
+        return image, model, prediction_raster, prediction_vectors

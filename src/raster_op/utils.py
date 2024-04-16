@@ -1,6 +1,5 @@
 import io
 import logging
-from typing import Optional
 
 import numpy as np
 import rasterio
@@ -40,13 +39,8 @@ def create_raster(
     bounds: BoundingBox,
     meta: dict,
     padding_size: HeightWidth,
-    removed_band: Optional[int] = None,
 ) -> Raster:
-    if removed_band:
-        bands = [i + 1 for i in range(image.shape[0])]
-        bands.remove(removed_band)
-    else:
-        bands = [i + 1 for i in range(image.shape[0])]
+    bands = [i + 1 for i in range(image.shape[0])]
 
     return Raster(
         content=content,

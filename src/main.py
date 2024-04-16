@@ -1,14 +1,18 @@
 import io
 from typing import Generator
 
-import click
+import httpx
 import rasterio
-from sentinelhub import DataCollection, MimeType
+from fastapi import BackgroundTasks, FastAPI
+from pydantic import BaseModel, HttpUrl
+from sentinelhub.constants import MimeType
+from sentinelhub.data_collections import DataCollection
 
 from src import config
-from src.aws import s3
+from src.database.connect import create_db_session
+from src.database.insert import Insert
 from src.inference.inference_callback import RunpodInferenceCallback
-from src.models import Raster, Vector
+from src.models import Raster
 from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.composite import RasterOpHandler
 from src.raster_op.convert import RasterioDtypeConversion
@@ -29,19 +33,36 @@ from .download.sh import (
 from .raster_op.utils import create_raster
 
 
+class JobRequest(BaseModel):
+    bbox: tuple[float, float, float, float]
+    time_interval: tuple[str, str]
+    maxcc: float
+    job_id: int
+    callback_url: HttpUrl
+
+
+app = FastAPI()
+
+
+@app.post("/process-job/")
+async def process_job(request: JobRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(
+        main,
+        bbox=BoundingBox(*request.bbox),
+        time_interval=TimeRange(*request.time_interval),
+        maxcc=request.maxcc,
+        callback_url=request.callback_url,
+        job_id=request.job_id,
+    )
+    return {"message": "Job received, processing started."}
+
+
 class MainHandler:
     def __init__(
         self, downloader: DownloadStrategy, raster_ops: RasterOpHandler
     ) -> None:
         self.downloader = downloader
         self.raster_ops = raster_ops
-
-    def upload_image_to_s3(self, image: DownloadResponse) -> str:
-        return s3.stream_to_s3(
-            io.BytesIO(image.content),
-            config.S3_BUCKET_NAME,
-            f"{image.bbox}/{image.image_id}.tif",
-        )
 
     def download(self) -> Generator[DownloadResponse, None, None]:
         for image in self.downloader.download_images():
@@ -50,44 +71,31 @@ class MainHandler:
     def create_raster(self, image: DownloadResponse) -> Raster:
         with rasterio.open(io.BytesIO(image.content)) as src:
             np_image = src.read().copy()
-            bounds = src.bounds.copy()
             meta = src.meta.copy()
-        return create_raster(image.content, np_image, bounds, meta, HeightWidth(0, 0))
+            bounds = BoundingBox(*src.bounds)
+        return create_raster(
+            content=image.content,
+            image=np_image,
+            bounds=bounds,
+            meta=meta,
+            padding_size=HeightWidth(0, 0),
+        )
 
-    def process(self, image: Raster) -> Generator[Vector, None, None]:
+    def get_prediction_raster(self, image: Raster) -> Raster:
         return self.raster_ops.execute(image)
 
 
-@click.command()
-@click.option(
-    "--bbox",
-    nargs=4,
-    type=float,
-    help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
-    default=config.AOI,
-)
-@click.option(
-    "--time-interval",
-    nargs=2,
-    type=str,
-    help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
-    default=config.TIME_INTERVAL,
-)
-@click.option(
-    "--maxcc",
-    type=float,
-    default=config.MAX_CC,
-    help="Maximum cloud cover of the images to be processed.",
-)
-def main(
-    bbox: tuple[float, float, float, float],
-    time_interval: tuple[str, str],
+async def main(
+    bbox: BoundingBox,
+    time_interval: TimeRange,
     maxcc: float,
+    callback_url: HttpUrl,
+    job_id: int,
 ):
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
-            bbox=BoundingBox(*bbox),
-            time_interval=TimeRange(*time_interval),
+            bbox=bbox,
+            time_interval=time_interval,
             maxcc=maxcc,
             config=config.SH_CONFIG,
             evalscript=L2A_12_BANDS_SCL,
@@ -95,6 +103,7 @@ def main(
             mime_type=MimeType.TIFF,
         )
     )
+
     raster_handler = RasterOpHandler(
         split=RasterioRasterSplit(),
         pad=RasterioRasterPad(),
@@ -104,14 +113,31 @@ def main(
         merge=RasterioRasterMerge(merge_method=copy_smooth),
         convert=RasterioDtypeConversion(dtype="uint8"),
         reproject=RasterioRasterReproject(target_crs=4326, target_bands=[1]),
-        to_vector=RasterioRasterToVector(band=1),
     )
+
     handler = MainHandler(downloader, raster_ops=raster_handler)
-    for image in handler.download():
-        raster = handler.create_raster(image)
-        for vector in handler.process(raster):
-            print(vector)
+    for download_response in handler.download():
+        db_session = create_db_session()
 
+        raster = handler.create_raster(download_response)
+        pred_raster = handler.get_prediction_raster(raster)
+        pred_vectors = RasterioRasterToVector().execute(pred_raster)
 
-if __name__ == "__main__":
-    main()
+        db_insert = Insert(db_session)
+        db_insert.commit_all(
+            download_response,
+            pred_raster,
+            config.RUNDPOD_MODEL_ID,
+            config.RUNPOD_ENDPOINT_ID,
+            pred_vectors,
+        )
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    callback_url, json={"status": "completed", "job_id": job_id}
+                )
+                response.raise_for_status()
+                print(f"Callback successful: {response.json()}")
+
+            except httpx.HTTPStatusError as e:
+                print(f"Callback failed: {e.response.status_code}, {e.response.text}")
