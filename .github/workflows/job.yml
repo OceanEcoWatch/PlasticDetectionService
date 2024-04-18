@@ -40,6 +40,8 @@ jobs:
           --bbox ${{ github.event.inputs.bbox }}
           --time_interval ${{ github.event.inputs.time_interval }}
           --maxcc ${{ github.event.inputs.maxcc }}
+          --job-id ${{ github.event.inputs.job_id }}
+          --model-id ${{ github.event.inputs.model_id }}
           --callback_url ${{ github.event.inputs.callback_url }}
 
         env:

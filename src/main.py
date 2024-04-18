@@ -82,12 +82,14 @@ class MainHandler:
 )
 @click.option("--maxcc", type=float, required=True, default=0.05)
 @click.option("--job-id", type=int, required=True)
+@click.option("--model-id", type=int, required=True)
 @click.option("--callback-url", type=str, required=True)
 def main(
     bbox: BoundingBox,
     time_interval: TimeRange,
     maxcc: float,
     job_id: int,
+    model_id: int,
     callback_url: str,
 ):
     send_notification(
@@ -129,11 +131,11 @@ def main(
 
             db_insert = Insert(db_session)
             db_insert.commit_all(
-                download_response,
-                pred_raster,
-                config.RUNDPOD_MODEL_ID,
-                config.RUNPOD_ENDPOINT_ID,
-                pred_vectors,
+                job_id=job_id,
+                model_id=model_id,
+                download_response=download_response,
+                raster=pred_raster,
+                vectors=pred_vectors,
             )
     except Exception as e:
         send_notification(callback_url, "failed", str(e))

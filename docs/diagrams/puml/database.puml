@@ -1,5 +1,13 @@
 @startuml DatabaseFontName
 
+class Model {
+    +Integer id
+    +String model_id
+    +String model_url
+    +DateTime created_at
+    +Integer version
+}
+
 class AOI {
     +Integer id
     +datetime created_at
@@ -7,6 +15,7 @@ class AOI {
     +Geometry geometry
     +Boolean is_deleted
 }
+
 class Job {
     +Integer id
     +datetime created_at
@@ -26,12 +35,6 @@ class Image {
     +Integer bands
     +String provider
     +Geometry bbox
-}
-
-class Model {
-    +Integer id
-    +String model_id
-    +String model_url
 }
 
 class PredictionRaster {
@@ -59,9 +62,9 @@ class SceneClassificationVector {
     +Integer image_id
 }
 
+Model "1" -- "many " Job : contains >
 AOI "1" -- "many" Job : contains >
 Job "1" -- "many" Image : contains >
-Model "1" -- "many " Job : contains >
 Image "1" -- "1" PredictionRaster : contains >
 Image "1" -- "many" SceneClassificationVector : contains >
 

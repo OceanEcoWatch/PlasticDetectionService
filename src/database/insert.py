@@ -130,11 +130,11 @@ class Insert:
     def commit_all(
         self,
         job_id: int,
+        model_id: int,
         download_response: DownloadResponse,
         raster: Raster,
-        model_id: str,
         vectors: Iterable[Vector],
-    ) -> tuple[Image, Model, PredictionRaster, list[PredictionVector]]:
+    ) -> tuple[Image, PredictionRaster, list[PredictionVector]]:
         image_url = s3.stream_to_s3(
             io.BytesIO(download_response.content),
             config.S3_BUCKET_NAME,
@@ -142,17 +142,15 @@ class Insert:
         )
         image = self.insert_image(download_response, raster, image_url, job_id)
 
-        model = self.session.query(Model).filter(Model.model_id == model_id).one()
-
         raster_url = s3.stream_to_s3(
             io.BytesIO(raster.content),
             config.S3_BUCKET_NAME,
-            f"predictions/{image.id}/{model.id}.tif",
+            f"predictions/{image.id}/{model_id}.tif",
         )
         prediction_raster = self.insert_prediction_raster(
-            raster, image.id, model.id, raster_url
+            raster, image.id, model_id, raster_url
         )
         prediction_vectors = self.insert_prediction_vectors(
             vectors, prediction_raster.id
         )
-        return image, model, prediction_raster, prediction_vectors
+        return image, prediction_raster, prediction_vectors
