@@ -12,6 +12,12 @@ on:
       maxcc:
         description: "Maximum cloud coverage(float)"
         required: true
+      job_id:
+        description: "Job ID"
+        required: true
+      model_id:
+        description: "Model ID"
+        required: true
       callback_url:
         description: "Callback URL"
         required: true
