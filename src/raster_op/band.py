@@ -40,12 +40,10 @@ class RasterioRemoveBand(RasterOperationStrategy):
                 }
             )
 
-
             return create_raster(
                 write_image(removed_band_image, meta),
                 removed_band_image,
                 src.bounds,
                 meta,
                 raster.padding_size,
-                removed_band=self.band,
             )

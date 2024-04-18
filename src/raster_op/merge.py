@@ -11,11 +11,11 @@ from src.raster_op.utils import create_raster
 from src.types import HeightWidth
 
 from .abstractions import (
-    RasterOperationStrategy,
+    RasterMergeStrategy,
 )
 
 
-class RasterioRasterMerge(RasterOperationStrategy):
+class RasterioRasterMerge(RasterMergeStrategy):
     def __init__(
         self,
         offset: int = 64,

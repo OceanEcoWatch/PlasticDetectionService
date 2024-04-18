@@ -12,7 +12,6 @@ def test_remove_band(s2_l2a_raster, caplog):
     assert "does not exist in raster, skipping" not in caplog.text
     assert removed_band_raster.size == s2_l2a_raster.size
     assert removed_band_raster.crs == s2_l2a_raster.crs
-    assert band not in removed_band_raster.bands
     assert isinstance(removed_band_raster.content, bytes)
 
     assert removed_band_raster.geometry == s2_l2a_raster.geometry

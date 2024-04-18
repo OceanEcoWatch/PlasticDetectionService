@@ -1,0 +1,62 @@
+name: Job
+
+on:
+  workflow_dispatch:
+    inputs:
+      bbox:
+        description: "Bounding box (min_lon min_lat max_lon max_lat)"
+        required: true
+      timestamp:
+        description: "Timestamp (YYYY-MM-DD)"
+        required: true
+      maxcc:
+        description: "Maximum cloud coverage(float)"
+        required: true
+      job_id:
+        description: "Job ID"
+        required: true
+      model_id:
+        description: "Model ID"
+        required: true
+
+jobs:
+  process-raster-data:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run main script
+        run: >
+          python main.py
+          --bbox ${{ github.event.inputs.bbox }}
+          --timestamp ${{ github.event.inputs.timestamp }}
+          --maxcc ${{ github.event.inputs.maxcc }}
+          --job-id ${{ github.event.inputs.job_id }}
+          --model-id ${{ github.event.inputs.model_id }}
+
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PW: ${{ secrets.DB_PW}}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          SH_CLIENT_ID: ${{ secrets.SH_CLIENT_ID }}
+          SH_CLIENT_SECRET: ${{ secrets.SH_CLIENT_SECRET }}
+          SH_INSTANCE_ID: ${{ secrets.SH_INSTANCE_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+          RUNPOD_ENDPOINT_ID: ${{ secrets.RUNPOD_ENDPOINT_ID }}

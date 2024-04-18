@@ -1,0 +1,73 @@
+@startuml DatabaseFontName
+
+class Model {
+    +Integer id
+    +String model_id
+    +String model_url
+    +DateTime created_at
+    +Integer version
+}
+
+class AOI {
+    +Integer id
+    +datetime created_at
+    +String name
+    +Geometry geometry
+    +Boolean is_deleted
+}
+
+class Job {
+    +Integer id
+    +datetime created_at
+    +String processing_status
+    +Boolean is_deleted
+}
+
+class Image {
+    +Integer id
+    +String image_id
+    +String image_url
+    +DateTime timestamp
+    +String dtype
+    +Float resolution
+    +Integer image_width
+    +Integer image_height
+    +Integer bands
+    +String provider
+    +Geometry bbox
+}
+
+class PredictionRaster {
+    +Integer id
+    +String raster_url
+    +String dtype
+    +Integer image_width
+    +Integer image_height
+    +Geometry bbox
+    +Integer image_id
+    +Integer model_id
+}
+
+class PredictionVector {
+    +Integer id
+    +Integer pixel_value
+    +Geometry geometry
+    +Integer prediction_raster_id
+}
+
+class SceneClassificationVector {
+    +Integer id
+    +Integer pixel_value
+    +Geometry geometry
+    +Integer image_id
+}
+
+Model "1" -- "many " Job : contains >
+AOI "1" -- "many" Job : contains >
+Job "1" -- "many" Image : contains >
+Image "1" -- "1" PredictionRaster : contains >
+Image "1" -- "many" SceneClassificationVector : contains >
+
+PredictionRaster "1" -- "many" PredictionVector : contains >
+
+@enduml

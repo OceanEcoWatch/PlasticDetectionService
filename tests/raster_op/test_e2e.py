@@ -6,8 +6,8 @@ import pytest
 from src.inference.inference_callback import (
     RunpodInferenceCallback,
 )
-from src.raster_op.abstractions import CompositeRasterOperation
 from src.raster_op.band import RasterioRemoveBand
+from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
 from src.raster_op.merge import RasterioRasterMerge, copy_smooth
@@ -16,15 +16,12 @@ from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.vectorize import RasterioRasterToVector
 from src.types import HeightWidth
-from tests.conftest import LocalInferenceCallback
 
 
 @pytest.mark.slow
 @pytest.mark.e2e
-@pytest.mark.parametrize(
-    "inference_func", [LocalInferenceCallback(), RunpodInferenceCallback()]
-)
-def test_e2e(s2_l2a_raster, raster, inference_func):
+@pytest.mark.parametrize("inference_func", [RunpodInferenceCallback()])
+def test_e2e(s2_l2a_raster, raster, inference_func, expected_vectors):
     split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
     comp_op = CompositeRasterOperation(
         [
@@ -82,6 +79,12 @@ def test_e2e(s2_l2a_raster, raster, inference_func):
 
     # assert mean value is close to the original raster
     assert np.isclose(merged.to_numpy().mean(), raster.to_numpy().mean(), rtol=0.05)
+
+    # assert vectors are almost equal to the expected vectors
+    assert len(vectors) == len(expected_vectors)
+    for vec, exp_vec in zip(vectors, expected_vectors):
+        assert vec.pixel_value == exp_vec.pixel_value
+        assert vec.geometry.bounds == exp_vec.geometry.bounds
 
 
 @pytest.mark.slow

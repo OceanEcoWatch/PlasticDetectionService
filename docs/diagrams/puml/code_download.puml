@@ -1,0 +1,34 @@
+@startuml Code Download
+
+package abstractions{
+class DownloadParams {
+        bbox : BoundingBox
+        time_interval : TimeRange
+        maxcc : float
+}
+
+abstract class DownloadStrategy {
+    {field} params : DownloadParams
+    {abstract} download_images() : Generator[DownloadResponse, None, None]
+}
+
+
+
+DownloadStrategy *-- DownloadParams
+}
+
+package sh {
+class SentinelHubDownloadParams {
+    config : SHConfig
+    evalscript : str
+    data_collection : DataCollection
+    mime_type : MimeType
+}
+class SentinelHubDownload {
+    {field} params : SentinelHubDownloadParams
+    download_images() : Generator[DownloadResponse, None, None]
+}
+
+}
+
+@enduml

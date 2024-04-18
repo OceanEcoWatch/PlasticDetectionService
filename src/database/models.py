@@ -1,9 +1,10 @@
 import datetime
+import enum
 
 from geoalchemy2 import Geometry
 from geoalchemy2.elements import WKBElement
-from geoalchemy2.shape import from_shape
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -16,16 +17,93 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship
 
-from src.models import (
-    DownloadResponse,
-    Raster,
-    Vector,
-)
 from src.types import IMAGE_DTYPES
 
 Base = declarative_base()
 
 CONSTRAINT_STR = String(255)
+
+
+class JobStatus(enum.Enum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class AOI(Base):
+    __tablename__ = "aois"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(CONSTRAINT_STR, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    is_deleted = Column(Boolean, nullable=False, default=False)
+    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+
+    def __init__(
+        self,
+        name: str,
+        geometry: WKBElement,
+        is_deleted: bool = False,
+        created_at: datetime.datetime = datetime.datetime.now(),
+    ):
+        self.name = name
+        self.created_at = created_at
+        self.geometry = geometry
+        self.is_deleted = is_deleted
+
+
+class Model(Base):
+    __tablename__ = "models"
+
+    id = Column(Integer, primary_key=True)
+    model_id = Column(CONSTRAINT_STR, nullable=False, unique=True)
+    model_url = Column(CONSTRAINT_STR, nullable=False, unique=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    version = Column(Integer, nullable=False, default=1)
+
+    def __init__(
+        self,
+        model_id: str,
+        model_url: str,
+        version: int = 1,
+        created_at: datetime.datetime = datetime.datetime.now(),
+    ):
+        self.model_id = model_id
+        self.model_url = model_url
+        self.version = version
+        self.created_at = created_at
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+
+    id = Column(Integer, primary_key=True)
+    status = Column(
+        Enum(JobStatus, name="job_status"),
+        nullable=False,
+    )
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    is_deleted = Column(Boolean, nullable=False, default=False)
+
+    aoi_id = Column(Integer, ForeignKey("aois.id"), nullable=False)
+    aoi = relationship("AOI", backref="jobs")
+    model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
+    model = relationship("Model", backref="jobs")
+
+    def __init__(
+        self,
+        status: JobStatus,
+        aoi_id: int,
+        model_id: int,
+        is_deleted: bool = False,
+        created_at: datetime.datetime = datetime.datetime.now(),
+    ):
+        self.status = status
+        self.created_at = created_at
+        self.aoi_id = aoi_id
+        self.model_id = model_id
+        self.is_deleted = is_deleted
 
 
 class Image(Base):
@@ -47,6 +125,18 @@ class Image(Base):
     provider = Column(CONSTRAINT_STR, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    jobs = relationship("Job", backref="images")
+
+    prediction_rasters = relationship(
+        "PredictionRaster", backref="image", cascade="all, delete, delete-orphan"
+    )
+    scene_classification_vectors = relationship(
+        "SceneClassificationVector",
+        backref="image",
+        cascade="all, delete, delete-orphan",
+    )
+
     def __init__(
         self,
         image_id: str,
@@ -59,6 +149,7 @@ class Image(Base):
         bands: int,
         provider: str,
         bbox: WKBElement,
+        job_id: int,
     ):
         self.image_id = image_id
         self.image_url = image_url
@@ -70,35 +161,7 @@ class Image(Base):
         self.bands = bands
         self.provider = provider
         self.bbox = bbox
-
-    @classmethod
-    def from_response_and_raster(
-        cls, response: DownloadResponse, raster: Raster, image_url: str
-    ):
-        return cls(
-            image_id=response.image_id,
-            image_url=image_url,
-            timestamp=response.timestamp,
-            dtype=raster.dtype,
-            resolution=raster.resolution,
-            image_width=raster.size[0],
-            image_height=raster.size[1],
-            bands=len(raster.bands),
-            provider=response.data_collection,
-            bbox=from_shape(raster.geometry),
-        )
-
-
-class Model(Base):
-    __tablename__ = "models"
-
-    id = Column(Integer, primary_key=True)
-    model_id = Column(CONSTRAINT_STR, nullable=False, unique=True)
-    model_url = Column(CONSTRAINT_STR, nullable=False, unique=True)
-
-    def __init__(self, model_id: str, model_url: str):
-        self.model_id = model_id
-        self.model_url = model_url
+        self.job_id = job_id
 
 
 class PredictionRaster(Base):
@@ -115,9 +178,11 @@ class PredictionRaster(Base):
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
-    model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
-    image = relationship("Image", backref="prediction_rasters")
-    model = relationship("Model", backref="prediction_rasters")
+    prediction_vectors = relationship(
+        "PredictionVector",
+        backref="prediction_raster",
+        cascade="all, delete, delete-orphan",
+    )
 
     def __init__(
         self,
@@ -127,7 +192,6 @@ class PredictionRaster(Base):
         image_height: int,
         bbox: WKBElement,
         image_id: int,
-        model_id: int,
     ):
         self.raster_url = raster_url
         self.dtype = dtype
@@ -135,19 +199,6 @@ class PredictionRaster(Base):
         self.image_height = image_height
         self.bbox = bbox
         self.image_id = image_id
-        self.model_id = model_id
-
-    @classmethod
-    def from_raster(cls, raster: Raster, image_id: int, model_id: int, raster_url: str):
-        return cls(
-            raster_url=raster_url,
-            dtype=raster.dtype,
-            image_width=raster.size[0],
-            image_height=raster.size[1],
-            bbox=from_shape(raster.geometry),
-            image_id=image_id,
-            model_id=model_id,
-        )
 
 
 class PredictionVector(Base):
@@ -161,21 +212,11 @@ class PredictionVector(Base):
         Integer, ForeignKey("prediction_rasters.id"), nullable=False
     )
 
-    prediction_raster = relationship("PredictionRaster", backref="prediction_vectors")
-
     def __init__(self, pixel_value: int, geometry: WKBElement, raster_id: int):
         self.pixel_value = pixel_value
         self.geometry = geometry
 
         self.prediction_raster_id = raster_id
-
-    @classmethod
-    def from_vector(cls, vector: Vector, raster_id: int):
-        return cls(
-            pixel_value=vector.pixel_value,
-            geometry=from_shape(vector.geometry),
-            raster_id=raster_id,
-        )
 
 
 class SceneClassificationVector(Base):
@@ -186,17 +227,7 @@ class SceneClassificationVector(Base):
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
 
-    image = relationship("Image", backref="scene_classification_vectors")
-
     def __init__(self, pixel_value: int, geometry: WKBElement, image_id: int):
         self.pixel_value = pixel_value
         self.geometry = geometry
         self.image_id = image_id
-
-    @classmethod
-    def from_vector(cls, vector: Vector, image_id: int):
-        return cls(
-            pixel_value=vector.pixel_value,
-            geometry=from_shape(vector.geometry),
-            image_id=image_id,
-        )
