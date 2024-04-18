@@ -10,6 +10,7 @@ from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session, create_session
 from sqlalchemy_utils import create_database, database_exists, drop_database
 
+from src._types import HeightWidth
 from src.database.insert import Insert
 from src.database.models import (
     AOI,
@@ -23,7 +24,6 @@ from src.database.models import (
     SceneClassificationVector,
 )
 from src.models import DownloadResponse, Raster, Vector
-from src.types import HeightWidth
 from tests.conftest import TEST_AOI_POLYGON
 
 DB_NAME = "oew_test"

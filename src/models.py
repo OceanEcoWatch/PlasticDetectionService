@@ -7,7 +7,7 @@ import rasterio
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
 
-from src.types import IMAGE_DTYPES, HeightWidth
+from src._types import IMAGE_DTYPES, HeightWidth
 
 
 @dataclass(frozen=True)

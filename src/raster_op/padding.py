@@ -10,7 +10,7 @@ from src.raster_op.utils import (
     update_window_meta,
     write_image,
 )
-from src.types import BoundingBox, HeightWidth
+from src._types import BoundingBox, HeightWidth
 
 from .abstractions import (
     RasterOperationStrategy,

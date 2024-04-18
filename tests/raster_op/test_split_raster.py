@@ -4,7 +4,7 @@ import numpy as np
 import rasterio
 
 from src.raster_op.split import RasterioRasterSplit
-from src.types import HeightWidth
+from src._types import HeightWidth
 
 
 def test_split_raster(s2_l2a_raster):

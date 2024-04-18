@@ -6,9 +6,9 @@ import rasterio
 from rasterio.merge import merge
 from scipy.ndimage import gaussian_filter
 
+from src._types import HeightWidth
 from src.models import Raster
 from src.raster_op.utils import create_raster
-from src.types import HeightWidth
 
 from .abstractions import (
     RasterMergeStrategy,

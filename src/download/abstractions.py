@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Generator
 
+from src._types import BoundingBox, TimeRange
 from src.models import DownloadResponse
-from src.types import BoundingBox, TimeRange
 
 
 @dataclass
