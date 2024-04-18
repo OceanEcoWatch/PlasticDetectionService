@@ -153,7 +153,7 @@ def model(test_session):
 
 @pytest.fixture
 def job(aoi, model, test_session):
-    job = Job(JobStatus.PENDING, datetime.datetime.now(), aoi.id, model.id)
+    job = Job(JobStatus.PENDING, aoi.id, model.id)
     test_session.add(job)
     test_session.commit()
     return job

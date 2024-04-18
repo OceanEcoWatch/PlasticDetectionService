@@ -3,7 +3,6 @@ import enum
 
 from geoalchemy2 import Geometry
 from geoalchemy2.elements import WKBElement
-from geoalchemy2.shape import from_shape
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -18,11 +17,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship
 
-from src.models import (
-    DownloadResponse,
-    Raster,
-    Vector,
-)
 from src.types import IMAGE_DTYPES
 
 Base = declarative_base()
@@ -42,16 +36,16 @@ class AOI(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(CONSTRAINT_STR, nullable=False)
-    created_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     is_deleted = Column(Boolean, nullable=False, default=False)
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
     def __init__(
         self,
         name: str,
-        created_at: datetime.datetime,
         geometry: WKBElement,
         is_deleted: bool = False,
+        created_at: datetime.datetime = datetime.datetime.now(),
     ):
         self.name = name
         self.created_at = created_at
@@ -65,10 +59,20 @@ class Model(Base):
     id = Column(Integer, primary_key=True)
     model_id = Column(CONSTRAINT_STR, nullable=False, unique=True)
     model_url = Column(CONSTRAINT_STR, nullable=False, unique=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    version = Column(Integer, nullable=False, default=1)
 
-    def __init__(self, model_id: str, model_url: str):
+    def __init__(
+        self,
+        model_id: str,
+        model_url: str,
+        version: int = 1,
+        created_at: datetime.datetime = datetime.datetime.now(),
+    ):
         self.model_id = model_id
         self.model_url = model_url
+        self.version = version
+        self.created_at = created_at
 
 
 class Job(Base):
@@ -79,7 +83,7 @@ class Job(Base):
         Enum(JobStatus, name="job_status"),
         nullable=False,
     )
-    created_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     is_deleted = Column(Boolean, nullable=False, default=False)
 
     aoi_id = Column(Integer, ForeignKey("aois.id"), nullable=False)
@@ -90,10 +94,10 @@ class Job(Base):
     def __init__(
         self,
         status: JobStatus,
-        created_at: datetime.datetime,
         aoi_id: int,
         model_id: int,
         is_deleted: bool = False,
+        created_at: datetime.datetime = datetime.datetime.now(),
     ):
         self.status = status
         self.created_at = created_at
@@ -159,24 +163,6 @@ class Image(Base):
         self.bbox = bbox
         self.job_id = job_id
 
-    @classmethod
-    def from_response_and_raster(
-        cls, job_id: int, response: DownloadResponse, raster: Raster, image_url: str
-    ):
-        return cls(
-            image_id=response.image_id,
-            image_url=image_url,
-            timestamp=response.timestamp,
-            dtype=str(raster.dtype),
-            resolution=raster.resolution,
-            image_width=raster.size[0],
-            image_height=raster.size[1],
-            bands=len(raster.bands),
-            provider=response.data_collection,
-            bbox=from_shape(raster.geometry),
-            job_id=job_id,
-        )
-
 
 class PredictionRaster(Base):
     __tablename__ = "prediction_rasters"
@@ -218,18 +204,6 @@ class PredictionRaster(Base):
         self.image_id = image_id
         self.model_id = model_id
 
-    @classmethod
-    def from_raster(cls, raster: Raster, image_id: int, model_id: int, raster_url: str):
-        return cls(
-            raster_url=raster_url,
-            dtype=str(raster.dtype),
-            image_width=raster.size[0],
-            image_height=raster.size[1],
-            bbox=from_shape(raster.geometry),
-            image_id=image_id,
-            model_id=model_id,
-        )
-
 
 class PredictionVector(Base):
     __tablename__ = "prediction_vectors"
@@ -248,14 +222,6 @@ class PredictionVector(Base):
 
         self.prediction_raster_id = raster_id
 
-    @classmethod
-    def from_vector(cls, vector: Vector, raster_id: int):
-        return cls(
-            pixel_value=vector.pixel_value,
-            geometry=from_shape(vector.geometry),
-            raster_id=raster_id,
-        )
-
 
 class SceneClassificationVector(Base):
     __tablename__ = "scene_classification_vectors"
@@ -269,11 +235,3 @@ class SceneClassificationVector(Base):
         self.pixel_value = pixel_value
         self.geometry = geometry
         self.image_id = image_id
-
-    @classmethod
-    def from_vector(cls, vector: Vector, image_id: int):
-        return cls(
-            pixel_value=vector.pixel_value,
-            geometry=from_shape(vector.geometry),
-            image_id=image_id,
-        )

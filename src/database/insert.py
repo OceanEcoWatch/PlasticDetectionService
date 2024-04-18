@@ -72,8 +72,18 @@ class Insert:
         image_url: str,
         job_id: int,
     ) -> Image:
-        image = Image.from_response_and_raster(
-            job_id, download_response, raster, image_url
+        image = Image(
+            image_id=download_response.image_id,
+            image_url=image_url,
+            timestamp=download_response.timestamp,
+            dtype=str(raster.dtype),
+            resolution=raster.resolution,
+            image_width=raster.size[0],
+            image_height=raster.size[1],
+            bands=len(raster.bands),
+            provider=download_response.data_collection,
+            bbox=from_shape(raster.geometry),
+            job_id=job_id,
         )
         self.session.add(image)
         self.session.commit()
@@ -82,8 +92,14 @@ class Insert:
     def insert_prediction_raster(
         self, raster: Raster, image_id: int, model_id: int, raster_url: str
     ) -> PredictionRaster:
-        prediction_raster = PredictionRaster.from_raster(
-            raster, image_id, model_id, raster_url
+        prediction_raster = PredictionRaster(
+            raster_url=raster_url,
+            dtype=str(raster.dtype),
+            image_width=raster.size[0],
+            image_height=raster.size[1],
+            bbox=from_shape(raster.geometry),
+            image_id=image_id,
+            model_id=model_id,
         )
         self.session.add(prediction_raster)
         self.session.commit()
@@ -93,7 +109,8 @@ class Insert:
         self, vectors: Iterable[Vector], raster_id: int
     ) -> list[PredictionVector]:
         prediction_vectors = [
-            PredictionVector.from_vector(vector, raster_id) for vector in vectors
+            PredictionVector(v.pixel_value, from_shape(v.geometry), raster_id)
+            for v in vectors
         ]
         self.session.bulk_save_objects(prediction_vectors)
         self.session.commit()
@@ -103,8 +120,8 @@ class Insert:
         self, vectors: Iterable[Vector], image_id: int
     ) -> list[SceneClassificationVector]:
         scls_vectors = [
-            SceneClassificationVector.from_vector(vector, image_id)
-            for vector in vectors
+            SceneClassificationVector(v.pixel_value, from_shape(v.geometry), image_id)
+            for v in vectors
         ]
         self.session.bulk_save_objects(scls_vectors)
         self.session.commit()
@@ -112,10 +129,10 @@ class Insert:
 
     def commit_all(
         self,
+        job_id: int,
         download_response: DownloadResponse,
         raster: Raster,
         model_id: str,
-        model_url: str,
         vectors: Iterable[Vector],
     ) -> tuple[Image, Model, PredictionRaster, list[PredictionVector]]:
         image_url = s3.stream_to_s3(
@@ -123,8 +140,10 @@ class Insert:
             config.S3_BUCKET_NAME,
             f"images/{download_response.bbox}/{download_response.image_id}.tif",
         )
-        image = self.insert_image(download_response, raster, image_url)
-        model = self.insert_model(model_id, model_url)
+        image = self.insert_image(download_response, raster, image_url, job_id)
+
+        model = self.session.query(Model).filter(Model.model_id == model_id).one()
+
         raster_url = s3.stream_to_s3(
             io.BytesIO(raster.content),
             config.S3_BUCKET_NAME,
