@@ -8,6 +8,7 @@ import requests
 import torch
 from shapely.geometry import Polygon, box, shape
 
+from src.dt_util import get_past_date, get_today_str
 from src.inference.inference_callback import BaseInferenceCallback
 from src.models import Raster, Vector
 from src.types import HeightWidth
@@ -18,6 +19,25 @@ from tests.marinedebrisdetector_mod.model.segmentation_model import (
 from tests.marinedebrisdetector_mod.predictor import predict
 
 FULL_DURBAN_SCENE = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/durban_20190424.tif"
+
+TIME_INTERVAL = (get_past_date(7), get_today_str())
+TEST_AOI = (
+    120.82481750015815,
+    14.619576605802296,
+    120.82562856620629,
+    14.66462165084734,
+)  # manilla bay
+
+TEST_AOI_POLYGON = Polygon(
+    [
+        (120.82481750015815, 14.619576605802296),
+        (120.82562856620629, 14.619576605802296),
+        (120.82562856620629, 14.66462165084734),
+        (120.82481750015815, 14.66462165084734),
+        (120.82481750015815, 14.619576605802296),
+    ]
+)
+MAX_CC = 0.1
 
 
 @pytest.fixture

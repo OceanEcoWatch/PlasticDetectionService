@@ -81,8 +81,15 @@ class MainHandler:
     help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
 )
 @click.option("--maxcc", type=float, required=True, default=0.05)
+@click.option("--job-id", type=int, required=True)
 @click.option("--callback-url", type=str, required=True)
-def main(bbox: BoundingBox, time_interval: TimeRange, maxcc: float, callback_url: str):
+def main(
+    bbox: BoundingBox,
+    time_interval: TimeRange,
+    maxcc: float,
+    job_id: int,
+    callback_url: str,
+):
     send_notification(
         callback_url, "received", "Request received and is being processed."
     )

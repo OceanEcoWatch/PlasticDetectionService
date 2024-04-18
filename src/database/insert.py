@@ -1,12 +1,18 @@
+import datetime
 import io
 from typing import Iterable
 
+from geoalchemy2.shape import from_shape
+from shapely.geometry import Polygon
 from sqlalchemy.orm import Session
 
 from src import config
 from src.aws import s3
 from src.database.models import (
+    AOI,
     Image,
+    Job,
+    JobStatus,
     Model,
     PredictionRaster,
     PredictionVector,
@@ -19,19 +25,59 @@ class Insert:
     def __init__(self, session: Session):
         self.session = session
 
-    def insert_image(
-        self, download_response: DownloadResponse, raster: Raster, image_url: str
-    ) -> Image:
-        image = Image.from_response_and_raster(download_response, raster, image_url)
-        self.session.add(image)
+    def insert_aoi(
+        self,
+        name: str,
+        created_at: datetime.datetime,
+        geometry: Polygon,
+        is_deleted: bool = False,
+    ) -> AOI:
+        aoi = AOI(
+            name=name,
+            created_at=created_at,
+            geometry=from_shape(geometry),
+            is_deleted=is_deleted,
+        )
+        self.session.add(aoi)
         self.session.commit()
-        return image
+        return aoi
 
     def insert_model(self, model_id: str, model_url: str) -> Model:
         model = Model(model_id=model_id, model_url=model_url)
         self.session.add(model)
         self.session.commit()
         return model
+
+    def insert_job(
+        self,
+        aoi_id: int,
+        model_id: int,
+        status: JobStatus = JobStatus.PENDING,
+        created_at: datetime.datetime = datetime.datetime.now(),
+    ) -> Job:
+        job = Job(
+            aoi_id=aoi_id,
+            model_id=model_id,
+            status=status,
+            created_at=created_at,
+        )
+        self.session.add(job)
+        self.session.commit()
+        return job
+
+    def insert_image(
+        self,
+        download_response: DownloadResponse,
+        raster: Raster,
+        image_url: str,
+        job_id: int,
+    ) -> Image:
+        image = Image.from_response_and_raster(
+            job_id, download_response, raster, image_url
+        )
+        self.session.add(image)
+        self.session.commit()
+        return image
 
     def insert_prediction_raster(
         self, raster: Raster, image_id: int, model_id: int, raster_url: str

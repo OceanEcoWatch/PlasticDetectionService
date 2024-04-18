@@ -2,7 +2,7 @@ import os
 
 import psycopg2
 from sqlalchemy import create_engine, inspect
-from sqlalchemy_utils import create_database, database_exists
+from sqlalchemy_utils import create_database, drop_database
 
 from src.config import DATABASE_URL
 from src.database.models import Base
@@ -81,7 +81,7 @@ def create_triggers():
 
 if __name__ == "__main__":
     engine = create_engine(DATABASE_URL)
-    if not database_exists(engine.url):
-        create_postgis_db(engine)
+    drop_database(engine.url)
+    create_postgis_db(engine)
     create_tables(engine, Base)
     create_triggers()

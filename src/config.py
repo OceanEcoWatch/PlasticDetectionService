@@ -3,8 +3,6 @@ import os
 from dotenv import load_dotenv
 from sentinelhub.config import SHConfig
 
-from src.dt_util import get_past_date, get_today_str
-
 load_dotenv(override=True)
 
 SH_INSTANCE_ID = os.environ["SH_INSTANCE_ID"]
@@ -22,14 +20,6 @@ RUNPOD_ENDPOINT_ID = os.environ["RUNPOD_ENDPOINT_ID"]
 RUNDPOD_MODEL_ID = "plastic_detection_model:1.0.1"
 RUNPOD_API_KEY = os.environ["RUNPOD_API_KEY"]
 
-TIME_INTERVAL = (get_past_date(7), get_today_str())
-AOI = (
-    120.82481750015815,
-    14.619576605802296,
-    120.82562856620629,
-    14.66462165084734,
-)  # manilla bay
-MAX_CC = 0.1
 
 SH_CONFIG = SHConfig(
     instance_id=SH_INSTANCE_ID,
