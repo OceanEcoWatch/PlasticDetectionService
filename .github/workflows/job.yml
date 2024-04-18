@@ -6,8 +6,8 @@ on:
       bbox:
         description: "Bounding box (min_lon min_lat max_lon max_lat)"
         required: true
-      time_interval:
-        description: "Time interval (start_date end_date)"
+      timestamp:
+        description: "Timestamp (YYYY-MM-DD)"
         required: true
       maxcc:
         description: "Maximum cloud coverage(float)"
@@ -17,9 +17,6 @@ on:
         required: true
       model_id:
         description: "Model ID"
-        required: true
-      callback_url:
-        description: "Callback URL"
         required: true
 
 jobs:
@@ -44,11 +41,10 @@ jobs:
         run: >
           python main.py
           --bbox ${{ github.event.inputs.bbox }}
-          --time_interval ${{ github.event.inputs.time_interval }}
+          --timestamp ${{ github.event.inputs.timestamp }}
           --maxcc ${{ github.event.inputs.maxcc }}
           --job-id ${{ github.event.inputs.job_id }}
           --model-id ${{ github.event.inputs.model_id }}
-          --callback_url ${{ github.event.inputs.callback_url }}
 
         env:
           DB_USER: ${{ secrets.DB_USER }}

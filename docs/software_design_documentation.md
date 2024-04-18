@@ -61,14 +61,15 @@ This is a early stage project so the following quality attributes are most impor
 Domain
 models.py
 abstractions for rasterop
-abstractions for download
-abstractions for inference
 
 Use Cases
+abstractions for download
 implementations for rasterop
+abstractions for inference
+
+Utilities
 implementations for download
 implementations for inference
-Utilities
 
 MVC
 
@@ -105,3 +106,5 @@ In combination with the custom Raster and Vector dataclasses I made the implemen
 The code for this you can find [here]:(..src/raster_op/)
 
 The `download` module implements the strategy pattern as well to allow for changing to another satellite data provider in the future. The `DownloadStrategy` class defines the interface for the different download strategies. The `SentinelHubDownload` class implements the interface for downloading data from SentinelHub. The code for this you can find [here]:(..src/download/)
+
+Design principles and patterns for ML and geospatial data pipelines

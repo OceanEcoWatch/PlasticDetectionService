@@ -1,13 +1,10 @@
 import datetime
-import io
 from typing import Iterable
 
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Polygon
 from sqlalchemy.orm import Session
 
-from src import config
-from src.aws import s3
 from src.database.models import (
     AOI,
     Image,
@@ -90,7 +87,7 @@ class Insert:
         return image
 
     def insert_prediction_raster(
-        self, raster: Raster, image_id: int, model_id: int, raster_url: str
+        self, raster: Raster, image_id: int, raster_url: str
     ) -> PredictionRaster:
         prediction_raster = PredictionRaster(
             raster_url=raster_url,
@@ -99,7 +96,6 @@ class Insert:
             image_height=raster.size[1],
             bbox=from_shape(raster.geometry),
             image_id=image_id,
-            model_id=model_id,
         )
         self.session.add(prediction_raster)
         self.session.commit()
@@ -126,31 +122,3 @@ class Insert:
         self.session.bulk_save_objects(scls_vectors)
         self.session.commit()
         return scls_vectors
-
-    def commit_all(
-        self,
-        job_id: int,
-        model_id: int,
-        download_response: DownloadResponse,
-        raster: Raster,
-        vectors: Iterable[Vector],
-    ) -> tuple[Image, PredictionRaster, list[PredictionVector]]:
-        image_url = s3.stream_to_s3(
-            io.BytesIO(download_response.content),
-            config.S3_BUCKET_NAME,
-            f"images/{download_response.bbox}/{download_response.image_id}.tif",
-        )
-        image = self.insert_image(download_response, raster, image_url, job_id)
-
-        raster_url = s3.stream_to_s3(
-            io.BytesIO(raster.content),
-            config.S3_BUCKET_NAME,
-            f"predictions/{image.id}/{model_id}.tif",
-        )
-        prediction_raster = self.insert_prediction_raster(
-            raster, image.id, model_id, raster_url
-        )
-        prediction_vectors = self.insert_prediction_vectors(
-            vectors, prediction_raster.id
-        )
-        return image, prediction_raster, prediction_vectors

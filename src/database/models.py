@@ -178,8 +178,6 @@ class PredictionRaster(Base):
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
-    model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
-    model = relationship("Model", backref="prediction_rasters")
     prediction_vectors = relationship(
         "PredictionVector",
         backref="prediction_raster",
@@ -194,7 +192,6 @@ class PredictionRaster(Base):
         image_height: int,
         bbox: WKBElement,
         image_id: int,
-        model_id: int,
     ):
         self.raster_url = raster_url
         self.dtype = dtype
@@ -202,7 +199,6 @@ class PredictionRaster(Base):
         self.image_height = image_height
         self.bbox = bbox
         self.image_id = image_id
-        self.model_id = model_id
 
 
 class PredictionVector(Base):

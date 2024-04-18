@@ -1,17 +1,19 @@
 import io
-from typing import Generator
+from typing import Generator, Iterable
 
 import click
 import rasterio
-import requests
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
+from wandb import Image
 
 from src import config
+from src.aws import s3
 from src.database.connect import create_db_session
 from src.database.insert import Insert
+from src.database.models import Job, JobStatus, PredictionRaster, PredictionVector
 from src.inference.inference_callback import RunpodInferenceCallback
-from src.models import Raster
+from src.models import Raster, Vector
 from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.composite import RasterOpHandler
 from src.raster_op.convert import RasterioDtypeConversion
@@ -30,13 +32,6 @@ from .download.sh import (
     SentinelHubDownloadParams,
 )
 from .raster_op.utils import create_raster
-
-
-def send_notification(url: str, status: str, details: str):
-    payload = {"status": status, "details": details}
-    response = requests.post(url, json=payload)  # add auth headers
-    response.raise_for_status()
-    return response.status_code, response.text
 
 
 class MainHandler:
@@ -67,6 +62,38 @@ class MainHandler:
         return self.raster_ops.execute(image)
 
 
+class InsertJob:
+    def __init__(self, insert: Insert):
+        self.insert = insert
+
+    def insert_all(
+        self,
+        job_id: int,
+        download_response: DownloadResponse,
+        raster: Raster,
+        vectors: Iterable[Vector],
+    ) -> tuple[Image, PredictionRaster, list[PredictionVector]]:
+        image_url = s3.stream_to_s3(
+            io.BytesIO(download_response.content),
+            config.S3_BUCKET_NAME,
+            f"images/{download_response.bbox}/{download_response.image_id}.tif",
+        )
+        image = self.insert.insert_image(download_response, raster, image_url, job_id)
+
+        raster_url = s3.stream_to_s3(
+            io.BytesIO(raster.content),
+            config.S3_BUCKET_NAME,
+            f"predictions/{download_response.bbox}/{download_response.image_id}.tif",
+        )
+        prediction_raster = self.insert.insert_prediction_raster(
+            raster, image.id, raster_url
+        )
+        prediction_vectors = self.insert.insert_prediction_vectors(
+            vectors, prediction_raster.id
+        )
+        return image, prediction_raster, prediction_vectors
+
+
 @click.command()
 @click.option(
     "--bbox",
@@ -75,27 +102,25 @@ class MainHandler:
     help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
 )
 @click.option(
-    "--time-interval",
-    nargs=2,
+    "--timestamp",
     type=str,
     help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
 )
 @click.option("--maxcc", type=float, required=True, default=0.05)
 @click.option("--job-id", type=int, required=True)
 @click.option("--model-id", type=int, required=True)
-@click.option("--callback-url", type=str, required=True)
 def main(
     bbox: BoundingBox,
     time_interval: TimeRange,
     maxcc: float,
     job_id: int,
     model_id: int,
-    callback_url: str,
 ):
-    send_notification(
-        callback_url, "received", "Request received and is being processed."
-    )
-
+    with create_db_session() as db_session:
+        # change status of job to processing
+        db_session.query(Job).filter(Job.id == job_id).update(
+            {"status": JobStatus.IN_PROGRESS}
+        )
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
@@ -129,19 +154,25 @@ def main(
             pred_raster = handler.get_prediction_raster(raster)
             pred_vectors = RasterioRasterToVector().execute(pred_raster)
 
-            db_insert = Insert(db_session)
-            db_insert.commit_all(
+            insert_job = InsertJob(insert=Insert(db_session))
+            insert_job.insert_all(
                 job_id=job_id,
                 model_id=model_id,
                 download_response=download_response,
-                raster=pred_raster,
+                raster=raster,
                 vectors=pred_vectors,
             )
     except Exception as e:
-        send_notification(callback_url, "failed", str(e))
+        with create_db_session() as db_session:
+            db_session.query(Job).filter(Job.id == job_id).update(
+                {"status": JobStatus.FAILED}
+            )
         raise e
 
-    send_notification(callback_url, "success", "Request completed successfully.")
+    with create_db_session() as db_session:
+        db_session.query(Job).filter(Job.id == job_id).update(
+            {"status": JobStatus.COMPLETED}
+        )
 
 
 if __name__ == "__main__":

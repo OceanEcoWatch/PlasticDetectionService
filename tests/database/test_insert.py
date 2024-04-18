@@ -172,9 +172,7 @@ def test_insert_mock_session(
     job = insert.insert_job(aoi.id, model.id)
     image = insert.insert_image(download_response, db_raster, "test_image_url", job.id)
 
-    raster = insert.insert_prediction_raster(
-        db_raster, image.id, model.id, "test_raster_url"
-    )
+    raster = insert.insert_prediction_raster(db_raster, image.id, "test_raster_url")
     prediction_vectors = insert.insert_prediction_vectors(db_vectors, raster.id)
 
     scls_vectors = insert.insert_scls_vectors(db_scls_vectors, image.id)
@@ -199,7 +197,6 @@ def test_insert_mock_session(
     assert raster.raster_url == "test_raster_url"
     assert raster.dtype == db_raster.dtype
     assert raster.image_id == image.id
-    assert raster.model_id == model.id
 
     assert len(prediction_vectors) == 1
     assert prediction_vectors[0].prediction_raster_id == raster.id
@@ -304,9 +301,7 @@ def test_insert_db(
     model = insert.insert_model("test_model_id", "test_model_url")
     job = insert.insert_job(aoi.id, model.id)
     image = insert.insert_image(download_response, db_raster, "test_image_url", job.id)
-    raster = insert.insert_prediction_raster(
-        db_raster, image.id, model.id, "test_raster_url"
-    )
+    raster = insert.insert_prediction_raster(db_raster, image.id, "test_raster_url")
     insert.insert_prediction_vectors(
         db_vectors,
         raster.id,
