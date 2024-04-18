@@ -6,8 +6,8 @@ on:
       bbox:
         description: "Bounding box (min_lon min_lat max_lon max_lat)"
         required: true
-      timestamp:
-        description: "Timestamp (YYYY-MM-DD)"
+      time_range:
+        description: "Time range (start_date end_date) in format YYYY-MM-DD"
         required: true
       maxcc:
         description: "Maximum cloud coverage(float)"
@@ -41,7 +41,7 @@ jobs:
         run: >
           python src/main.py
           --bbox ${{ github.event.inputs.bbox }}
-          --time_range ${{ github.event.inputs.timestamp }} ${{ github.event.inputs.timestamp }}
+          --time_range ${{ github.event.inputs.time_range }}
           --maxcc ${{ github.event.inputs.maxcc }}
           --job-id ${{ github.event.inputs.job_id }}
           --model-id ${{ github.event.inputs.model_id }}
