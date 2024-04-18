@@ -13,7 +13,7 @@ from src.raster_op.utils import (
     update_window_meta,
     write_image,
 )
-from src.types import HeightWidth
+from src._types import HeightWidth
 
 from .abstractions import (
     RasterSplitStrategy,

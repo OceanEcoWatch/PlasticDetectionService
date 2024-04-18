@@ -6,7 +6,7 @@ import rasterio
 from shapely.geometry import box
 
 from src.models import Raster
-from src.types import BoundingBox, HeightWidth
+from src._types import BoundingBox, HeightWidth
 
 LOGGER = logging.getLogger(__name__)
 

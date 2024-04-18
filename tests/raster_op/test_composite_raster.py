@@ -11,7 +11,7 @@ from src.raster_op.merge import (
 )
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.split import RasterioRasterSplit
-from src.types import HeightWidth
+from src._types import HeightWidth
 from tests.conftest import LocalInferenceCallback, MockInferenceCallback
 
 

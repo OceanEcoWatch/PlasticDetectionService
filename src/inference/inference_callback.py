@@ -16,13 +16,16 @@ class BaseInferenceCallback(ABC):
 
 
 class RunpodInferenceCallback(BaseInferenceCallback):
+    def __init__(self, endpoint_url: str = config.RUNPOD_ENDPOINT_ID):
+        self.endpoint_url = endpoint_url
+
     def __call__(self, payload: bytes) -> bytes:
         encoded_payload = base64.b64encode(payload).decode("utf-8")
 
         request_input = {"input": {"image": encoded_payload}}
 
         runpod.api_key = config.RUNPOD_API_KEY
-        endpoint = Endpoint(config.RUNPOD_ENDPOINT_ID)
+        endpoint = Endpoint(self.endpoint_url)
 
         run_response = endpoint.run_sync(request_input, timeout=60)
         pred_bytes = base64.b64decode(json.loads(run_response)["prediction"])  # type: ignore

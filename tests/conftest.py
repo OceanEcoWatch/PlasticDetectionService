@@ -8,10 +8,10 @@ import requests
 import torch
 from shapely.geometry import Polygon, box, shape
 
+from src._types import HeightWidth
 from src.dt_util import get_past_date, get_today_str
 from src.inference.inference_callback import BaseInferenceCallback
 from src.models import Raster, Vector
-from src.types import HeightWidth
 from tests.marinedebrisdetector_mod.checkpoints import CHECKPOINTS
 from tests.marinedebrisdetector_mod.model.segmentation_model import (
     SegmentationModel,

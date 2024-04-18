@@ -17,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship
 
-from src.types import IMAGE_DTYPES
+from src._types import IMAGE_DTYPES
 
 Base = declarative_base()
 

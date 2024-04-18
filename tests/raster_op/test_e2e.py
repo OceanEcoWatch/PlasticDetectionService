@@ -15,7 +15,7 @@ from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.vectorize import RasterioRasterToVector
-from src.types import HeightWidth
+from src._types import HeightWidth
 
 
 @pytest.mark.slow

@@ -12,7 +12,7 @@ from src.raster_op.merge import (
 from src.raster_op.split import (
     RasterioRasterSplit,
 )
-from src.types import HeightWidth
+from src._types import HeightWidth
 
 
 @pytest.mark.parametrize(

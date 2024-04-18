@@ -19,7 +19,7 @@ from src.download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
 )
-from src.types import BoundingBox, HeightWidth, TimeRange
+from src._types import BoundingBox, HeightWidth, TimeRange
 
 TIME_INTERVAL = TimeRange("2023-11-01", "2024-01-01")
 

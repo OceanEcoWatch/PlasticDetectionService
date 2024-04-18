@@ -6,7 +6,7 @@ import rasterio
 
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.split import RasterioRasterSplit
-from src.types import HeightWidth
+from src._types import HeightWidth
 
 
 @pytest.mark.parametrize("padding", [0, 16, 32, 64, 128])

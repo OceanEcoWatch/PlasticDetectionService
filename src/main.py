@@ -1,17 +1,26 @@
 import io
+import itertools
 from typing import Generator, Iterable
 
 import click
 import rasterio
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
+from sqlalchemy.exc import NoResultFound
 from wandb import Image
 
 from src import config
+from src._types import BoundingBox, HeightWidth, TimeRange
 from src.aws import s3
 from src.database.connect import create_db_session
 from src.database.insert import Insert
-from src.database.models import Job, JobStatus, PredictionRaster, PredictionVector
+from src.database.models import (
+    Job,
+    JobStatus,
+    Model,
+    PredictionRaster,
+    PredictionVector,
+)
 from src.inference.inference_callback import RunpodInferenceCallback
 from src.models import Raster, Vector
 from src.raster_op.band import RasterioRemoveBand
@@ -23,7 +32,6 @@ from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.vectorize import RasterioRasterToVector
-from src.types import BoundingBox, HeightWidth, TimeRange
 
 from .download.abstractions import DownloadResponse, DownloadStrategy
 from .download.evalscripts import L2A_12_BANDS_SCL
@@ -111,20 +119,28 @@ class InsertJob:
 @click.option("--model-id", type=int, required=True)
 def main(
     bbox: BoundingBox,
-    time_interval: TimeRange,
+    timestamp: str,
     maxcc: float,
     job_id: int,
     model_id: int,
 ):
     with create_db_session() as db_session:
-        # change status of job to processing
-        db_session.query(Job).filter(Job.id == job_id).update(
-            {"status": JobStatus.IN_PROGRESS}
-        )
+        model = db_session.query(Model).filter(Model.id == model_id).first()
+        if model is None:
+            db_session.query(Job).filter(Job.id == job_id).update(
+                {"status": JobStatus.FAILED}
+            )
+            raise NoResultFound("Model not found")
+
+        else:
+            db_session.query(Job).filter(Job.id == job_id).update(
+                {"status": JobStatus.IN_PROGRESS}
+            )
+
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
-            time_interval=time_interval,
+            time_interval=TimeRange(timestamp, timestamp),
             maxcc=maxcc,
             config=config.SH_CONFIG,
             evalscript=L2A_12_BANDS_SCL,
@@ -137,7 +153,9 @@ def main(
         split=RasterioRasterSplit(),
         pad=RasterioRasterPad(),
         band=RasterioRemoveBand(band=13),
-        inference=RasterioInference(inference_func=RunpodInferenceCallback()),
+        inference=RasterioInference(
+            inference_func=RunpodInferenceCallback(endpoint_url=model.model_url)
+        ),
         unpad=RasterioRasterUnpad(),
         merge=RasterioRasterMerge(merge_method=copy_smooth),
         convert=RasterioDtypeConversion(dtype="uint8"),
@@ -145,9 +163,18 @@ def main(
     )
 
     handler = MainHandler(downloader, raster_ops=raster_handler)
+    download_generator = handler.download()
+    try:
+        first_response = next(download_generator)
+    except StopIteration:
+        with create_db_session() as db_session:
+            db_session.query(Job).filter(Job.id == job_id).update(
+                {"status": JobStatus.FAILED}
+            )
+        raise ValueError("No images found for given parameters")
 
     try:
-        for download_response in handler.download():
+        for download_response in itertools.chain([first_response], download_generator):
             db_session = create_db_session()
 
             raster = handler.create_raster(download_response)
@@ -157,7 +184,6 @@ def main(
             insert_job = InsertJob(insert=Insert(db_session))
             insert_job.insert_all(
                 job_id=job_id,
-                model_id=model_id,
                 download_response=download_response,
                 raster=raster,
                 vectors=pred_vectors,

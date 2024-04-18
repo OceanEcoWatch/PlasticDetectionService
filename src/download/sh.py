@@ -11,7 +11,7 @@ from sentinelhub.data_collections import DataCollection
 from sentinelhub.geo_utils import bbox_to_dimensions
 from sentinelhub.geometry import BBox
 
-from src.types import BoundingBox, HeightWidth
+from src._types import BoundingBox, HeightWidth
 
 from .abstractions import DownloadParams, DownloadResponse, DownloadStrategy
 
