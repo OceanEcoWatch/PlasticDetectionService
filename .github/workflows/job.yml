@@ -41,7 +41,7 @@ jobs:
         run: >
           python src/main.py
           --bbox ${{ github.event.inputs.bbox }}
-          --timestamp ${{ github.event.inputs.timestamp }}
+          --time_range ${{ github.event.inputs.timestamp }} ${{ github.event.inputs.timestamp }}
           --maxcc ${{ github.event.inputs.maxcc }}
           --job-id ${{ github.event.inputs.job_id }}
           --model-id ${{ github.event.inputs.model_id }}

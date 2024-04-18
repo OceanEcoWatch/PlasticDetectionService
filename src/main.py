@@ -1,5 +1,6 @@
 import io
 import itertools
+import logging
 from typing import Generator, Iterable
 
 import click
@@ -40,6 +41,9 @@ from .download.sh import (
     SentinelHubDownloadParams,
 )
 from .raster_op.utils import create_raster
+
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger(__name__)
 
 
 class MainHandler:
@@ -110,8 +114,8 @@ class InsertJob:
     help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
 )
 @click.option(
-    "--timestamp",
-    type=str,
+    "--time_range",
+    nargs=2,
     help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
 )
 @click.option("--maxcc", type=float, required=True, default=0.05)
@@ -119,7 +123,7 @@ class InsertJob:
 @click.option("--model-id", type=int, required=True)
 def main(
     bbox: BoundingBox,
-    timestamp: str,
+    time_range: tuple[str, str],
     maxcc: float,
     job_id: int,
     model_id: int,
@@ -131,8 +135,16 @@ def main(
                 {"status": JobStatus.FAILED}
             )
             raise NoResultFound("Model not found")
+        job = db_session.query(Job).filter(Job.id == job_id).first()
+
+        if job is None:
+            db_session.query(Job).filter(Job.id == job_id).update(
+                {"status": JobStatus.FAILED}
+            )
+            raise NoResultFound("Job not found")
 
         else:
+            LOGGER.info(f"Updating job {job_id} to in progress")
             db_session.query(Job).filter(Job.id == job_id).update(
                 {"status": JobStatus.IN_PROGRESS}
             )
@@ -140,7 +152,7 @@ def main(
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
-            time_interval=TimeRange(timestamp, timestamp),
+            time_interval=TimeRange(*time_range),
             maxcc=maxcc,
             config=config.SH_CONFIG,
             evalscript=L2A_12_BANDS_SCL,
@@ -175,30 +187,40 @@ def main(
 
     try:
         for download_response in itertools.chain([first_response], download_generator):
-            db_session = create_db_session()
+            print(download_response.crs)
+            LOGGER.info(f"Processing image {download_response.image_id}")
 
             raster = handler.create_raster(download_response)
+            LOGGER.info(f"Processing raster for image {download_response.image_id}")
             pred_raster = handler.get_prediction_raster(raster)
+            print(pred_raster.crs, pred_raster.geometry)
+            LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
             pred_vectors = RasterioRasterToVector().execute(pred_raster)
-
-            insert_job = InsertJob(insert=Insert(db_session))
-            insert_job.insert_all(
-                job_id=job_id,
-                download_response=download_response,
-                raster=raster,
-                vectors=pred_vectors,
+            LOGGER.info(
+                f"Got prediction vectors for image {download_response.image_id}"
             )
+            with create_db_session() as db_session:
+                insert_job = InsertJob(insert=Insert(db_session))
+                insert_job.insert_all(
+                    job_id=job_id,
+                    download_response=download_response,
+                    raster=pred_raster,
+                    vectors=pred_vectors,
+                )
+            LOGGER.info(f"Inserted image {download_response.image_id}")
     except Exception as e:
         with create_db_session() as db_session:
             db_session.query(Job).filter(Job.id == job_id).update(
                 {"status": JobStatus.FAILED}
             )
+        LOGGER.error(f"Job {job_id} failed with error {e}")
         raise e
 
     with create_db_session() as db_session:
         db_session.query(Job).filter(Job.id == job_id).update(
             {"status": JobStatus.COMPLETED}
         )
+    LOGGER.info(f"Job {job_id} completed {JobStatus.COMPLETED}")
 
 
 if __name__ == "__main__":

@@ -79,7 +79,7 @@ class Insert:
             image_height=raster.size[1],
             bands=len(raster.bands),
             provider=download_response.data_collection,
-            bbox=from_shape(raster.geometry),
+            bbox=from_shape(raster.geometry, srid=raster.crs),
             job_id=job_id,
         )
         self.session.add(image)
@@ -94,7 +94,7 @@ class Insert:
             dtype=str(raster.dtype),
             image_width=raster.size[0],
             image_height=raster.size[1],
-            bbox=from_shape(raster.geometry),
+            bbox=from_shape(raster.geometry, srid=raster.crs),
             image_id=image_id,
         )
         self.session.add(prediction_raster)
@@ -105,7 +105,9 @@ class Insert:
         self, vectors: Iterable[Vector], raster_id: int
     ) -> list[PredictionVector]:
         prediction_vectors = [
-            PredictionVector(v.pixel_value, from_shape(v.geometry), raster_id)
+            PredictionVector(
+                v.pixel_value, from_shape(v.geometry, srid=v.crs), raster_id
+            )
             for v in vectors
         ]
         self.session.bulk_save_objects(prediction_vectors)
@@ -116,7 +118,9 @@ class Insert:
         self, vectors: Iterable[Vector], image_id: int
     ) -> list[SceneClassificationVector]:
         scls_vectors = [
-            SceneClassificationVector(v.pixel_value, from_shape(v.geometry), image_id)
+            SceneClassificationVector(
+                v.pixel_value, from_shape(v.geometry, srid=v.crs), image_id
+            )
             for v in vectors
         ]
         self.session.bulk_save_objects(scls_vectors)
