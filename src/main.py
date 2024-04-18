@@ -8,7 +8,6 @@ import rasterio
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
 from sqlalchemy.exc import NoResultFound
-from wandb import Image
 
 from src import config
 from src._types import BoundingBox, HeightWidth, TimeRange
@@ -16,6 +15,7 @@ from src.aws import s3
 from src.database.connect import create_db_session
 from src.database.insert import Insert
 from src.database.models import (
+    Image,
     Job,
     JobStatus,
     Model,
@@ -118,7 +118,7 @@ class InsertJob:
     nargs=2,
     help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
 )
-@click.option("--maxcc", type=float, required=True, default=0.05)
+@click.option("--maxcc", type=float, required=True)
 @click.option("--job-id", type=int, required=True)
 @click.option("--model-id", type=int, required=True)
 def main(
