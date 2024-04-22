@@ -1,27 +1,38 @@
 @startuml container_diagram
-!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
 LAYOUT_WITH_LEGEND()
 
 Person(user, "User", "Uses the web application to submit requests and view detections.")
-Container(webApp, "Web App", "Browser-based", "Allows users to submit images and view detection results.")
-Container(api, "API", "FastAPI", "Accepts and processes requests from the Web App.")
-Container(svc, "PlasticDetectionService", "Service", "Processes images and returns detection results.")
-Container(model, "PlasticDetectionModel", "CNN", "Detects plastic in images.")
-System_Ext(sh, "Satellite Data API", "Sentinel Hub")
-System_Ext(s3, "Storage", "AWS S3")
-System_Ext(rds, "Database", "AWS RDS")
-System_Ext(runpod, "Cloud GPU", "RunPod")
+
+System_Boundary(system, "Ocean Eco Watch") {
+    System(webApp, "Web App", "Browser-based")
+    System(api, "API", "FastAPI")
+    System(svc, "PlasticDetectionService", "Service")
+    System(model, "PlasticDetectionModel", "CNN")
+}
+
+System_Ext(SentinelHub, "Sentinel Hub", "Provides satellite data.")
+System_Ext(AwsRds, "AWS RDS", "PostGIS database for storing vector data.")
+System_Ext(AwsS3, "AWS S3", "Stores satellite images and prediction raster data.")
+System_Ext(AwsElasticBeanstalk, "AWS Elastic Beanstalk", "Hosts the API.")
+System_Ext(AwsElasticLoadBalancing, "AWS Elastic Load Balancing", "Distributes incoming traffic.")
+System_Ext(Strato, "Strato", "Hosts frontend web app.")
+System_Ext(Runpod, "Runpod", "Serverless GPU for running prediction models.")
+System_Ext(GithubActions, "Github Actions", "Runs prediction service")
 
 Rel(user, webApp, "Uses")
-Rel(webApp, api, "Submits requests to", "HTTPS")
+Rel(webApp, api, "Submits requests to")
 Rel(api, svc, "Triggers requests to")
-Rel(api, sh, "Searches satellite data from")
-Rel(svc, rds, "Reads from and writes to")
+Rel(api, SentinelHub, "Downloads satellite data from")
+Rel(svc, AwsRds, "Reads from and writes to")
 Rel(svc, model, "Uses")
-Rel(svc, s3, "Stores images in")
-Rel_R(api, rds, "Reads from and writes to")
-Rel(svc, sh, "Downloads satellite data from")
-Rel(model, runpod, "Runs on")
-
+Rel(svc, AwsS3, "Stores images in")
+Rel_R(api, AwsRds, "Reads from and writes to")
+Rel(svc, SentinelHub, "Downloads satellite data from")
+Rel(model, Runpod, "Runs on")
+Rel(webApp, Strato, "Hosted on")
+Rel(api, AwsElasticBeanstalk, "Hosted on")
+Rel(api, AwsElasticLoadBalancing, "Balances traffic to")
+Rel(svc, GithubActions, "Runs on")
 @enduml

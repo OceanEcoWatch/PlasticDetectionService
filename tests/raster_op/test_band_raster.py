@@ -8,7 +8,7 @@ from src.raster_op.band import RasterioRemoveBand
 def test_remove_band(s2_l2a_raster, caplog):
     band = 1
     remove_band_strategy = RasterioRemoveBand(band=band)
-    removed_band_raster = remove_band_strategy.execute(s2_l2a_raster)
+    removed_band_raster = next(remove_band_strategy.execute([s2_l2a_raster]))
     assert "does not exist in raster, skipping" not in caplog.text
     assert removed_band_raster.size == s2_l2a_raster.size
     assert removed_band_raster.crs == s2_l2a_raster.crs
@@ -23,7 +23,7 @@ def test_remove_band(s2_l2a_raster, caplog):
 
 def test_remove_band_skips_nonexistent_band(s2_l2a_raster, caplog):
     remove_band_strategy = RasterioRemoveBand(band=13)
-    removed_band_raster = remove_band_strategy.execute(s2_l2a_raster)
+    removed_band_raster = next(remove_band_strategy.execute([s2_l2a_raster]))
     assert removed_band_raster.size == s2_l2a_raster.size
     assert removed_band_raster.crs == s2_l2a_raster.crs
     assert removed_band_raster.bands == s2_l2a_raster.bands

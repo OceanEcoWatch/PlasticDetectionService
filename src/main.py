@@ -25,11 +25,10 @@ from src.database.models import (
 from src.inference.inference_callback import RunpodInferenceCallback
 from src.models import Raster, Vector
 from src.raster_op.band import RasterioRemoveBand
-from src.raster_op.composite import RasterOpHandler
-from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
-from src.raster_op.merge import RasterioRasterMerge, copy_smooth
+from src.raster_op.merge import RasterioRasterMerge
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
+from src.raster_op.pipeline import CompositeRasterOperation
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.vectorize import RasterioRasterToVector
@@ -48,7 +47,7 @@ LOGGER = logging.getLogger(__name__)
 
 class MainHandler:
     def __init__(
-        self, downloader: DownloadStrategy, raster_ops: RasterOpHandler
+        self, downloader: DownloadStrategy, raster_ops: CompositeRasterOperation
     ) -> None:
         self.downloader = downloader
         self.raster_ops = raster_ops
@@ -71,7 +70,7 @@ class MainHandler:
         )
 
     def get_prediction_raster(self, image: Raster) -> Raster:
-        return self.raster_ops.execute(image)
+        return next(self.raster_ops.execute([image]))
 
 
 class InsertJob:
@@ -160,21 +159,16 @@ def main(
             mime_type=MimeType.TIFF,
         )
     )
+    comp_op = CompositeRasterOperation()
+    comp_op.add(RasterioRasterSplit())
+    comp_op.add(RasterioRasterPad())
+    comp_op.add(RasterioRemoveBand(band=13))
+    comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
+    comp_op.add(RasterioRasterUnpad())
+    comp_op.add(RasterioRasterMerge())
+    comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
 
-    raster_handler = RasterOpHandler(
-        split=RasterioRasterSplit(),
-        pad=RasterioRasterPad(),
-        band=RasterioRemoveBand(band=13),
-        inference=RasterioInference(
-            inference_func=RunpodInferenceCallback(endpoint_url=model.model_url)
-        ),
-        unpad=RasterioRasterUnpad(),
-        merge=RasterioRasterMerge(merge_method=copy_smooth),
-        convert=RasterioDtypeConversion(dtype="uint8"),
-        reproject=RasterioRasterReproject(target_crs=4326, target_bands=[1]),
-    )
-
-    handler = MainHandler(downloader, raster_ops=raster_handler)
+    handler = MainHandler(downloader, raster_ops=comp_op)
     download_generator = handler.download()
     try:
         first_response = next(download_generator)

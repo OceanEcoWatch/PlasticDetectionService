@@ -4,44 +4,54 @@ package inference {
 abstract class BaseInferenceCallback {
     +{abstract} __call__(payload: bytes): bytes
 }
-
+}
+package models {
+class Raster {
+    -content: bytes
+    -size: HeightWidth
+    -dtype: str
+    -crs: int
+    -bands: list[int]
+    -resolution: float
+    -geometry: Polygon
+    -padding_size: HeightWidth
 }
 
-component "rasterio <<external>>" as rasterio{
-
+class Vector {
+    -geometry: BaseGeometry
+    -crs: int
+    -pixel_value: int
 }
-component "shapely <<external>>" as shapely{
-
 }
-rasterio -[hidden]- raster_op
-shapely -[hidden]- raster_op
+
+
 package raster_op {
 abstract class RasterOperationStrategy {
     +{abstract} execute(raster: Raster): Raster
 }
+RasterOperationStrategy ..> models.Raster : uses
 
 abstract class RasterToVectorStrategy {
     +{abstract} execute(raster: Raster): Generator[Vector, None, None]
 }
+RasterToVectorStrategy ..> models.Raster : uses
+RasterToVectorStrategy ..> models.Vector : uses
+
 
 abstract class RasterSplitStrategy {
     +{abstract} execute(raster: Raster): Generator[Raster, None, None]
 }
+RasterSplitStrategy ..> models.Raster : uses
 
 abstract class RasterMergeStrategy {
     +{abstract} execute(rasters: Iterable[Raster]): Raster
 }
+RasterSplitStrategy ..> models.Raster : uses
 
-
-class CompositeRasterOperation {
-    -strategies: Iterable[RasterOperationStrategy]
-    +execute(raster: Raster): Raster
-}
-
-CompositeRasterOperation --|> RasterOperationStrategy
 
 
 package rasterio_impl{
+    note "Uses Rasterio Library" as rasterio_note
 class RasterioRemoveBand {
     -band: int
     -band_index: int
@@ -115,8 +125,6 @@ RasterioRasterSplit --|> RasterSplitStrategy
 RasterioRasterToVector --|> RasterToVectorStrategy
 
 }
-rasterio_impl ..> rasterio : depends on
-rasterio_impl ..> shapely : depends on
 }
 
 

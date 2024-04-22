@@ -11,7 +11,7 @@ from src.raster_op.convert import (
 def test_dtype_conversion(s2_l2a_raster):
     dtype = rasterio.uint8
     strategy = RasterioDtypeConversion(dtype=dtype)
-    converted_raster = strategy.execute(s2_l2a_raster)
+    converted_raster = next(strategy.execute([s2_l2a_raster]))
     assert converted_raster.size == s2_l2a_raster.size
     assert converted_raster.crs == s2_l2a_raster.crs
     assert converted_raster.bands == s2_l2a_raster.bands

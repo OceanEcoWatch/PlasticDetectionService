@@ -58,6 +58,7 @@ This is a early stage project so the following quality attributes are most impor
 
 ## Blueprint
 
+Layered architecture
 Domain
 models.py
 abstractions for rasterop
@@ -101,10 +102,18 @@ enforce contract with lint-imports
 
 ## Design Patterns
 
-To allow for easy extensibility and maintainability, a mix of the strategy and composite design patterns are used in the `raster_op` module. The `RasterOperationStrategy`, `RasterSplitStrategy`, `RasterMergeStrategy` and `RasterToVectorStrategy` classes are used to define the interface for the different raster operations. The `RasterOperationComposite` class is used to combine the different raster operations into a single operation (See Code Diagram). This allows for easy extension of the raster operations and easy modification of the raster operation pipeline.
-In combination with the custom Raster and Vector dataclasses I made the implementation of the raster operations independent of the external library used, which is useful for future extensions with potentially different raster libraries. This already proved valuable in my refactoring from GDAL to Rasterio.
-The code for this you can find [here]:(..src/raster_op/)
+Machine Learning pipelines are usually a series of data processing steps that are run in a sequence. Therefore, the pipeline pattern is a good fit. Key elements of the pipeline design patterns are:
+
+- Steps: Steps are the individual processing units in the pipeline. Each step is a specific task that is performed on the data.
+- Input and Output: Each step takes input data and produces output data. The output of one step is the input to the next step.
+- Order: The steps are executed in a specific order.
+- Context: Context is a shared object that is passed between the steps. It contains the data that is processed by the pipeline or state information that is shared between the steps.
+  [source](https://levelup.gitconnected.com/design-patterns-implementing-pipeline-design-pattern-824bd2d42bab)
+
+The main advantage of the pipeline pattern is that it allows for easy extensibility and maintainability. New steps can be added to the pipeline without changing the existing steps. The pipeline pattern also allows for easy testing of individual steps and the pipeline as a whole.
+
+To make the code extensible and maintainable, I've implemented the pipeline pattern in combination with the strategy pattern in the `PlasticDetectionService`. The steps of the pipeline all adhere to the `RasterOperationStrategy`, `RasterSplitStrategy`, `RasterMergeStrategy` and `RasterToVectorStrategy` interfaces [here](..src/raster_op/abstractions.py). The input and output of each step are the `Raster` and `Vector` dataclasses . The context is saved in the `Raster` and `Vector` dataclasses as well [here](...src/models.py). The pipeline is executed in the `execute` method of the `RasterOpHandler` class. The code for this you can find [here]:(..src/raster_op/pipeline.py)
+
+The strategy pattern in combination with the `Raster` and `Vector` dataclasses also enable the abstraction of external libraries used for raster operations. This allows for easy extension of the raster operations and easy modification of the raster operation pipeline. This already proved valuable in my refactoring from GDAL to Rasterio.
 
 The `download` module implements the strategy pattern as well to allow for changing to another satellite data provider in the future. The `DownloadStrategy` class defines the interface for the different download strategies. The `SentinelHubDownload` class implements the interface for downloading data from SentinelHub. The code for this you can find [here]:(..src/download/)
-
-Design principles and patterns for ML and geospatial data pipelines

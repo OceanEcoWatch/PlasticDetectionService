@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 import rasterio
 
+from src._types import HeightWidth
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.split import RasterioRasterSplit
-from src._types import HeightWidth
 
 
 @pytest.mark.parametrize("padding", [0, 16, 32, 64, 128])
@@ -14,8 +14,9 @@ from src._types import HeightWidth
 def test_pad_raster(s2_l2a_raster, padding, divisible_by):
     processor = RasterioRasterPad(padding=padding, divisible_by=divisible_by)
 
-    padded_raster = processor.execute(s2_l2a_raster)
-
+    padded_raster = list(processor.execute([s2_l2a_raster]))
+    assert len(padded_raster) == 1
+    padded_raster = padded_raster[0]
     assert padded_raster.size >= s2_l2a_raster.size + (padding, padding)
 
     assert padded_raster.crs == s2_l2a_raster.crs
@@ -43,11 +44,14 @@ def test_pad_raster_with_split_full_durban_scene(
 ):
     split_processor = RasterioRasterSplit(image_size=image_size, offset=padding)
 
-    for split_raster in split_processor.execute(durban_full_raster):
-        padded_raster = RasterioRasterPad(
-            padding=padding, divisible_by=divisible_by
-        ).execute(split_raster)
-
+    spit_rasters = list(split_processor.execute([durban_full_raster]))
+    padded_rasters = list(
+        RasterioRasterPad(padding=padding, divisible_by=divisible_by).execute(
+            spit_rasters
+        )
+    )
+    assert len(padded_rasters) == len(spit_rasters)
+    for split_raster, padded_raster in zip(spit_rasters, padded_rasters):
         assert padded_raster.crs == split_raster.crs
         assert padded_raster.bands == split_raster.bands
         assert padded_raster.content != split_raster.content
@@ -69,9 +73,11 @@ def test_unpad_split_rasters(s2_l2a_raster):
     pad_strategy = RasterioRasterPad(padding=64)
     unpad_strategy = RasterioRasterUnpad()
 
-    rasters = list(split_strategy.execute(s2_l2a_raster))
-    padded_rasters = [pad_strategy.execute(raster) for raster in rasters]
-    unpadded_rasters = [unpad_strategy.execute(raster) for raster in padded_rasters]
+    rasters = list(split_strategy.execute([s2_l2a_raster]))
+    padded_rasters = list(pad_strategy.execute(rasters))
+    assert len(padded_rasters) == len(rasters)
+    unpadded_rasters = list(unpad_strategy.execute(padded_rasters))
+    assert len(unpadded_rasters) == len(rasters)
 
     for exp, result in zip(rasters, unpadded_rasters):
         with rasterio.open(io.BytesIO(exp.content)) as exp_src:

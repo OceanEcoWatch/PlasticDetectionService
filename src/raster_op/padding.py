@@ -1,8 +1,10 @@
 import io
+from typing import Generator, Iterable
 
 import numpy as np
 import rasterio
 
+from src._types import BoundingBox, HeightWidth
 from src.models import Raster
 from src.raster_op.utils import (
     create_raster,
@@ -10,7 +12,6 @@ from src.raster_op.utils import (
     update_window_meta,
     write_image,
 )
-from src._types import BoundingBox, HeightWidth
 
 from .abstractions import (
     RasterOperationStrategy,
@@ -22,29 +23,30 @@ class RasterioRasterPad(RasterOperationStrategy):
         self.padding = padding
         self.divisible_by = divisible_by
 
-    def execute(self, raster: Raster) -> Raster:
-        with rasterio.open(io.BytesIO(raster.content)) as src:
-            meta = src.meta.copy()
-            padding_size = self._calculate_padding_size(src.read(), self.padding)
-            image = self._pad_image(src.read(), padding_size)
+    def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
+        for raster in rasters:
+            with rasterio.open(io.BytesIO(raster.content)) as src:
+                meta = src.meta.copy()
+                padding_size = self._calculate_padding_size(src.read(), self.padding)
+                image = self._pad_image(src.read(), padding_size)
 
-            adjusted_bounds = self._adjust_bounds_for_padding(
-                src.bounds, padding_size[0], src.transform
-            )
-            updated_meta = update_window_meta(meta, image)
-            updated_meta = update_bounds(updated_meta, adjusted_bounds)
-            byte_stream = write_image(image, updated_meta)
+                adjusted_bounds = self._adjust_bounds_for_padding(
+                    src.bounds, padding_size[0], src.transform
+                )
+                updated_meta = update_window_meta(meta, image)
+                updated_meta = update_bounds(updated_meta, adjusted_bounds)
+                byte_stream = write_image(image, updated_meta)
 
-            print("original image shape: ", src.read().shape)
-            print("padding size: ", padding_size)
-            print("padded image shape: ", image.shape)
-            return create_raster(
-                byte_stream,
-                image,
-                adjusted_bounds,
-                updated_meta,
-                padding_size[0],
-            )
+                print("original image shape: ", src.read().shape)
+                print("padding size: ", padding_size)
+                print("padded image shape: ", image.shape)
+                yield create_raster(
+                    byte_stream,
+                    image,
+                    adjusted_bounds,
+                    updated_meta,
+                    padding_size[0],
+                )
 
     def _ensure_divisible_padding(
         self, original_size: int, padding: int, divisible_by: int
@@ -106,22 +108,23 @@ class RasterioRasterPad(RasterOperationStrategy):
 
 
 class RasterioRasterUnpad(RasterOperationStrategy):
-    def execute(self, raster: Raster) -> Raster:
-        with rasterio.open(io.BytesIO(raster.content)) as src:
-            print("padding size: ", raster.padding_size)
-            image = src.read()
-            image = self._unpad_image(image, raster.padding_size)
+    def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
+        for raster in rasters:
+            with rasterio.open(io.BytesIO(raster.content)) as src:
+                print("padding size: ", raster.padding_size)
+                image = src.read()
+                image = self._unpad_image(image, raster.padding_size)
 
-            adjusted_bounds = self._adjust_bounds_for_unpadding(
-                src.bounds, raster.padding_size, src.transform
-            )
-            updated_meta = update_window_meta(src.meta, image)
-            updated_meta = update_bounds(updated_meta, adjusted_bounds)
-            byte_stream = write_image(image, updated_meta)
+                adjusted_bounds = self._adjust_bounds_for_unpadding(
+                    src.bounds, raster.padding_size, src.transform
+                )
+                updated_meta = update_window_meta(src.meta, image)
+                updated_meta = update_bounds(updated_meta, adjusted_bounds)
+                byte_stream = write_image(image, updated_meta)
 
-            return create_raster(
-                byte_stream, image, adjusted_bounds, updated_meta, HeightWidth(0, 0)
-            )
+                yield create_raster(
+                    byte_stream, image, adjusted_bounds, updated_meta, HeightWidth(0, 0)
+                )
 
     def _unpad_image(
         self,

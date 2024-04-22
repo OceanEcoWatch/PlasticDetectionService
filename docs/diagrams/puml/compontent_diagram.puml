@@ -1,25 +1,35 @@
 @startuml
-package "PlasticDetectionService Container" {
-  [Main Handler]
-  [Raster Operations Component]
-  [Download Component]
-  [Inference Callable Component]
-  [Database Component]
-  [Vector Operations Component]
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+System_Boundary(PlasticDetectionService, "Plastic Detection Service") {
+    component "main " as main
+    component "download" as download
+    component "raster_op" as raster_op
+    component "vector_op" as vector_op
+    component "inference" as inference
+    component "database_orm" as database_orm
 }
 
-database "Database"
-component "API Handler" as APIHandler
-component "Sentinel Hub" as SentinelHub
+System(PlasticDetectionServer, "Plastic Detection Server") {
+    component "API Handler" as APIHandler
+}
+System(PlasticDetectionModel, "Plastic Detection Model") {
+    component "handler" as handler
+}
+System_Ext(database, "PostGIS Database")
+System_Ext(SentinelHub, "Sentinel Hub")
 
 ' Define relationships and flow
-[APIHandler] --> [Main Handler] : "receives download request"
-[Main Handler] --> [Download Component] : "downloads data"
-[Download Component] --> SentinelHub : "fetches satellite imagery"
-[Main Handler] --> [Raster Operations Component] : "processes raster data"
-[Main Handler] --> [Vector Operations Component] : "processes vector data"
-[Raster Operations Component] --> [Inference Callable Component] : "calls inference"
-[Main Handler] --> [Database Component] : "stores data"
-[Database Component] --> "Database" : "stores data"
+[APIHandler] --> [main] : "receives download request"
+[main] --> [download] : "downloads data"
+[download] --> SentinelHub : "fetches satellite imagery"
+[main] --> [raster_op] : "processes raster data"
+[main] --> [vector_op] : "processes vector data"
+[raster_op] --> [inference] : "calls inference"
+[main] --> [database_orm] : "stores data"
+[database_orm] --> "database" : "stores data"
+[inference] --> [handler] : "calls inference handler"
 
 @enduml

@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
+from src._types import HeightWidth
 from src.raster_op.band import RasterioRemoveBand
-from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
 from src.raster_op.merge import (
@@ -10,30 +10,40 @@ from src.raster_op.merge import (
     copy_smooth,
 )
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
+from src.raster_op.pipeline import CompositeRasterOperation
 from src.raster_op.split import RasterioRasterSplit
-from src._types import HeightWidth
 from tests.conftest import LocalInferenceCallback, MockInferenceCallback
 
 
-def test_composite_raster_operation(s2_l2a_raster):
-    split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
-    comp_op = CompositeRasterOperation(
-        [
-            RasterioRasterPad(padding=64),
-            RasterioRemoveBand(band=13),
-            RasterioInference(inference_func=MockInferenceCallback()),
-            RasterioRasterUnpad(),
-        ]
+def test_all_raster_op_without_comp(s2_l2a_raster):
+    rasters = [s2_l2a_raster]
+    splitted_rasters = list(RasterioRasterSplit().execute(rasters))
+    padded_rasters = list(RasterioRasterPad().execute(splitted_rasters))
+    assert len(padded_rasters) == len(splitted_rasters)
+    inferred_rasters = list(
+        RasterioInference(inference_func=MockInferenceCallback()).execute(
+            padded_rasters
+        )
     )
-    results = []
-    for raster in split_op.execute(s2_l2a_raster):
-        result = comp_op.execute(raster)
-        results.append(result)
+    assert len(inferred_rasters) == len(padded_rasters)
+    unpadded_rasters = list(RasterioRasterUnpad().execute(inferred_rasters))
+    assert len(unpadded_rasters) == len(padded_rasters)
+    merged_raster = list(RasterioRasterMerge().execute(unpadded_rasters))
+    assert len(merged_raster) == 1
 
-    merge_op = RasterioRasterMerge(offset=64, merge_method=copy_smooth)
 
-    merged = merge_op.execute(results)
+def test_composite_raster_operation(s2_l2a_raster):
+    root_op = CompositeRasterOperation()
+    root_op.add(RasterioRasterSplit())
+    root_op.add(RasterioRasterPad(padding=64))
+    root_op.add(RasterioRemoveBand(band=13))
+    root_op.add(RasterioInference(inference_func=MockInferenceCallback()))
+    root_op.add(RasterioRasterUnpad())
+    root_op.add(RasterioRasterMerge(merge_method=copy_smooth))
 
+    merged = list(root_op.execute([s2_l2a_raster]))
+    assert len(merged) == 1
+    merged = merged[0]
     merged.to_file(
         f"tests/assets/test_out_composite_{MockInferenceCallback.__name__}.tif"
     )
@@ -48,24 +58,19 @@ def test_composite_raster_operation(s2_l2a_raster):
 
 @pytest.mark.slow
 def test_composite_raster_real_inference(s2_l2a_raster, raster):
-    split_op = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
-    comp_op = CompositeRasterOperation(
-        [
-            RasterioRasterPad(padding=64),
-            RasterioRemoveBand(band=13),
-            RasterioInference(inference_func=LocalInferenceCallback()),
-            RasterioRasterUnpad(),
-        ]
-    )
-    results = []
-    for r in split_op.execute(s2_l2a_raster):
-        result = comp_op.execute(r)
-        results.append(result)
+    comp_op = CompositeRasterOperation()
+    comp_op.add(RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64))
+    comp_op.add(RasterioRasterPad(padding=64))
+    comp_op.add(RasterioRemoveBand(band=13))
+    comp_op.add(RasterioInference(inference_func=LocalInferenceCallback()))
+    comp_op.add(RasterioRasterUnpad())
+    comp_op.add(RasterioRasterMerge(offset=64, merge_method=copy_smooth))
 
-    merge_op = RasterioRasterMerge(offset=64, merge_method=copy_smooth)
+    _merged = list(comp_op.execute([s2_l2a_raster]))
+    assert len(_merged) == 1
+    merged = _merged[0]
 
-    merged = merge_op.execute(results)
-    merged = RasterioDtypeConversion(dtype="uint8").execute(merged)
+    merged = next(RasterioDtypeConversion(dtype="uint8").execute([merged]))
     merged.to_file(
         f"tests/assets/test_out_composite_{LocalInferenceCallback.__name__}.tif"
     )

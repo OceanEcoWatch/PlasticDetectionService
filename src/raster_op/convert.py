@@ -1,5 +1,6 @@
 import io
 import logging
+from typing import Generator, Iterable
 
 import numpy as np
 import rasterio
@@ -7,9 +8,7 @@ import rasterio
 from src.models import Raster
 from src.raster_op.utils import create_raster, write_image
 
-from .abstractions import (
-    RasterOperationStrategy,
-)
+from .abstractions import RasterOperationStrategy
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,29 +21,30 @@ class RasterioDtypeConversion(RasterOperationStrategy):
         except TypeError:
             raise ValueError(f"Unsupported dtype: {dtype}")
 
-    def execute(self, raster: Raster) -> Raster:
-        with rasterio.open(io.BytesIO(raster.content)) as src:
-            meta = src.meta.copy()
-            image = src.read()
+    def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
+        for raster in rasters:
+            with rasterio.open(io.BytesIO(raster.content)) as src:
+                meta = src.meta.copy()
+                image = src.read()
 
-            if image.dtype == self.dtype:
-                LOGGER.info(f"Raster already has dtype {self.dtype}, skipping")
-                return raster
+                if image.dtype == self.dtype:
+                    LOGGER.info(f"Raster already has dtype {self.dtype}, skipping")
+                    return raster
 
-            image = self._scale(image)
+                image = self._scale(image)
 
-            meta.update(
-                {
-                    "dtype": self.dtype,
-                }
-            )
-            return create_raster(
-                write_image(image, meta),
-                image,
-                src.bounds,
-                meta,
-                raster.padding_size,
-            )
+                meta.update(
+                    {
+                        "dtype": self.dtype,
+                    }
+                )
+                yield create_raster(
+                    write_image(image, meta),
+                    image,
+                    src.bounds,
+                    meta,
+                    raster.padding_size,
+                )
 
     def _scale(self, image: np.ndarray) -> np.ndarray:
         image_min = image.min()

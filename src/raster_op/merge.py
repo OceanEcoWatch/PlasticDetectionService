@@ -1,5 +1,5 @@
 import io
-from typing import Callable, Iterable, Optional, Union
+from typing import Callable, Generator, Iterable, Optional, Union
 
 import numpy as np
 import rasterio
@@ -11,11 +11,11 @@ from src.models import Raster
 from src.raster_op.utils import create_raster
 
 from .abstractions import (
-    RasterMergeStrategy,
+    RasterOperationStrategy,
 )
 
 
-class RasterioRasterMerge(RasterMergeStrategy):
+class RasterioRasterMerge(RasterOperationStrategy):
     def __init__(
         self,
         offset: int = 64,
@@ -31,7 +31,7 @@ class RasterioRasterMerge(RasterMergeStrategy):
     def execute(
         self,
         rasters: Iterable[Raster],
-    ) -> Raster:
+    ) -> Generator[Raster, None, None]:
         srcs = [rasterio.open(io.BytesIO(r.content)) for r in rasters]
 
         mosaic, out_trans = merge(srcs, method=self.merge_method, nodata=0)  # type: ignore
@@ -55,7 +55,7 @@ class RasterioRasterMerge(RasterMergeStrategy):
         with rasterio.open(self.buffer, "w+", **out_meta) as dst:
             dst.write(mosaic)
 
-        return create_raster(
+        yield create_raster(
             self.buffer.getvalue(),
             mosaic,
             dst.bounds,
