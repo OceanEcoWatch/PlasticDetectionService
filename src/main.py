@@ -25,6 +25,7 @@ from src.database.models import (
 from src.inference.inference_callback import RunpodInferenceCallback
 from src.models import Raster, Vector
 from src.raster_op.band import RasterioRemoveBand
+from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
 from src.raster_op.merge import RasterioRasterMerge
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
@@ -113,7 +114,7 @@ class InsertJob:
     help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
 )
 @click.option(
-    "--time_range",
+    "--time-range",
     nargs=2,
     help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
 )
@@ -167,6 +168,7 @@ def main(
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge())
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
+    comp_op.add(RasterioDtypeConversion(dtype="uint8"))
 
     handler = MainHandler(downloader, raster_ops=comp_op)
     download_generator = handler.download()
