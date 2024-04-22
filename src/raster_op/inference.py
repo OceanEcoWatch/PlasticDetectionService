@@ -6,8 +6,9 @@ import numpy as np
 import rasterio
 
 from src.models import Raster
-from src.raster_op.abstractions import RasterOperationStrategy
 from src.raster_op.utils import create_raster, write_image
+
+from .abstractions import RasterOperationStrategy
 
 LOGGER = logging.getLogger(__name__)
 
