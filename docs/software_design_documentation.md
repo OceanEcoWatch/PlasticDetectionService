@@ -84,21 +84,25 @@ enforce contract with lint-imports
 
 ## Diagrams:
 
-### System Context Diagram
+### System Context Diagram Ocean Eco Watch
 
 ![system_context_diagram](diagrams/system_context_diagram.png?raw=true)
 
-### Container Diagram
+### Container Diagram Ocean Eco Watch
 
 ![container_diagram](diagrams/container_diagram.png?raw=true)
 
-### Component Diagram
+### Component Diagram PlasticDetectionService
 
 ![component_diagram](diagrams/compontent_diagram.png?raw=true)
 
-### Code Diagram
+### Code Diagram raster_op
 
 ![code_diagram_raster_operations](diagrams/code_diagram_raster_operations.png?raw=true)
+
+### Dependency graph PlasticDetectionService
+
+![see](docs/diagrams/dependency_graph.png?raw=true)
 
 ## Design Patterns
 
@@ -112,7 +116,7 @@ Machine Learning pipelines are usually a series of data processing steps that ar
 
 The main advantage of the pipeline pattern is that it allows for easy extensibility and maintainability. New steps can be added to the pipeline without changing the existing steps. The pipeline pattern also allows for easy testing of individual steps and the pipeline as a whole.
 
-To make the code extensible and maintainable, I've implemented the pipeline pattern in combination with the strategy pattern in the `PlasticDetectionService`. The steps of the pipeline all adhere to the `RasterOperationStrategy`, `RasterSplitStrategy`, `RasterMergeStrategy` and `RasterToVectorStrategy` interfaces [here](..src/raster_op/abstractions.py). The input and output of each step are the `Raster` and `Vector` dataclasses . The context is saved in the `Raster` and `Vector` dataclasses as well [here](...src/models.py). The pipeline is executed in the `execute` method of the `RasterOpHandler` class. The code for this you can find [here]:(..src/raster_op/pipeline.py)
+To make the code extensible and maintainable, I've implemented a version of the pipeline pattern in the `PlasticDetectionService` with a combination of the strategy and composite pattern. The steps of the pipeline all adhere to the `RasterOperationStrategy` and `RasterToVectorStrategy` interfaces [here](..src/raster_op/abstractions.py). The input and output of each step are the `Raster` and `Vector` dataclasses . The context is saved in the `Raster` and `Vector` dataclasses as well [here](...src/models.py). The pipeline is executed in the `execute` method of the `CompositeRasterOperation` class. The code for this you can find [here]:(..src/raster_op/composite.py)
 
 The strategy pattern in combination with the `Raster` and `Vector` dataclasses also enable the abstraction of external libraries used for raster operations. This allows for easy extension of the raster operations and easy modification of the raster operation pipeline. This already proved valuable in my refactoring from GDAL to Rasterio.
 

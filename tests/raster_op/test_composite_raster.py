@@ -3,6 +3,7 @@ import pytest
 
 from src._types import HeightWidth
 from src.raster_op.band import RasterioRemoveBand
+from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
 from src.raster_op.merge import (
@@ -10,7 +11,6 @@ from src.raster_op.merge import (
     copy_smooth,
 )
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
-from src.raster_op.pipeline import CompositeRasterOperation
 from src.raster_op.split import RasterioRasterSplit
 from tests.conftest import LocalInferenceCallback, MockInferenceCallback
 

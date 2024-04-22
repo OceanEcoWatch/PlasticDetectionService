@@ -27,7 +27,7 @@ class Vector {
 
 package raster_op {
 abstract class RasterOperationStrategy {
-    +{abstract} execute(raster: Raster): Raster
+    +{abstract} execute(raster: Iterable[Raster]): Iterable[Raster]
 }
 RasterOperationStrategy ..> models.Raster : uses
 
@@ -37,16 +37,6 @@ abstract class RasterToVectorStrategy {
 RasterToVectorStrategy ..> models.Raster : uses
 RasterToVectorStrategy ..> models.Vector : uses
 
-
-abstract class RasterSplitStrategy {
-    +{abstract} execute(raster: Raster): Generator[Raster, None, None]
-}
-RasterSplitStrategy ..> models.Raster : uses
-
-abstract class RasterMergeStrategy {
-    +{abstract} execute(rasters: Iterable[Raster]): Raster
-}
-RasterSplitStrategy ..> models.Raster : uses
 
 
 
@@ -86,7 +76,7 @@ class RasterioRasterMerge {
 
 }
 
-RasterioRasterMerge --|> RasterMergeStrategy
+RasterioRasterMerge --|> RasterOperationStrategy
 
 class RasterioRasterPad {
     -padding: int
@@ -114,7 +104,7 @@ class RasterioRasterSplit {
     +execute(raster: Raster): Generator[Raster, None, None]
 }
 
-RasterioRasterSplit --|> RasterSplitStrategy
+RasterioRasterSplit --|> RasterOperationStrategy
 
 
     class RasterioRasterToVector {
@@ -126,6 +116,4 @@ RasterioRasterToVector --|> RasterToVectorStrategy
 
 }
 }
-
-
 @enduml
