@@ -1,4 +1,4 @@
-# Self-reflection SE_35 Software Modeling and Design Patterns
+# Self-reflection
 
 ## Marc Leerink, SE_35 Software Modeling and Design Patterns, 23 April 2024, Semester 6
 
@@ -36,3 +36,7 @@ It was a challenge to fit all the raster operations in one interface. Initially 
 ### Architectural Style and Patterns
 
 It is essential that we can extend/change our system to changing requirements. We want to be able to add more features/services when needed. For example we want to add different prediciton models. Our architectural design needs to make it possible to switch out models with ease.Because of that, we've chosen a service-oriented architecture for Ocean Eco Watch. This allows us easily scale the services and add new features/services in the future. The services are containerized and deployed on AWS/Runpod as serverless containers. All services are easy to deploy with a CI/CD pipeline. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture. In the future we might consider moving to a microservices architecture if the services grow too large, this wasn't necessary for the current requirements.
+
+## Self Assessment
+
+I've implemented design principles, multiple design patterns and a advanced architectural pattern for a complex/real-world project. The implementation of the principles and patterns was done based on the quality attributes most important to the stage our project is in.Therefore I self-assess myself to be at level 2-3.
