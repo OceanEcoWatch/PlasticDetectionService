@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 from src.models import Raster
-from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.reproject import RasterioRasterReproject
 
 
@@ -10,16 +9,13 @@ from src.raster_op.reproject import RasterioRasterReproject
     "strategy",
     [
         RasterioRasterReproject(target_crs=4326, target_bands=[1]),
-        CompositeRasterOperation(
-            [RasterioRasterReproject(target_crs=4326, target_bands=[1])]
-        ),
     ],
 )
 def test_reproject_raster(raster, rasterio_ds, strategy):
     target_crs = 4326
     target_bands = [1]
 
-    reprojected_raster = strategy.execute(raster)
+    reprojected_raster = next(strategy.execute([raster]))
 
     assert reprojected_raster.crs == target_crs
     assert reprojected_raster.bands == target_bands

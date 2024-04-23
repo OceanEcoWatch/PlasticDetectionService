@@ -4,54 +4,54 @@ package inference {
 abstract class BaseInferenceCallback {
     +{abstract} __call__(payload: bytes): bytes
 }
-
+}
+package models {
+class Raster {
+    -content: bytes
+    -size: HeightWidth
+    -dtype: str
+    -crs: int
+    -bands: list[int]
+    -resolution: float
+    -geometry: Polygon
+    -padding_size: HeightWidth
 }
 
-component "rasterio <<external>>" as rasterio{
-
+class Vector {
+    -geometry: BaseGeometry
+    -crs: int
+    -pixel_value: int
 }
-component "shapely <<external>>" as shapely{
-
 }
-rasterio -[hidden]- raster_op
-shapely -[hidden]- raster_op
+
+
 package raster_op {
 abstract class RasterOperationStrategy {
-    +{abstract} execute(raster: Raster): Raster
+    +{abstract} execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
 }
+RasterOperationStrategy ..> models.Raster : uses
 
 abstract class RasterToVectorStrategy {
-    +{abstract} execute(raster: Raster): Generator[Vector, None, None]
+    +{abstract} execute(rasters: Raster): Generator[Vector, None, None]
 }
-
-abstract class RasterSplitStrategy {
-    +{abstract} execute(raster: Raster): Generator[Raster, None, None]
-}
-
-abstract class RasterMergeStrategy {
-    +{abstract} execute(rasters: Iterable[Raster]): Raster
-}
+RasterToVectorStrategy ..> models.Raster : uses
+RasterToVectorStrategy ..> models.Vector : uses
 
 
-class CompositeRasterOperation {
-    -strategies: Iterable[RasterOperationStrategy]
-    +execute(raster: Raster): Raster
-}
-
-CompositeRasterOperation --|> RasterOperationStrategy
 
 
 package rasterio_impl{
+    note "Uses Rasterio Library" as rasterio_note
 class RasterioRemoveBand {
     -band: int
     -band_index: int
-    +execute(raster: Raster): Raster
+    +execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
 }
 RasterioRemoveBand --|> RasterOperationStrategy
 
 class RasterioInference {
     inference_func: BaseInferenceCallback
-    +execute(raster: Raster): Raster
+    +execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
 }
 
 RasterioInference --|> RasterOperationStrategy
@@ -60,7 +60,7 @@ RasterioInference ..> BaseInferenceCallback : needs
 class RasterioDtypeConversion {
     -dtype: str
     -np_dtype: np.dtype
-    +execute(raster: Raster): Raster
+    +execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
     +_scale(image: np.ndarray): np.ndarray
 }
 
@@ -72,19 +72,19 @@ class RasterioRasterMerge {
     -offset: int
     -merge_method: Union[str, Callable]
     -bands: Optional[list[int]]
-    +execute(raster: Iterable[Raster]): Raster
+    +execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
 
 }
 
-RasterioRasterMerge --|> RasterMergeStrategy
+RasterioRasterMerge --|> RasterOperationStrategy
 
 class RasterioRasterPad {
     -padding: int
     -divisible_by: int
-    +execute(raster: Raster): Raster
+    +execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
     }
 class RasterioRasterUnpad {
-    +execute(raster: Raster): Raster
+    +execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
 }
 RasterioRasterPad --|> RasterOperationStrategy
 RasterioRasterUnpad --|> RasterOperationStrategy
@@ -93,7 +93,7 @@ class RasterioRasterReproject {
     -target_crs: int
     -target_bands: Optional[Iterable[int]]
     -resample_alg: str
-    +execute(raster: Raster): Raster
+    +execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
 
 }
 RasterioRasterReproject --|> RasterOperationStrategy
@@ -101,10 +101,10 @@ RasterioRasterReproject --|> RasterOperationStrategy
 class RasterioRasterSplit {
     -image_size: HeightWidth
     -offset: int
-    +execute(raster: Raster): Generator[Raster, None, None]
+    +execute(rasters: Iterable[Raster]): Generator[Raster, None, None]
 }
 
-RasterioRasterSplit --|> RasterSplitStrategy
+RasterioRasterSplit --|> RasterOperationStrategy
 
 
     class RasterioRasterToVector {
@@ -115,9 +115,5 @@ RasterioRasterSplit --|> RasterSplitStrategy
 RasterioRasterToVector --|> RasterToVectorStrategy
 
 }
-rasterio_impl ..> rasterio : depends on
-rasterio_impl ..> shapely : depends on
 }
-
-
 @enduml

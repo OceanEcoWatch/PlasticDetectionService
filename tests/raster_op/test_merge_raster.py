@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import rasterio
 
+from src._types import HeightWidth
 from src.raster_op.merge import (
     RasterioRasterMerge,
     copy_smooth,
@@ -12,7 +13,6 @@ from src.raster_op.merge import (
 from src.raster_op.split import (
     RasterioRasterSplit,
 )
-from src._types import HeightWidth
 
 
 @pytest.mark.parametrize(
@@ -21,8 +21,8 @@ from src._types import HeightWidth
 def test_merge_rasters(s2_l2a_raster, merge_method):
     merge_strategy = RasterioRasterMerge(offset=64, merge_method=merge_method)
     split_strategy = RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64)
-    rasters = list(split_strategy.execute(s2_l2a_raster))
-    merged = merge_strategy.execute(rasters)
+    rasters = list(split_strategy.execute([s2_l2a_raster]))
+    merged = next(merge_strategy.execute(rasters))
     merged.to_file(
         f"tests/assets/test_out_merge_{merge_method if isinstance(merge_method, str) else merge_method.__name__}.tif"
     )

@@ -3,8 +3,8 @@ import io
 import numpy as np
 import rasterio
 
-from src.raster_op.split import RasterioRasterSplit
 from src._types import HeightWidth
+from src.raster_op.split import RasterioRasterSplit
 
 
 def test_split_raster(s2_l2a_raster):
@@ -12,7 +12,7 @@ def test_split_raster(s2_l2a_raster):
     offset = 64
     processor = RasterioRasterSplit(image_size=image_size, offset=offset)
 
-    split_raster = next(processor.execute(s2_l2a_raster))
+    split_raster = next(processor.execute([s2_l2a_raster]))
 
     assert split_raster.size == image_size
     assert split_raster.crs == s2_l2a_raster.crs
@@ -42,8 +42,8 @@ def test_split_rasters_are_in_bounds_original(s2_l2a_raster):
     offset = 64
     processor = RasterioRasterSplit(image_size=image_size, offset=offset)
 
-    rasters = list(processor.execute(s2_l2a_raster))
-
+    rasters = list(processor.execute([s2_l2a_raster]))
+    assert len(rasters) == 4
     for i, raster in enumerate(rasters):
         assert raster.geometry.bounds[0] >= s2_l2a_raster.geometry.bounds[0]
         assert raster.geometry.bounds[1] >= s2_l2a_raster.geometry.bounds[1]
