@@ -54,6 +54,26 @@ python -m scripts.reset_db
 python -m scripts.add_job_to_db
 ```
 
+## Development environment and testing
+
+1. Run quick unit tests
+
+```bash
+pytest -m 'not integration and not slow'
+```
+
+2. Run integration tests
+
+```bash
+pytest -m 'integration'
+```
+
+3. Run slow (real inference) tests
+
+```bash
+pytest -m 'slow and not integration'
+```
+
 4. Run the service locally
    The job and model id will be 1 if you have run the reset_db and add_job_to_db scripts
 
