@@ -2,15 +2,6 @@
 
 ## Marc Leerink, SE_35 Software Modeling and Design Patterns, 23 April 2024, Semester 6
 
-- Following good design principles (SOLID or anything else)
-- Managing Dependencies
-- Achieving maintainability (tools, standards, practices)
-- Using any design patterns (in relation to your domain and use cases)
-- Following the best practice of a certain architectural style
-- Evaluating and governing your design
-- Refactoring your design in anyway
-- Using ADRs
-
 At the start of this semester my team had build a working prototype for Ocean Eco Watch. My contribution was a deployed PlasticDetectionModel on sagemaker and a PlasticDetectionService running on Github Actions. Both services were build very quickly without tests and with a annoying external library GDAL, which takes 5min to compile which isn't ideal for serverless instances.
 
 ### Initial Steps: Testing and Refactoring
