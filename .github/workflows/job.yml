@@ -39,7 +39,7 @@ jobs:
 
       - name: Run main script
         run: >
-          python src/main.py
+          python -m src.main
           --bbox ${{ github.event.inputs.bbox }}
           --time-range ${{ github.event.inputs.time_range }}
           --maxcc ${{ github.event.inputs.maxcc }}
