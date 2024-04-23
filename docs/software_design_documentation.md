@@ -48,41 +48,20 @@ This is a early stage project so the following quality attributes are most impor
 - The project should be easy to update
 - The project should be easy to deploy
 
-### Maintainability
+### Scalability
 
-- The code should be easy to understand and modify
-- The code should be well documented
-- The code should be well tested
+- The project should be able to handle a large number of users
+- The project should be able to handle a large number of predictions
 
 ## Architectural Style and Patterns
 
-## Blueprint
+The whole system is designed as a serverless, service-based, architecture. We currently only have two services, the PlasticDetectionService and the PlasticDetectionModel. They are loosely-coupled and can easily be interchanged. The backend API acts as a gateway between the PlasticDetectionService and the frontend web mapping application. All components are containerized and deployed on AWS as serverless containers. This allows for easy scaling, updating, and deployment. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture.
 
-Layered architecture
-Domain
-models.py
-abstractions for rasterop
+### Dependency graph PlasticDetectionService
 
-Use Cases
-abstractions for download
-implementations for rasterop
-abstractions for inference
+![see](docs/diagrams/dependency_graph.png?raw=true)
 
-Utilities
-implementations for download
-implementations for inference
-
-MVC
-
-Ports and Adapters
-
-Clean Architecture
-
-Note
-pydeps src -show-deps
-enforce contract with lint-imports
-
-## Diagrams:
+## C4 Diagrams:
 
 ### System Context Diagram Ocean Eco Watch
 
@@ -99,10 +78,6 @@ enforce contract with lint-imports
 ### Code Diagram raster_op
 
 ![code_diagram_raster_operations](diagrams/code_diagram_raster_operations.png?raw=true)
-
-### Dependency graph PlasticDetectionService
-
-![see](docs/diagrams/dependency_graph.png?raw=true)
 
 ## Design Patterns
 
