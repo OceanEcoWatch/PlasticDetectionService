@@ -53,6 +53,12 @@ python -m scripts.reset_db
 ```bash
 python -m scripts.add_job_to_db
 ```
+4. Run the service locally
+   The job and model id will be 1 if you have run the reset_db and add_job_to_db scripts
+
+```bash
+python -m src.main --bbox <max_lat> <min_lat> <max_lon> <min_lon> --time <start_date> <end_date> --maxcc <cloudcover_float> --job-id <job_id> --model-id <model_id>
+```
 
 ## Development environment and testing
 
@@ -72,13 +78,6 @@ pytest -m 'integration'
 
 ```bash
 pytest -m 'slow and not integration'
-```
-
-4. Run the service locally
-   The job and model id will be 1 if you have run the reset_db and add_job_to_db scripts
-
-```bash
-python -m src.main --bbox <max_lat> <min_lat> <max_lon> <min_lon> --time <start_date> <end_date> --maxcc <cloudcover_float> --job-id <job_id> --model-id <model_id>
 ```
 
 ## Architecture Diagram
