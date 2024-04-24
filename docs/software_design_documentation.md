@@ -59,7 +59,7 @@ The whole system is designed as a serverless, service-based, architecture. We cu
 
 ### Dependency graph PlasticDetectionService
 
-![see](docs/diagrams/dependency_graph.png?raw=true)
+![see](diagrams/dependency_graph.png?raw=true)
 
 ## C4 Diagrams:
 
