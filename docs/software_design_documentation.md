@@ -57,10 +57,6 @@ This is a early stage project so the following quality attributes are most impor
 
 The whole system is designed as a serverless, service-based, architecture. We currently only have two services, the PlasticDetectionService and the PlasticDetectionModel. They are loosely-coupled and can easily be interchanged. The backend API acts as a gateway between the PlasticDetectionService and the frontend web mapping application. All components are containerized and deployed on AWS as serverless containers. This allows for easy scaling, updating, and deployment. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture.
 
-### Dependency graph PlasticDetectionService
-
-![see](diagrams/dependency_graph.png?raw=true)
-
 ## C4 Diagrams:
 
 ### System Context Diagram Ocean Eco Watch
@@ -78,6 +74,14 @@ The whole system is designed as a serverless, service-based, architecture. We cu
 ### Code Diagram raster_op
 
 ![code_diagram_raster_operations](diagrams/code_diagram_raster_operations.png?raw=true)
+
+### Dependency graph PlasticDetectionService
+
+![see](diagrams/dependency_graph.png?raw=true)
+
+### Cloud Architecture
+
+![cloud_architecture_diagram](diagrams/PlasticDetectionService.png?raw=true)
 
 ## Design Patterns
 
