@@ -80,9 +80,6 @@ pytest -m 'integration'
 pytest -m 'slow and not integration'
 ```
 
-## Architecture Diagram
-
-![architecture_diagram](diagrams/geom_based_architecture.png?raw=true)
 
 ## Cloud Architecture Diagram
 
