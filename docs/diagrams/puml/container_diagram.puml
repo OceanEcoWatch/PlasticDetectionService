@@ -7,7 +7,7 @@ Person(user, "User", "Uses the web application to submit requests and view detec
 
 System_Boundary(system, "Ocean Eco Watch") {
     System(webApp, "Web App", "Browser-based")
-    System(api, "API", "FastAPI")
+    System(api, "OceanEcoMapServer", "API Gateway")
     System(svc, "PlasticDetectionService", "Service")
     System(model, "PlasticDetectionModel", "CNN")
 }
@@ -33,6 +33,6 @@ Rel(svc, SentinelHub, "Downloads satellite data from")
 Rel(model, Runpod, "Runs on")
 Rel(webApp, Strato, "Hosted on")
 Rel(api, AwsElasticBeanstalk, "Hosted on")
-Rel(api, AwsElasticLoadBalancing, "Balances traffic to")
+Rel(api, AwsElasticLoadBalancing, "Balances traffic with")
 Rel(svc, GithubActions, "Runs on")
 @enduml

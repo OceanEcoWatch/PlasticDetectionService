@@ -3,7 +3,7 @@
 
 LAYOUT_WITH_LEGEND()
 
-System_Boundary(PlasticDetectionService, "Plastic Detection Service") {
+System_Boundary(PlasticDetectionService, "PlasticDetectionService") {
     component "main " as main
     component "download" as download
     component "raster_op" as raster_op
@@ -12,10 +12,10 @@ System_Boundary(PlasticDetectionService, "Plastic Detection Service") {
     component "database_orm" as database_orm
 }
 
-System(PlasticDetectionServer, "Plastic Detection Server") {
-    component "API Handler" as APIHandler
+System(PlasticDetectionServer, "OceanEcoMapServer") {
+    component "API Gateway" as APIHandler
 }
-System(PlasticDetectionModel, "Plastic Detection Model") {
+System(PlasticDetectionModel, "PlasticDetectionModel") {
     component "handler" as handler
 }
 System_Ext(database, "PostGIS Database")
