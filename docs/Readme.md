@@ -80,11 +80,6 @@ pytest -m 'integration'
 pytest -m 'slow and not integration'
 ```
 
-
-## Cloud Architecture Diagram
-
-![cloud_architecture_diagram](diagrams/PlasticDetectionService.png?raw=true)
-
 ## Software Design Documentation
 
 [software_design_documentation](software_design_documentation.md)
