@@ -30,7 +30,7 @@ The parts of the system that I worked on are:
 
 - [PlasticDetectionModel](https://github.com/OceanEcoWatch/PlasticDetectionModel)
 - [PlasticDetecionService](https://github.com/OceanEcoWatch/PlasticDetectionService)
-- PostGIS Database
+- [PostGIS Database](https://github.com/OceanEcoWatch/PlasticDetectionService/blob/main/src/database/models.py)
 
 ## Quality Attributes:
 
@@ -55,7 +55,7 @@ This is a early stage project so the following quality attributes are most impor
 
 ## Architectural Style and Patterns
 
-The whole system is designed as a serverless, service-based, architecture. We currently only have two services, the PlasticDetectionService and the PlasticDetectionModel. They are loosely-coupled and can easily be interchanged. The backend API acts as a gateway between the PlasticDetectionService and the frontend web mapping application. All components are containerized and deployed on AWS as serverless containers. This allows for easy scaling, updating, and deployment. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture.
+The whole system is designed as a serverless, service-based, architecture. We currently only have two services, the PlasticDetectionService and the PlasticDetectionModel. They are loosely-coupled and can easily be interchanged. The OceanEcoMapServer acts as a API gateway between the PlasticDetectionService and the frontend web mapping application. All components are containerized and deployed on AWS as serverless containers. This allows for easy scaling, updating, and deployment. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture.
 
 ## C4 Diagrams:
 
