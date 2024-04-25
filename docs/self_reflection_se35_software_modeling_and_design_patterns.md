@@ -37,7 +37,7 @@ It was a challenge to fit all the raster operations in one interface. Initially 
 ### Architectural Style and Patterns
 
 It is essential that we can extend/change our system to changing requirements. We want to be able to add more features/services when needed. For example we want to add different prediciton models. Our architectural design needs to make it possible to switch out models with ease. Because of that, we've chosen a service-oriented architecture for Ocean Eco Watch. This allows us easily scale the services and add new features/services in the future. The services are containerized and deployed on AWS/Runpod as serverless containers. All services are easy to deploy with a CI/CD pipeline.
-Architectures that were considered as well are the modular monolith for its simplicity and the microkernel architecture for its flexibility and cost-effectiveness. Especially the micro-kernel is a architecture that fits our use case right now. However, this architecture is not easy to scale. A move to a microservices architecture was also not chosen due to the high costs and added complexity.
+Architectures that were considered as well are the modular monolith for its simplicity and the microkernel architecture for its flexibility and cost-effectiveness. Especially the micro-kernel is a architecture that fits our use case right now. However, this architecture is not easy to scale, which we need in the future. A move to a microservices architecture was also not chosen due to the high costs and added complexity.
 
 ## Self Assessment
 
