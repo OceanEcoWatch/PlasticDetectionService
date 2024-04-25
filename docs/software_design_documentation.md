@@ -81,7 +81,7 @@ The whole system is designed as a serverless, service-based architecture. We cur
 
 ### Cloud Architecture
 
-![cloud_architecture_diagram](diagrams/PlasticDetectionService.png?raw=true)
+![cloud_architecture_diagram](diagrams/cloud_diagram.png?raw=true)
 
 ## Design Patterns
 
