@@ -22,7 +22,7 @@ The use cases are:
 
 Not implemented yet:
 
-- Users cam view available areas for prediction
+- Users can view available areas for prediction
 - Users can filter the predictions by timestamp, cloud cover, and prediction probability
 - Users can request a prediction for a specific area and timestamp
 
@@ -55,7 +55,7 @@ This is a early stage project so the following quality attributes are most impor
 
 ## Architectural Style and Patterns
 
-The whole system is designed as a serverless, service-based architecture. We currently only have two services, the PlasticDetectionService and the PlasticDetectionModel. They are loosely-coupled and can easily be interchanged. The OceanEcoMapServer acts as a API gateway between the PlasticDetectionService and the frontend web mapping application. All components are containerized and deployed on AWS as serverless containers. This allows for easy scaling, updating, and deployment. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture.
+The whole system is designed as a serverless, service-based architecture. We currently only have two services, the PlasticDetectionService and the PlasticDetectionModel. They are loosely-coupled and can easily be interchanged. The OceanEcoMapServer acts as a API gateway between the PlasticDetectionService and the frontend web mapping application. All components are containerized and deployed on AWS as serverless containers. This allows for easy scaling, updating, and deployment. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture. Architectures that were considered as well are the modular monolith for its simplicity and the microkernel architecture for its flexibility and cost-effectiveness. Both options are not easily scalable and deployable as the serverless architecture, therefore the service-based architecture was chosen. A microservices architecture was also not a good fit at this stage due to the high costs and complexity.
 
 ## C4 Diagrams:
 
