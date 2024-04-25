@@ -18,7 +18,7 @@ In refactoring and expanding I applied the SOLID principles to ensure a maintain
 
 ### Achieving Maintainability
 
-To achive a maintainable codebase I've thoroughly tested the PlasticDetectionModel and PlasticDetectionService. CI/CD pipelines were implemented to ensure the code is always in a deployable state.
+To achive a maintainable codebase I've thoroughly tested the PlasticDetectionModel and PlasticDetectionService. CI/CD pipelines were implemented to ensure the code is always in a deployable state. The main components depend on abstractions, not on implementation, making the codebase easy to maintain.
 
 ### Design Patterns
 
@@ -28,6 +28,7 @@ To achive a maintainable codebase I've thoroughly tested the PlasticDetectionMod
 
 - Strategy Pattern:
   I've implemented the Strategy Pattern to abstract the raster operations and download operations. This allows me to easily swap out the implementation of the operations without changing the code that uses the operations. This already proved valuable in my refactoring from out the GDAL library to the Rasterio library.
+
 - Composite Pattern:
   I've implemented a Composite Pattern to execute the pipeline of raster operations. This allows me to easily add new operations to the pipeline.
 
@@ -35,7 +36,8 @@ It was a challenge to fit all the raster operations in one interface. Initially 
 
 ### Architectural Style and Patterns
 
-It is essential that we can extend/change our system to changing requirements. We want to be able to add more features/services when needed. For example we want to add different prediciton models. Our architectural design needs to make it possible to switch out models with ease. Because of that, we've chosen a service-oriented architecture for Ocean Eco Watch. This allows us easily scale the services and add new features/services in the future. The services are containerized and deployed on AWS/Runpod as serverless containers. All services are easy to deploy with a CI/CD pipeline. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture. Architectures that were considered as well are the modular monolith for its simplicity and the microkernel architecture for its flexibility and cost-effectiveness. Especially the micro-kernel is a architecture that fits our use case right now. However, this architecture is not easy to scale. A move to a microservices architecture was also not chosen due to the high costs and added complexity.
+It is essential that we can extend/change our system to changing requirements. We want to be able to add more features/services when needed. For example we want to add different prediciton models. Our architectural design needs to make it possible to switch out models with ease. Because of that, we've chosen a service-oriented architecture for Ocean Eco Watch. This allows us easily scale the services and add new features/services in the future. The services are containerized and deployed on AWS/Runpod as serverless containers. All services are easy to deploy with a CI/CD pipeline.
+Architectures that were considered as well are the modular monolith for its simplicity and the microkernel architecture for its flexibility and cost-effectiveness. Especially the micro-kernel is a architecture that fits our use case right now. However, this architecture is not easy to scale. A move to a microservices architecture was also not chosen due to the high costs and added complexity.
 
 ## Self Assessment
 
