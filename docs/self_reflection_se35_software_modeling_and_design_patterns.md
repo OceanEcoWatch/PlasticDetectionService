@@ -27,10 +27,10 @@ To achive a maintainable codebase I've thoroughly tested the PlasticDetectionMod
   The main advantage of the pipeline pattern is that it allows for easy extensibility and maintainability. I've implemented the pipeline pattern in the `PlasticDetectionService` with a combination of the strategy and composite pattern. The steps of the pipeline all adhere to the `RasterOperationStrategy` and `RasterToVectorStrategy` interfaces. The input and output of each step are the `Raster` and `Vector` dataclasses. The context is saved in the `Raster` and `Vector` dataclasses as well. The pipeline is executed in the execute method of the `CompositeRasterOperation` class.
 
 - Strategy Pattern:
-  I've implemented the Strategy Pattern to abstract the raster operations and download operations. This allows me to easily swap out the implementation of the operations without changing the code that uses the operations. This already proved valuable in my refactoring from out the GDAL library to the Rasterio library.
+  I've implemented the Strategy Pattern to abstract the raster operations and download operations. This allows me to easily swap out the implementation of the operations without changing the code that uses the operations. This already proved valuable in my refactoring out the GDAL library to the Rasterio library.
 
 - Composite Pattern:
-  I've implemented a Composite Pattern to execute the pipeline of raster operations. This allows me to easily add new operations to the pipeline.
+  I've implemented a Composite Pattern to execute the pipeline of raster operations in a tree. This allows me to easily add new operations to the pipeline.
 
 It was a challenge to fit all the raster operations in one interface. Initially I had 3 interfaces to deal with single and multiple raster inputs and outputs. I've managed to combine them into one interface by using a collection of `Raster` and `Vector` as input and output of the `RasterOperationStrategy`. This allows me to easily add new operations to the pipeline, even for operations like merge and split which require multiple rasters as input and output respectively.
 
@@ -41,4 +41,4 @@ Architectures that were considered as well are the modular monolith for its simp
 
 ## Self Assessment
 
-I've implemented design principles, multiple design patterns and a advanced architectural pattern for a complex/real-world project. The implementation of the principles and patterns was done based on the quality attributes most important to the stage our project is in. Therefore, I self-assess myself to be at level 2-3.
+I've implemented design principles, multiple (domain specific) design patterns and a advanced architectural pattern for a complex/real-world project. The implementation of the principles and patterns was done based on the quality attributes most important to the stage our project is in. Therefore, I self-assess myself to be at level 2-3.
