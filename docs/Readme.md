@@ -62,6 +62,9 @@ python -m src.main --bbox <max_lat> <min_lat> <max_lon> <min_lon> --time <start_
 
 ## Development environment and testing
 
+```bash
+pip install -r requirements-dev.txt
+```
 1. Run quick unit tests
 
 ```bash
