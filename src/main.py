@@ -1,13 +1,13 @@
 import io
 import itertools
 import logging
-from typing import Generator, Iterable
+from typing import Generator, Iterable, Optional
 
 import click
 import rasterio
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from src import config
 from src._types import BoundingBox, HeightWidth, TimeRange
@@ -84,13 +84,21 @@ class InsertJob:
         download_response: DownloadResponse,
         raster: Raster,
         vectors: Iterable[Vector],
-    ) -> tuple[Image, PredictionRaster, list[PredictionVector]]:
+    ) -> tuple[Optional[Image], Optional[PredictionRaster], Optional[PredictionVector]]:
         image_url = s3.stream_to_s3(
             io.BytesIO(download_response.content),
             config.S3_BUCKET_NAME,
             f"images/{download_response.bbox}/{download_response.image_id}.tif",
         )
-        image = self.insert.insert_image(download_response, raster, image_url, job_id)
+        try:
+            image = self.insert.insert_image(
+                download_response, raster, image_url, job_id
+            )
+        except IntegrityError:
+            LOGGER.warning(
+                f"Image {download_response.image_id} already exists. Skipping"
+            )
+            return None, None, None
 
         raster_url = s3.stream_to_s3(
             io.BytesIO(raster.content),
