@@ -183,13 +183,11 @@ def main(
 
     try:
         for download_response in itertools.chain([first_response], download_generator):
-            print(download_response.crs)
             LOGGER.info(f"Processing image {download_response.image_id}")
 
             raster = handler.create_raster(download_response)
             LOGGER.info(f"Processing raster for image {download_response.image_id}")
             pred_raster = handler.get_prediction_raster(raster)
-            print(pred_raster.crs, pred_raster.geometry)
             LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
             pred_vectors = RasterioRasterToVector().execute(pred_raster)
             LOGGER.info(
