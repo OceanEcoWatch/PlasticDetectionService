@@ -1,7 +1,6 @@
 import datetime
 from typing import Iterable
 
-import sqlalchemy
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Polygon
 from sqlalchemy.orm import Session
@@ -84,11 +83,7 @@ class Insert:
             job_id=job_id,
         )
         self.session.add(image)
-        try:
-            self.session.commit()
-        except sqlalchemy.exc.IntegrityError:
-            self.session.rollback()
-            raise ValueError("Image already exists")
+        self.session.commit()
         return image
 
     def insert_prediction_raster(
