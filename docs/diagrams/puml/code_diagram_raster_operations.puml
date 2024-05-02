@@ -115,5 +115,12 @@ RasterioRasterSplit --|> RasterOperationStrategy
 RasterioRasterToVector --|> RasterToVectorStrategy
 
 }
+class CompositeRasterOperation {
+    children : list
+    +add(component : RasterOperationStrategy)
+    +remove(component : RasterOperationStrategy)
+    +execute(rasters : Iterable[Raster]) : Generator[Raster, None, None]
+}
+CompositeRasterOperation --|> RasterOperationStrategy
 }
 @enduml

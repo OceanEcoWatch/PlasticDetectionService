@@ -31,4 +31,9 @@ class SentinelHubDownload {
 
 }
 
+SentinelHubDownload --> SentinelHubDownloadParams: uses
+SentinelHubDownloadParams --|> abstractions.DownloadParams
+SentinelHubDownload --|> abstractions.DownloadStrategy
+
+
 @enduml

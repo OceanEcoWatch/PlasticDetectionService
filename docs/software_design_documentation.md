@@ -50,12 +50,12 @@ This is a early stage project so the following quality attributes are most impor
 
 ### Scalability
 
-- The project should be able to handle a large number of users
+- The project should be able to handle a large amount of data
 - The project should be able to handle a large number of predictions
 
 ## Architectural Style and Patterns
 
-The whole system is designed as a serverless, service-based architecture. We currently only have two services, the PlasticDetectionService and the PlasticDetectionModel. They are loosely-coupled and can easily be interchanged. The OceanEcoMapServer acts as a API gateway between the PlasticDetectionService and the frontend web mapping application. All components are containerized and deployed on AWS as serverless containers. This allows for easy scaling, updating, and deployment. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture. Architectures that were considered as well are the modular monolith for its simplicity and the microkernel architecture for its flexibility and cost-effectiveness. Both options are not easily scalable and deployable as the serverless architecture, therefore the service-based architecture was chosen. A microservices architecture was also not a good fit at this stage due to the high costs and complexity.
+The whole system is designed as a service-based architecture. We currently only have two services, the PlasticDetectionService and the PlasticDetectionModel. They are loosely-coupled and can easily be interchanged. The OceanEcoMapServer acts as a API gateway between the PlasticDetectionService and the frontend web mapping application. All components are containerized and deployed on AWS as serverless containers. This allows for easy scaling, updating, and deployment. The services read and write to the same database, therefore this is a service-based architecture and not a microservices architecture. Architectures that were considered as well are the modular monolith for its simplicity and the microkernel architecture for its flexibility and cost-effectiveness. Both options are not easily scalable and deployable as the serverless architecture, therefore the service-based architecture was chosen. A microservices architecture was also not a good fit at this stage due to the high costs and complexity.
 
 ## C4 Diagrams:
 
@@ -100,3 +100,65 @@ To make the code extensible and maintainable, I've implemented a version of the 
 The strategy pattern in combination with the `Raster` and `Vector` dataclasses also enable the abstraction of external libraries used for raster operations. This allows for easy extension of the raster operations and easy modification of the raster operation pipeline. This already proved valuable in my refactoring from GDAL to Rasterio.
 
 The `download` module implements the strategy pattern as well to allow for changing to another satellite data provider in the future. The `DownloadStrategy` class defines the interface for the different download strategies. The `SentinelHubDownload` class implements the interface for downloading data from SentinelHub. The code for this you can find [here](..src/download/)
+
+## Code examples
+
+**Pipeline pattern by using the strategy and composite pattern**
+
+```python
+
+@dataclass(frozen=True)
+class Raster:
+    content: bytes
+    size: HeightWidth
+    dtype: str
+    crs: int
+    bands: list[int]
+    resolution: float
+    geometry: Polygon
+    padding_size: HeightWidth = HeightWidth(0, 0)
+
+    def __post_init__(self):
+        if self.dtype not in IMAGE_DTYPES:
+            raise ValueError(f"Invalid dtype: {self.dtype}")
+
+    def to_file(self, path: str):
+        with open(path, "wb") as f:
+            f.write(self.content)
+
+    def to_numpy(self) -> np.ndarray:
+        with rasterio.MemoryFile(io.BytesIO(self.content)) as memfile:
+            with memfile.open() as dataset:
+                array = dataset.read()
+        return array
+
+class CompositeRasterOperation(RasterOperationStrategy):
+    def __init__(self):
+        self.children = []
+
+    def add(self, component: RasterOperationStrategy):
+        self.children.append(component)
+
+    def remove(self, component: RasterOperationStrategy):
+        self.children.remove(component)
+
+    def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
+        for child in self.children:
+            rasters = child.execute(rasters)
+        yield from rasters
+
+# Usage
+# the sequence of strategies is defined here in a composite tree
+comp_op = CompositeRasterOperation()
+comp_op.add(RasterioRasterSplit())
+comp_op.add(RasterioRasterPad())
+comp_op.add(RasterioRemoveBand(band=13))
+comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
+comp_op.add(RasterioRasterUnpad())
+comp_op.add(RasterioRasterMerge())
+comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
+comp_op.add(RasterioDtypeConversion(dtype="uint8"))
+
+final_raster = next(comp_op.execute([unprocessed_raster]))
+
+```
