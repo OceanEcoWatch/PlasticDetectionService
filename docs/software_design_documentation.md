@@ -107,6 +107,7 @@ The `download` module implements the strategy pattern as well to allow for chang
 
 ```python
 
+# domain model for storing raster datas
 @dataclass(frozen=True)
 class Raster:
     content: bytes
@@ -132,6 +133,14 @@ class Raster:
                 array = dataset.read()
         return array
 
+
+# interface for raster operations
+class RasterOperationStrategy(ABC):
+    @abstractmethod
+    def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
+        pass
+
+# This is used to combine multiple raster operations or composites of raster operations into a single operation
 class CompositeRasterOperation(RasterOperationStrategy):
     def __init__(self):
         self.children = []
@@ -148,7 +157,7 @@ class CompositeRasterOperation(RasterOperationStrategy):
         yield from rasters
 
 # Usage
-# the sequence of strategies is defined here in a composite tree
+# the steps of strategies is defined here in a composite tree
 comp_op = CompositeRasterOperation()
 comp_op.add(RasterioRasterSplit())
 comp_op.add(RasterioRasterPad())
@@ -159,6 +168,7 @@ comp_op.add(RasterioRasterMerge())
 comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
 comp_op.add(RasterioDtypeConversion(dtype="uint8"))
 
+# the pipeline is executed here. The final raster is the end result of the pipeline
 final_raster = next(comp_op.execute([unprocessed_raster]))
 
 ```
