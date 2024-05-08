@@ -2,7 +2,9 @@ import datetime
 from typing import Iterable
 
 from geoalchemy2.shape import from_shape
-from shapely.geometry import Polygon
+from pyproj import Transformer
+from shapely.geometry import Polygon, shape
+from shapely.ops import transform
 from sqlalchemy.orm import Session
 
 from src.database.models import (
@@ -69,17 +71,21 @@ class Insert:
         image_url: str,
         job_id: int,
     ) -> Image:
+        target_crs = 4326
+        transformer = Transformer.from_crs(raster.crs, 4326, always_xy=True)
+        transformed_geometry = transform(transformer.transform, shape(raster.geometry))
         image = Image(
             image_id=download_response.image_id,
             image_url=image_url,
             timestamp=download_response.timestamp,
             dtype=str(raster.dtype),
+            crs=raster.crs,
             resolution=raster.resolution,
             image_width=raster.size[0],
             image_height=raster.size[1],
             bands=len(raster.bands),
             provider=download_response.data_collection,
-            bbox=from_shape(raster.geometry, srid=raster.crs),
+            bbox=from_shape(transformed_geometry, srid=target_crs),
             job_id=job_id,
         )
         self.session.add(image)

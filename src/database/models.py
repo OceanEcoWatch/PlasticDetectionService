@@ -118,6 +118,7 @@ class Image(Base):
         Enum(*IMAGE_DTYPES, name="image_dtype"),
         nullable=False,
     )
+    crs = Column(Integer, nullable=False)
     resolution = Column(Float, nullable=False)
     image_width = Column(Integer, nullable=False)
     image_height = Column(Integer, nullable=False)
@@ -143,6 +144,7 @@ class Image(Base):
         image_url: str,
         timestamp: datetime.datetime,
         dtype: str,
+        crs: int,
         resolution: float,
         image_width: int,
         image_height: int,
@@ -155,6 +157,7 @@ class Image(Base):
         self.image_url = image_url
         self.timestamp = timestamp
         self.dtype = dtype
+        self.crs = crs
         self.resolution = resolution
         self.image_width = image_width
         self.image_height = image_height

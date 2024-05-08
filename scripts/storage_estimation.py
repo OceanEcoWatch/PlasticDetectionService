@@ -1,5 +1,4 @@
 import geopandas as gpd
-
 from geo_helper.reproject import reproject_geometry
 
 coastal_water = gpd.read_file("assets/coastal_water.geojson", crs="EPSG:3395")

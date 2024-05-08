@@ -11,7 +11,7 @@ from shapely.geometry.polygon import Polygon
 from src._types import IMAGE_DTYPES, HeightWidth
 
 
-@dataclass(frozen=True)
+@dataclass()
 class DownloadResponse:
     image_id: str
     timestamp: dt.datetime
