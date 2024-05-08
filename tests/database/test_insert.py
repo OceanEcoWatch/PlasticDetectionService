@@ -216,6 +216,7 @@ def test_image_invalid_dtype(test_session, aoi, model, job):
         image_url="test_image_url",
         timestamp=datetime.datetime.now(),
         dtype="INVALID",
+        crs=4326,
         resolution=10.0,
         image_width=10,
         image_height=10,
@@ -236,6 +237,7 @@ def test_image_invalid_band(test_session, aoi, model, job):
         image_url="test_image_url",
         timestamp=datetime.datetime.now(),
         dtype="uint8",
+        crs=4326,
         resolution=10.0,
         image_width=10,
         image_height=10,
@@ -256,6 +258,7 @@ def test_image_unique_constraint(test_session, aoi, model, job):
         image_url="test_image_url",
         timestamp=datetime.datetime(2021, 1, 1, 0, 0, 0),  # same timestamp
         dtype="uint8",
+        crs=4326,
         resolution=10.0,
         image_width=10,
         image_height=10,
@@ -269,6 +272,7 @@ def test_image_unique_constraint(test_session, aoi, model, job):
         image_url="other_test_image_url",
         timestamp=datetime.datetime(2021, 1, 1, 0, 0, 0),  # same timestamp
         dtype="uint8",
+        crs=4326,
         resolution=10.0,
         image_width=50,
         image_height=50,

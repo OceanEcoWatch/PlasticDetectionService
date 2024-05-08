@@ -82,36 +82,38 @@ class InsertJob:
         self,
         job_id: int,
         download_response: DownloadResponse,
-        raster: Raster,
+        image: Raster,
+        pred_raster: Raster,
         vectors: Iterable[Vector],
-    ) -> tuple[Optional[Image], Optional[PredictionRaster], Optional[PredictionVector]]:
+    ) -> tuple[
+        Optional[Image], Optional[PredictionRaster], Optional[list[PredictionVector]]
+    ]:
+        unique_id = f"{download_response.bbox}/{download_response.image_id}"
         image_url = s3.stream_to_s3(
             io.BytesIO(download_response.content),
             config.S3_BUCKET_NAME,
-            f"images/{download_response.bbox}/{download_response.image_id}.tif",
+            f"images/{unique_id}.tif",
         )
         try:
-            image = self.insert.insert_image(
-                download_response, raster, image_url, job_id
+            image_db = self.insert.insert_image(
+                download_response, image, image_url, job_id
             )
         except IntegrityError:
-            LOGGER.warning(
-                f"Image {download_response.image_id} already exists. Skipping"
-            )
+            LOGGER.warning(f"Image {unique_id} already exists. Skipping")
             return None, None, None
 
-        raster_url = s3.stream_to_s3(
-            io.BytesIO(raster.content),
+        pred_raster_url = s3.stream_to_s3(
+            io.BytesIO(pred_raster.content),
             config.S3_BUCKET_NAME,
-            f"predictions/{download_response.bbox}/{download_response.image_id}.tif",
+            f"predictions/{unique_id}.tif",
         )
-        prediction_raster = self.insert.insert_prediction_raster(
-            raster, image.id, raster_url
+        prediction_raster_db = self.insert.insert_prediction_raster(
+            pred_raster, image_db.id, pred_raster_url
         )
-        prediction_vectors = self.insert.insert_prediction_vectors(
-            vectors, prediction_raster.id
+        prediction_vectors_db = self.insert.insert_prediction_vectors(
+            vectors, prediction_raster_db.id
         )
-        return image, prediction_raster, prediction_vectors
+        return image_db, prediction_raster_db, prediction_vectors_db
 
 
 @click.command()
@@ -191,22 +193,26 @@ def main(
 
     try:
         for download_response in itertools.chain([first_response], download_generator):
+            print(download_response.bbox, download_response.crs)
             LOGGER.info(f"Processing image {download_response.image_id}")
 
-            raster = handler.create_raster(download_response)
+            image = handler.create_raster(download_response)
+
             LOGGER.info(f"Processing raster for image {download_response.image_id}")
-            pred_raster = handler.get_prediction_raster(raster)
+            pred_raster = handler.get_prediction_raster(image)
             LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
             pred_vectors = RasterioRasterToVector().execute(pred_raster)
             LOGGER.info(
                 f"Got prediction vectors for image {download_response.image_id}"
             )
+
             with create_db_session() as db_session:
                 insert_job = InsertJob(insert=Insert(db_session))
                 insert_job.insert_all(
                     job_id=job_id,
                     download_response=download_response,
-                    raster=pred_raster,
+                    image=image,
+                    pred_raster=pred_raster,
                     vectors=pred_vectors,
                 )
             LOGGER.info(f"Inserted image {download_response.image_id}")
