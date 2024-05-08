@@ -72,7 +72,7 @@ class Insert:
         job_id: int,
     ) -> Image:
         target_crs = 4326
-        transformer = Transformer.from_crs(raster.crs, 4326, always_xy=True)
+        transformer = Transformer.from_crs(raster.crs, target_crs, always_xy=True)
         transformed_geometry = transform(transformer.transform, shape(raster.geometry))
         image = Image(
             image_id=download_response.image_id,
