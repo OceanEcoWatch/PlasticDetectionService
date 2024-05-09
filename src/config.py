@@ -27,7 +27,7 @@ SH_CONFIG = SHConfig(
     sh_client_secret=SH_CLIENT_SECRET,
 )
 
-S3_BUCKET_NAME = "sentinel-hub-images"
+S3_BUCKET_NAME = os.environ["S3_BUCKET_NAME"]
 
 L1CBANDS = [
     "B1",

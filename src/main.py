@@ -4,6 +4,7 @@ import logging
 from typing import Generator, Iterable, Optional
 
 import click
+import numpy as np
 import rasterio
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
@@ -134,6 +135,7 @@ def set_init_job_status(db_session, job_id, model_id):
 
 def update_job_status(db_session, job_id, status):
     db_session.query(Job).filter(Job.id == job_id).update({"status": status})
+    db_session.commit()
 
 
 @click.command()
@@ -191,6 +193,7 @@ def main(
             update_job_status(db_session, job_id, JobStatus.FAILED)
         raise ValueError("No images found for given parameters")
 
+    prev_pred_raster = None
     try:
         for download_response in itertools.chain([first_response], download_generator):
             LOGGER.info(f"Processing image {download_response.image_id}")
@@ -199,6 +202,13 @@ def main(
 
             LOGGER.info(f"Processing raster for image {download_response.image_id}")
             pred_raster = handler.get_prediction_raster(image)
+            if prev_pred_raster is not None:
+                if np.allclose(prev_pred_raster.to_numpy(), pred_raster.to_numpy()):
+                    with create_db_session() as db_session:
+                        update_job_status(db_session, job_id, JobStatus.FAILED)
+                    raise ValueError("Prediction raster is the same as previous")
+            prev_pred_raster = pred_raster
+
             LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
             pred_vectors = RasterioRasterToVector().execute(pred_raster)
             LOGGER.info(
