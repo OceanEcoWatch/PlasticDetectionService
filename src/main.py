@@ -116,6 +116,26 @@ class InsertJob:
         return image_db, prediction_raster_db, prediction_vectors_db
 
 
+def set_init_job_status(db_session, job_id, model_id):
+    model = db_session.query(Model).filter(Model.id == model_id).first()
+    if model is None:
+        update_job_status(db_session, job_id, JobStatus.FAILED)
+        raise NoResultFound("Model not found")
+    job = db_session.query(Job).filter(Job.id == job_id).first()
+
+    if job is None:
+        update_job_status(db_session, job_id, JobStatus.FAILED)
+        raise NoResultFound("Job not found")
+
+    else:
+        LOGGER.info(f"Updating job {job_id} to in progress")
+        update_job_status(db_session, job_id, JobStatus.IN_PROGRESS)
+
+
+def update_job_status(db_session, job_id, status):
+    db_session.query(Job).filter(Job.id == job_id).update({"status": status})
+
+
 @click.command()
 @click.option(
     "--bbox",
@@ -139,25 +159,7 @@ def main(
     model_id: int,
 ):
     with create_db_session() as db_session:
-        model = db_session.query(Model).filter(Model.id == model_id).first()
-        if model is None:
-            db_session.query(Job).filter(Job.id == job_id).update(
-                {"status": JobStatus.FAILED}
-            )
-            raise NoResultFound("Model not found")
-        job = db_session.query(Job).filter(Job.id == job_id).first()
-
-        if job is None:
-            db_session.query(Job).filter(Job.id == job_id).update(
-                {"status": JobStatus.FAILED}
-            )
-            raise NoResultFound("Job not found")
-
-        else:
-            LOGGER.info(f"Updating job {job_id} to in progress")
-            db_session.query(Job).filter(Job.id == job_id).update(
-                {"status": JobStatus.IN_PROGRESS}
-            )
+        set_init_job_status(db_session, job_id, model_id)
 
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
@@ -186,14 +188,11 @@ def main(
         first_response = next(download_generator)
     except StopIteration:
         with create_db_session() as db_session:
-            db_session.query(Job).filter(Job.id == job_id).update(
-                {"status": JobStatus.FAILED}
-            )
+            update_job_status(db_session, job_id, JobStatus.FAILED)
         raise ValueError("No images found for given parameters")
 
     try:
         for download_response in itertools.chain([first_response], download_generator):
-            print(download_response.bbox, download_response.crs)
             LOGGER.info(f"Processing image {download_response.image_id}")
 
             image = handler.create_raster(download_response)
@@ -218,16 +217,12 @@ def main(
             LOGGER.info(f"Inserted image {download_response.image_id}")
     except Exception as e:
         with create_db_session() as db_session:
-            db_session.query(Job).filter(Job.id == job_id).update(
-                {"status": JobStatus.FAILED}
-            )
+            update_job_status(db_session, job_id, JobStatus.FAILED)
         LOGGER.error(f"Job {job_id} failed with error {e}")
         raise e
 
     with create_db_session() as db_session:
-        db_session.query(Job).filter(Job.id == job_id).update(
-            {"status": JobStatus.COMPLETED}
-        )
+        update_job_status(db_session, job_id, JobStatus.COMPLETED)
     LOGGER.info(f"Job {job_id} completed {JobStatus.COMPLETED}")
 
 

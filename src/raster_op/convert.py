@@ -29,7 +29,7 @@ class RasterioDtypeConversion(RasterOperationStrategy):
 
                 if image.dtype == self.dtype:
                     LOGGER.info(f"Raster already has dtype {self.dtype}, skipping")
-                    return raster
+                    yield raster
 
                 image = self._scale(image)
 
