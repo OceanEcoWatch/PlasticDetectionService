@@ -4,7 +4,6 @@ import logging
 from typing import Iterable, Optional
 
 import click
-import numpy as np
 import rasterio
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
@@ -169,8 +168,6 @@ def main(
             update_job_status(db_session, job_id, JobStatus.FAILED)
         raise ValueError("No images found for given parameters")
 
-    prev_pred_raster = None
-    prev_image = None
     try:
         for download_response in itertools.chain([first_response], download_generator):
             comp_op = CompositeRasterOperation()
@@ -183,21 +180,9 @@ def main(
             comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
             comp_op.add(RasterioDtypeConversion(dtype="uint8"))
             image = _create_raster(download_response)
-            if prev_image is not None:
-                if np.allclose(prev_image.to_numpy(), image.to_numpy()):
-                    with create_db_session() as db_session:
-                        update_job_status(db_session, job_id, JobStatus.FAILED)
-                    raise ValueError("Image is the same as previous")
-            prev_image = image
 
             LOGGER.info(f"Processing raster for image {download_response.image_id}")
             pred_raster = next(comp_op.execute([image]))
-            if prev_pred_raster is not None:
-                if np.allclose(prev_pred_raster.to_numpy(), pred_raster.to_numpy()):
-                    with create_db_session() as db_session:
-                        update_job_status(db_session, job_id, JobStatus.FAILED)
-                    raise ValueError("Prediction raster is the same as previous")
-            prev_pred_raster = pred_raster
 
             LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
             pred_vectors = RasterioRasterToVector().execute(pred_raster)

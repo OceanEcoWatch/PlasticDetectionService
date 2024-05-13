@@ -27,6 +27,6 @@ class RunpodInferenceCallback(BaseInferenceCallback):
         runpod.api_key = config.RUNPOD_API_KEY
         endpoint = Endpoint(self.endpoint_url)
 
-        run_response = endpoint.run_sync(request_input, timeout=60)
+        run_response = endpoint.run_sync(request_input, timeout=120)
         pred_bytes = base64.b64decode(json.loads(run_response)["prediction"])  # type: ignore
         return pred_bytes
