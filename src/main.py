@@ -194,12 +194,16 @@ def main(
         raise ValueError("No images found for given parameters")
 
     prev_pred_raster = None
+    prev_image = None
     try:
         for download_response in itertools.chain([first_response], download_generator):
-            LOGGER.info(f"Processing image {download_response.image_id}")
-
             image = handler.create_raster(download_response)
-
+            if prev_image is not None:
+                if np.allclose(prev_image.to_numpy(), image.to_numpy()):
+                    with create_db_session() as db_session:
+                        update_job_status(db_session, job_id, JobStatus.FAILED)
+                    raise ValueError("Image is the same as previous")
+            prev_image = image
             LOGGER.info(f"Processing raster for image {download_response.image_id}")
             pred_raster = handler.get_prediction_raster(image)
             if prev_pred_raster is not None:
