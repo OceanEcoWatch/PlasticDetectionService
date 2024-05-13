@@ -47,6 +47,20 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
+def _create_raster(image: DownloadResponse) -> Raster:
+    with rasterio.open(io.BytesIO(image.content)) as src:
+        np_image = src.read().copy()
+        meta = src.meta.copy()
+        bounds = BoundingBox(*src.bounds)
+    return create_raster(
+        content=image.content,
+        image=np_image,
+        bounds=bounds,
+        meta=meta,
+        padding_size=HeightWidth(0, 0),
+    )
+
+
 class MainHandler:
     def __init__(
         self, downloader: DownloadStrategy, raster_ops: CompositeRasterOperation
@@ -57,22 +71,6 @@ class MainHandler:
     def download(self) -> Generator[DownloadResponse, None, None]:
         for image in self.downloader.download_images():
             yield image
-
-    def create_raster(self, image: DownloadResponse) -> Raster:
-        with rasterio.open(io.BytesIO(image.content)) as src:
-            np_image = src.read().copy()
-            meta = src.meta.copy()
-            bounds = BoundingBox(*src.bounds)
-        return create_raster(
-            content=image.content,
-            image=np_image,
-            bounds=bounds,
-            meta=meta,
-            padding_size=HeightWidth(0, 0),
-        )
-
-    def get_prediction_raster(self, image: Raster) -> Raster:
-        return next(self.raster_ops.execute([image]))
 
 
 class InsertJob:
@@ -174,18 +172,8 @@ def main(
             mime_type=MimeType.TIFF,
         )
     )
-    comp_op = CompositeRasterOperation()
-    comp_op.add(RasterioRasterSplit())
-    comp_op.add(RasterioRasterPad())
-    comp_op.add(RasterioRemoveBand(band=13))
-    comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
-    comp_op.add(RasterioRasterUnpad())
-    comp_op.add(RasterioRasterMerge())
-    comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
-    comp_op.add(RasterioDtypeConversion(dtype="uint8"))
 
-    handler = MainHandler(downloader, raster_ops=comp_op)
-    download_generator = handler.download()
+    download_generator = downloader.download_images()
     try:
         first_response = next(download_generator)
     except StopIteration:
@@ -197,17 +185,27 @@ def main(
     prev_image = None
     try:
         for download_response in itertools.chain([first_response], download_generator):
-            image = handler.create_raster(download_response)
+            comp_op = CompositeRasterOperation()
+            comp_op.add(RasterioRasterSplit())
+            comp_op.add(RasterioRasterPad())
+            comp_op.add(RasterioRemoveBand(band=13))
+            comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
+            comp_op.add(RasterioRasterUnpad())
+            comp_op.add(RasterioRasterMerge())
+            comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
+            comp_op.add(RasterioDtypeConversion(dtype="uint8"))
+            image = _create_raster(download_response)
             if prev_image is not None:
                 if np.allclose(prev_image.to_numpy(), image.to_numpy()):
                     with create_db_session() as db_session:
                         update_job_status(db_session, job_id, JobStatus.FAILED)
                     raise ValueError("Image is the same as previous")
             prev_image = image
+
             LOGGER.info(f"Processing raster for image {download_response.image_id}")
-            pred_raster = handler.get_prediction_raster(image)
+            pred_raster = next(comp_op.execute([image]))
             if prev_pred_raster is not None:
-                if np.allclose(prev_pred_raster.to_numpy(), pred_raster.to_numpy()):
+                if np.equal(prev_pred_raster.to_numpy(), pred_raster.to_numpy()):
                     with create_db_session() as db_session:
                         update_job_status(db_session, job_id, JobStatus.FAILED)
                     raise ValueError("Prediction raster is the same as previous")
