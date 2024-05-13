@@ -1,7 +1,7 @@
 import io
 import itertools
 import logging
-from typing import Generator, Iterable, Optional
+from typing import Iterable, Optional
 
 import click
 import numpy as np
@@ -35,7 +35,7 @@ from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.vectorize import RasterioRasterToVector
 
-from .download.abstractions import DownloadResponse, DownloadStrategy
+from .download.abstractions import DownloadResponse
 from .download.evalscripts import L2A_12_BANDS_SCL
 from .download.sh import (
     SentinelHubDownload,
@@ -59,18 +59,6 @@ def _create_raster(image: DownloadResponse) -> Raster:
         meta=meta,
         padding_size=HeightWidth(0, 0),
     )
-
-
-class MainHandler:
-    def __init__(
-        self, downloader: DownloadStrategy, raster_ops: CompositeRasterOperation
-    ) -> None:
-        self.downloader = downloader
-        self.raster_ops = raster_ops
-
-    def download(self) -> Generator[DownloadResponse, None, None]:
-        for image in self.downloader.download_images():
-            yield image
 
 
 class InsertJob:
