@@ -205,7 +205,7 @@ def main(
             LOGGER.info(f"Processing raster for image {download_response.image_id}")
             pred_raster = next(comp_op.execute([image]))
             if prev_pred_raster is not None:
-                if np.equal(prev_pred_raster.to_numpy(), pred_raster.to_numpy()):
+                if np.allclose(prev_pred_raster.to_numpy(), pred_raster.to_numpy()):
                     with create_db_session() as db_session:
                         update_job_status(db_session, job_id, JobStatus.FAILED)
                     raise ValueError("Prediction raster is the same as previous")
