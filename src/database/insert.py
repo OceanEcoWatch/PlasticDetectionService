@@ -3,11 +3,9 @@ import io
 import logging
 from typing import Iterable, Optional
 
-from geoalchemy2 import WKTElement
-from geoalchemy2.shape import from_shape, to_shape
-from pyproj import Transformer
-from shapely.geometry import Polygon, box, shape
-from shapely.ops import transform
+from geoalchemy2 import WKBElement
+from geoalchemy2.shape import from_shape
+from shapely.geometry import Polygon, box
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 
@@ -23,6 +21,7 @@ from src.database.models import (
     PredictionVector,
     SceneClassificationVector,
 )
+from src.geo_utils import reproject_geometry
 from src.models import DownloadResponse, Raster, Vector
 
 LOGGER = logging.getLogger(__name__)
@@ -80,8 +79,9 @@ class Insert:
         job_id: int,
     ) -> Image:
         target_crs = 4326
-        transformer = Transformer.from_crs(raster.crs, target_crs, always_xy=True)
-        transformed_geometry = transform(transformer.transform, shape(raster.geometry))
+        transformed_geometry = reproject_geometry(
+            box(*download_response.bbox), download_response.crs, target_crs
+        )
         image = Image(
             image_id=download_response.image_id,
             image_url=image_url,
@@ -153,8 +153,9 @@ class InsertJob:
         image: Raster,
         pred_raster: Raster,
         vectors: Iterable[Vector],
-    ) -> tuple[
-        Optional[Image], Optional[PredictionRaster], Optional[list[PredictionVector]]
+        scl_vectors: Iterable[Vector],
+    ) -> Optional[
+        tuple[Image, PredictionRaster, PredictionVector, SceneClassificationVector]
     ]:
         unique_id = f"{download_response.bbox}/{download_response.image_id}"
         image_url = s3.stream_to_s3(
@@ -168,7 +169,7 @@ class InsertJob:
             )
         except IntegrityError:
             LOGGER.warning(f"Image {unique_id} already exists. Skipping")
-            return None, None, None
+            return None
 
         pred_raster_url = s3.stream_to_s3(
             io.BytesIO(pred_raster.content),
@@ -181,7 +182,9 @@ class InsertJob:
         prediction_vectors_db = self.insert.insert_prediction_vectors(
             vectors, prediction_raster_db.id
         )
-        return image_db, prediction_raster_db, prediction_vectors_db
+
+        scl_vectors_db = self.insert.insert_scls_vectors(scl_vectors, image_db.id)
+        return image_db, prediction_raster_db, prediction_vectors_db, scl_vectors_db
 
 
 def set_init_job_status(db_session: Session, job_id: int, model_id: int):
@@ -205,15 +208,18 @@ def update_job_status(db_session: Session, job_id: int, status: JobStatus):
     db_session.commit()
 
 
-def image_in_db(db_session: Session, image_id: str, bbox: tuple) -> bool:
-    # Create a PostGIS geometry from the bounding box tuple
-    bbox_geom = WKTElement(box(*bbox).wkt, srid=4326)
+def image_in_db(db_session: Session, download_response: DownloadResponse) -> bool:
+    # Create a PostGIS geometry from the bounding box
+    bbox = box(*download_response.bbox)
+    bbox_geom_4326 = reproject_geometry(bbox, download_response.crs, 4326)
+    bbox_geom = WKBElement(bbox_geom_4326.wkb, srid=4326)
 
-    # Get the image from the database
-    image = db_session.query(Image).filter(Image.image_id == image_id).first()
+    image = (
+        db_session.query(Image)
+        .filter(Image.image_id == download_response.image_id)
+        .filter(Image.timestamp == download_response.timestamp)
+        .filter(Image.bbox.ST_Equals(bbox_geom))
+        .first()
+    )
 
-    if image is None:
-        return False
-
-    # Compare the geometries
-    return to_shape(image.bbox) == to_shape(bbox_geom)
+    return image is not None

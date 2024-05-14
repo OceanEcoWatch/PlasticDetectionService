@@ -8,7 +8,7 @@ from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
 
 from src import config
-from src._types import BoundingBox, HeightWidth, TimeRange
+from src._types import BoundingBox, TimeRange
 from src.database.connect import create_db_session
 from src.database.insert import (
     Insert,
@@ -21,7 +21,6 @@ from src.database.models import (
     JobStatus,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
-from src.models import Raster
 from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
@@ -30,15 +29,18 @@ from src.raster_op.merge import RasterioRasterMerge
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
+from src.raster_op.utils import create_raster
 from src.raster_op.vectorize import RasterioRasterToVector
+from src.scl import get_scl_vectors
 
+from ._types import HeightWidth
 from .download.abstractions import DownloadResponse
 from .download.evalscripts import L2A_12_BANDS_SCL
 from .download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
 )
-from .raster_op.utils import create_raster
+from .models import Raster
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -79,6 +81,8 @@ def process_response(download_response: DownloadResponse, job_id: int):
     pred_vectors = RasterioRasterToVector().execute(pred_raster)
     LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")
 
+    scl_vectors = get_scl_vectors(image, band=13)
+
     with create_db_session() as db_session:
         insert_job = InsertJob(insert=Insert(db_session))
         insert_job.insert_all(
@@ -87,6 +91,7 @@ def process_response(download_response: DownloadResponse, job_id: int):
             image=image,
             pred_raster=pred_raster,
             vectors=pred_vectors,
+            scl_vectors=scl_vectors,
         )
 
 
@@ -137,17 +142,15 @@ def main(
 
     try:
         for download_response in itertools.chain([first_response], download_generator):
-            if image_in_db(
-                db_session,
-                download_response.image_id,
-                BoundingBox(*download_response.bbox),
-            ):
-                LOGGER.warning(
-                    f"Image {download_response.image_id} already exists. Skipping"
-                )
-                continue
+            with create_db_session() as db_session:
+                if image_in_db(db_session, download_response):
+                    LOGGER.warning(
+                        f"Image {download_response.image_id} already exists. Skipping"
+                    )
+                    continue
+
             process_response(download_response, job_id)
-            LOGGER.info(f"Inserted image {download_response.image_id}")
+
     except Exception as e:
         with create_db_session() as db_session:
             update_job_status(db_session, job_id, JobStatus.FAILED)

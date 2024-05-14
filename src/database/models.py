@@ -31,7 +31,7 @@ class JobStatus(enum.Enum):
     FAILED = "FAILED"
 
 
-class SCLClass(enum.Enum):
+class SCL(enum.Enum):
     NO_DATA = 0
     SATURATED = 1
     SHADOWS = 2
