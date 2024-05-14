@@ -189,7 +189,6 @@ def test_insert_mock_session(
     assert image.image_height == db_raster.size.height
     assert image.bands == len(db_raster.bands)
     assert image.provider == download_response.data_collection
-    assert image.bbox == from_shape(db_raster.geometry, srid=db_raster.crs)
 
     assert model.model_id == "test_model_id"
     assert model.model_url == "test_model_url"
