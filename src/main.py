@@ -1,29 +1,26 @@
 import io
 import itertools
 import logging
-from typing import Iterable, Optional
 
 import click
 import rasterio
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
-from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from src import config
 from src._types import BoundingBox, HeightWidth, TimeRange
-from src.aws import s3
 from src.database.connect import create_db_session
-from src.database.insert import Insert
+from src.database.insert import (
+    Insert,
+    InsertJob,
+    set_init_job_status,
+    update_job_status,
+)
 from src.database.models import (
-    Image,
-    Job,
     JobStatus,
-    Model,
-    PredictionRaster,
-    PredictionVector,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
-from src.models import Raster, Vector
+from src.models import Raster
 from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
@@ -58,69 +55,6 @@ def _create_raster(image: DownloadResponse) -> Raster:
         meta=meta,
         padding_size=HeightWidth(0, 0),
     )
-
-
-class InsertJob:
-    def __init__(self, insert: Insert):
-        self.insert = insert
-
-    def insert_all(
-        self,
-        job_id: int,
-        download_response: DownloadResponse,
-        image: Raster,
-        pred_raster: Raster,
-        vectors: Iterable[Vector],
-    ) -> tuple[
-        Optional[Image], Optional[PredictionRaster], Optional[list[PredictionVector]]
-    ]:
-        unique_id = f"{download_response.bbox}/{download_response.image_id}"
-        image_url = s3.stream_to_s3(
-            io.BytesIO(download_response.content),
-            config.S3_BUCKET_NAME,
-            f"images/{unique_id}.tif",
-        )
-        try:
-            image_db = self.insert.insert_image(
-                download_response, image, image_url, job_id
-            )
-        except IntegrityError:
-            LOGGER.warning(f"Image {unique_id} already exists. Skipping")
-            return None, None, None
-
-        pred_raster_url = s3.stream_to_s3(
-            io.BytesIO(pred_raster.content),
-            config.S3_BUCKET_NAME,
-            f"predictions/{unique_id}.tif",
-        )
-        prediction_raster_db = self.insert.insert_prediction_raster(
-            pred_raster, image_db.id, pred_raster_url
-        )
-        prediction_vectors_db = self.insert.insert_prediction_vectors(
-            vectors, prediction_raster_db.id
-        )
-        return image_db, prediction_raster_db, prediction_vectors_db
-
-
-def set_init_job_status(db_session, job_id, model_id):
-    model = db_session.query(Model).filter(Model.id == model_id).first()
-    if model is None:
-        update_job_status(db_session, job_id, JobStatus.FAILED)
-        raise NoResultFound("Model not found")
-    job = db_session.query(Job).filter(Job.id == job_id).first()
-
-    if job is None:
-        update_job_status(db_session, job_id, JobStatus.FAILED)
-        raise NoResultFound("Job not found")
-
-    else:
-        LOGGER.info(f"Updating job {job_id} to in progress")
-        update_job_status(db_session, job_id, JobStatus.IN_PROGRESS)
-
-
-def update_job_status(db_session, job_id, status):
-    db_session.query(Job).filter(Job.id == job_id).update({"status": status})
-    db_session.commit()
 
 
 def process_response(download_response: DownloadResponse, job_id: int):
