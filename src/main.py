@@ -123,6 +123,36 @@ def update_job_status(db_session, job_id, status):
     db_session.commit()
 
 
+def process_response(download_response: DownloadResponse, job_id: int):
+    comp_op = CompositeRasterOperation()
+    comp_op.add(RasterioRasterSplit())
+    comp_op.add(RasterioRasterPad())
+    comp_op.add(RasterioRemoveBand(band=13))
+    comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
+    comp_op.add(RasterioRasterUnpad())
+    comp_op.add(RasterioRasterMerge())
+    comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
+    comp_op.add(RasterioDtypeConversion(dtype="uint8"))
+    image = _create_raster(download_response)
+
+    LOGGER.info(f"Processing raster for image {download_response.image_id}")
+    pred_raster = next(comp_op.execute([image]))
+
+    LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
+    pred_vectors = RasterioRasterToVector().execute(pred_raster)
+    LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")
+
+    with create_db_session() as db_session:
+        insert_job = InsertJob(insert=Insert(db_session))
+        insert_job.insert_all(
+            job_id=job_id,
+            download_response=download_response,
+            image=image,
+            pred_raster=pred_raster,
+            vectors=pred_vectors,
+        )
+
+
 @click.command()
 @click.option(
     "--bbox",
@@ -170,35 +200,7 @@ def main(
 
     try:
         for download_response in itertools.chain([first_response], download_generator):
-            comp_op = CompositeRasterOperation()
-            comp_op.add(RasterioRasterSplit())
-            comp_op.add(RasterioRasterPad())
-            comp_op.add(RasterioRemoveBand(band=13))
-            comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
-            comp_op.add(RasterioRasterUnpad())
-            comp_op.add(RasterioRasterMerge())
-            comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
-            comp_op.add(RasterioDtypeConversion(dtype="uint8"))
-            image = _create_raster(download_response)
-
-            LOGGER.info(f"Processing raster for image {download_response.image_id}")
-            pred_raster = next(comp_op.execute([image]))
-
-            LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
-            pred_vectors = RasterioRasterToVector().execute(pred_raster)
-            LOGGER.info(
-                f"Got prediction vectors for image {download_response.image_id}"
-            )
-
-            with create_db_session() as db_session:
-                insert_job = InsertJob(insert=Insert(db_session))
-                insert_job.insert_all(
-                    job_id=job_id,
-                    download_response=download_response,
-                    image=image,
-                    pred_raster=pred_raster,
-                    vectors=pred_vectors,
-                )
+            process_response(download_response, job_id)
             LOGGER.info(f"Inserted image {download_response.image_id}")
     except Exception as e:
         with create_db_session() as db_session:
