@@ -31,6 +31,21 @@ class JobStatus(enum.Enum):
     FAILED = "FAILED"
 
 
+class SCLClass(enum.Enum):
+    NO_DATA = 0
+    SATURATED = 1
+    SHADOWS = 2
+    CLOUD_SHADOWS = 3
+    VEGETATION = 4
+    NOT_VEGETATED = 5
+    WATER = 6
+    UNCLASSIFIED = 7
+    CLOUD_MEDIUM_PROB = 8
+    CLOUD_HIGH_PROB = 9
+    THIN_CIRRUS = 10
+    SNOW_ICE = 11
+
+
 class AOI(Base):
     __tablename__ = "aois"
 
@@ -227,7 +242,7 @@ class SceneClassificationVector(Base):
 
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
-    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+    geometry = Column(Geometry(geometry_type="MultiPolygon", srid=4326), nullable=False)
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
 
     def __init__(self, pixel_value: int, geometry: WKBElement, image_id: int):

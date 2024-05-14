@@ -13,6 +13,7 @@ from src.database.connect import create_db_session
 from src.database.insert import (
     Insert,
     InsertJob,
+    image_in_db,
     set_init_job_status,
     update_job_status,
 )
@@ -58,7 +59,9 @@ def _create_raster(image: DownloadResponse) -> Raster:
 
 
 def process_response(download_response: DownloadResponse, job_id: int):
-    comp_op = CompositeRasterOperation()
+    comp_op = (
+        CompositeRasterOperation()
+    )  # instantiate here to avoid shared state between images
     comp_op.add(RasterioRasterSplit())
     comp_op.add(RasterioRasterPad())
     comp_op.add(RasterioRemoveBand(band=13))
@@ -134,6 +137,15 @@ def main(
 
     try:
         for download_response in itertools.chain([first_response], download_generator):
+            if image_in_db(
+                db_session,
+                download_response.image_id,
+                BoundingBox(*download_response.bbox),
+            ):
+                LOGGER.warning(
+                    f"Image {download_response.image_id} already exists. Skipping"
+                )
+                continue
             process_response(download_response, job_id)
             LOGGER.info(f"Inserted image {download_response.image_id}")
     except Exception as e:

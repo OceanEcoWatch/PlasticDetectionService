@@ -3,9 +3,10 @@ import io
 import logging
 from typing import Iterable, Optional
 
-from geoalchemy2.shape import from_shape
+from geoalchemy2 import WKTElement
+from geoalchemy2.shape import from_shape, to_shape
 from pyproj import Transformer
-from shapely.geometry import Polygon, shape
+from shapely.geometry import Polygon, box, shape
 from shapely.ops import transform
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
@@ -202,3 +203,17 @@ def set_init_job_status(db_session: Session, job_id: int, model_id: int):
 def update_job_status(db_session: Session, job_id: int, status: JobStatus):
     db_session.query(Job).filter(Job.id == job_id).update({"status": status})
     db_session.commit()
+
+
+def image_in_db(db_session: Session, image_id: str, bbox: tuple) -> bool:
+    # Create a PostGIS geometry from the bounding box tuple
+    bbox_geom = WKTElement(box(*bbox).wkt, srid=4326)
+
+    # Get the image from the database
+    image = db_session.query(Image).filter(Image.image_id == image_id).first()
+
+    if image is None:
+        return False
+
+    # Compare the geometries
+    return to_shape(image.bbox) == to_shape(bbox_geom)
