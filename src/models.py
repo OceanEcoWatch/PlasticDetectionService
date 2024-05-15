@@ -8,14 +8,14 @@ import rasterio
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
 
-from src._types import IMAGE_DTYPES, HeightWidth
+from src._types import IMAGE_DTYPES, BoundingBox, HeightWidth
 
 
 @dataclass()
 class DownloadResponse:
     image_id: str
     timestamp: dt.datetime
-    bbox: tuple[float, float, float, float]
+    bbox: BoundingBox
     crs: int
     image_size: HeightWidth
     maxcc: float

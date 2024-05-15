@@ -1,29 +1,26 @@
 import io
 import itertools
 import logging
-from typing import Iterable, Optional
 
 import click
 import rasterio
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
-from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from src import config
-from src._types import BoundingBox, HeightWidth, TimeRange
-from src.aws import s3
+from src._types import BoundingBox, TimeRange
 from src.database.connect import create_db_session
-from src.database.insert import Insert
+from src.database.insert import (
+    Insert,
+    InsertJob,
+    image_in_db,
+    set_init_job_status,
+    update_job_status,
+)
 from src.database.models import (
-    Image,
-    Job,
     JobStatus,
-    Model,
-    PredictionRaster,
-    PredictionVector,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
-from src.models import Raster, Vector
 from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
@@ -32,15 +29,18 @@ from src.raster_op.merge import RasterioRasterMerge
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
+from src.raster_op.utils import create_raster
 from src.raster_op.vectorize import RasterioRasterToVector
+from src.scl import get_scl_vectors
 
+from ._types import HeightWidth
 from .download.abstractions import DownloadResponse
 from .download.evalscripts import L2A_12_BANDS_SCL
 from .download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
 )
-from .raster_op.utils import create_raster
+from .models import Raster
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -60,67 +60,39 @@ def _create_raster(image: DownloadResponse) -> Raster:
     )
 
 
-class InsertJob:
-    def __init__(self, insert: Insert):
-        self.insert = insert
+def process_response(download_response: DownloadResponse, job_id: int):
+    comp_op = (
+        CompositeRasterOperation()
+    )  # instantiate here to avoid shared state between images
+    comp_op.add(RasterioRasterSplit())
+    comp_op.add(RasterioRasterPad())
+    comp_op.add(RasterioRemoveBand(band=13))
+    comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
+    comp_op.add(RasterioRasterUnpad())
+    comp_op.add(RasterioRasterMerge())
+    comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
+    comp_op.add(RasterioDtypeConversion(dtype="uint8"))
+    image = _create_raster(download_response)
 
-    def insert_all(
-        self,
-        job_id: int,
-        download_response: DownloadResponse,
-        image: Raster,
-        pred_raster: Raster,
-        vectors: Iterable[Vector],
-    ) -> tuple[
-        Optional[Image], Optional[PredictionRaster], Optional[list[PredictionVector]]
-    ]:
-        unique_id = f"{download_response.bbox}/{download_response.image_id}"
-        image_url = s3.stream_to_s3(
-            io.BytesIO(download_response.content),
-            config.S3_BUCKET_NAME,
-            f"images/{unique_id}.tif",
+    LOGGER.info(f"Processing raster for image {download_response.image_id}")
+    pred_raster = next(comp_op.execute([image]))
+
+    LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
+    pred_vectors = RasterioRasterToVector().execute(pred_raster)
+    LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")
+
+    scl_vectors = get_scl_vectors(image, band=13)
+
+    with create_db_session() as db_session:
+        insert_job = InsertJob(insert=Insert(db_session))
+        insert_job.insert_all(
+            job_id=job_id,
+            download_response=download_response,
+            image=image,
+            pred_raster=pred_raster,
+            vectors=pred_vectors,
+            scl_vectors=scl_vectors,
         )
-        try:
-            image_db = self.insert.insert_image(
-                download_response, image, image_url, job_id
-            )
-        except IntegrityError:
-            LOGGER.warning(f"Image {unique_id} already exists. Skipping")
-            return None, None, None
-
-        pred_raster_url = s3.stream_to_s3(
-            io.BytesIO(pred_raster.content),
-            config.S3_BUCKET_NAME,
-            f"predictions/{unique_id}.tif",
-        )
-        prediction_raster_db = self.insert.insert_prediction_raster(
-            pred_raster, image_db.id, pred_raster_url
-        )
-        prediction_vectors_db = self.insert.insert_prediction_vectors(
-            vectors, prediction_raster_db.id
-        )
-        return image_db, prediction_raster_db, prediction_vectors_db
-
-
-def set_init_job_status(db_session, job_id, model_id):
-    model = db_session.query(Model).filter(Model.id == model_id).first()
-    if model is None:
-        update_job_status(db_session, job_id, JobStatus.FAILED)
-        raise NoResultFound("Model not found")
-    job = db_session.query(Job).filter(Job.id == job_id).first()
-
-    if job is None:
-        update_job_status(db_session, job_id, JobStatus.FAILED)
-        raise NoResultFound("Job not found")
-
-    else:
-        LOGGER.info(f"Updating job {job_id} to in progress")
-        update_job_status(db_session, job_id, JobStatus.IN_PROGRESS)
-
-
-def update_job_status(db_session, job_id, status):
-    db_session.query(Job).filter(Job.id == job_id).update({"status": status})
-    db_session.commit()
 
 
 @click.command()
@@ -170,36 +142,15 @@ def main(
 
     try:
         for download_response in itertools.chain([first_response], download_generator):
-            comp_op = CompositeRasterOperation()
-            comp_op.add(RasterioRasterSplit())
-            comp_op.add(RasterioRasterPad())
-            comp_op.add(RasterioRemoveBand(band=13))
-            comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
-            comp_op.add(RasterioRasterUnpad())
-            comp_op.add(RasterioRasterMerge())
-            comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
-            comp_op.add(RasterioDtypeConversion(dtype="uint8"))
-            image = _create_raster(download_response)
-
-            LOGGER.info(f"Processing raster for image {download_response.image_id}")
-            pred_raster = next(comp_op.execute([image]))
-
-            LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
-            pred_vectors = RasterioRasterToVector().execute(pred_raster)
-            LOGGER.info(
-                f"Got prediction vectors for image {download_response.image_id}"
-            )
-
             with create_db_session() as db_session:
-                insert_job = InsertJob(insert=Insert(db_session))
-                insert_job.insert_all(
-                    job_id=job_id,
-                    download_response=download_response,
-                    image=image,
-                    pred_raster=pred_raster,
-                    vectors=pred_vectors,
-                )
-            LOGGER.info(f"Inserted image {download_response.image_id}")
+                if image_in_db(db_session, download_response):
+                    LOGGER.warning(
+                        f"Image {download_response.image_id} already exists. Skipping"
+                    )
+                    continue
+
+            process_response(download_response, job_id)
+
     except Exception as e:
         with create_db_session() as db_session:
             update_job_status(db_session, job_id, JobStatus.FAILED)

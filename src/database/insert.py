@@ -1,12 +1,16 @@
 import datetime
-from typing import Iterable
+import io
+import logging
+from typing import Iterable, Optional
 
+from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape
-from pyproj import Transformer
-from shapely.geometry import Polygon, shape
-from shapely.ops import transform
+from shapely.geometry import Polygon, box
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 
+from src import config
+from src.aws import s3
 from src.database.models import (
     AOI,
     Image,
@@ -17,7 +21,10 @@ from src.database.models import (
     PredictionVector,
     SceneClassificationVector,
 )
+from src.geo_utils import reproject_geometry
 from src.models import DownloadResponse, Raster, Vector
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Insert:
@@ -72,8 +79,9 @@ class Insert:
         job_id: int,
     ) -> Image:
         target_crs = 4326
-        transformer = Transformer.from_crs(raster.crs, target_crs, always_xy=True)
-        transformed_geometry = transform(transformer.transform, shape(raster.geometry))
+        transformed_geometry = reproject_geometry(
+            box(*download_response.bbox), download_response.crs, target_crs
+        )
         image = Image(
             image_id=download_response.image_id,
             image_url=image_url,
@@ -132,3 +140,86 @@ class Insert:
         self.session.bulk_save_objects(scls_vectors)
         self.session.commit()
         return scls_vectors
+
+
+class InsertJob:
+    def __init__(self, insert: Insert):
+        self.insert = insert
+
+    def insert_all(
+        self,
+        job_id: int,
+        download_response: DownloadResponse,
+        image: Raster,
+        pred_raster: Raster,
+        vectors: Iterable[Vector],
+        scl_vectors: Iterable[Vector],
+    ) -> Optional[
+        tuple[Image, PredictionRaster, PredictionVector, SceneClassificationVector]
+    ]:
+        unique_id = f"{download_response.bbox}/{download_response.image_id}"
+        image_url = s3.stream_to_s3(
+            io.BytesIO(download_response.content),
+            config.S3_BUCKET_NAME,
+            f"images/{unique_id}.tif",
+        )
+        try:
+            image_db = self.insert.insert_image(
+                download_response, image, image_url, job_id
+            )
+        except IntegrityError:
+            LOGGER.warning(f"Image {unique_id} already exists. Skipping")
+            return None
+
+        pred_raster_url = s3.stream_to_s3(
+            io.BytesIO(pred_raster.content),
+            config.S3_BUCKET_NAME,
+            f"predictions/{unique_id}.tif",
+        )
+        prediction_raster_db = self.insert.insert_prediction_raster(
+            pred_raster, image_db.id, pred_raster_url
+        )
+        prediction_vectors_db = self.insert.insert_prediction_vectors(
+            vectors, prediction_raster_db.id
+        )
+
+        scl_vectors_db = self.insert.insert_scls_vectors(scl_vectors, image_db.id)
+        return image_db, prediction_raster_db, prediction_vectors_db, scl_vectors_db
+
+
+def set_init_job_status(db_session: Session, job_id: int, model_id: int):
+    model = db_session.query(Model).filter(Model.id == model_id).first()
+    if model is None:
+        update_job_status(db_session, job_id, JobStatus.FAILED)
+        raise NoResultFound("Model not found")
+    job = db_session.query(Job).filter(Job.id == job_id).first()
+
+    if job is None:
+        update_job_status(db_session, job_id, JobStatus.FAILED)
+        raise NoResultFound("Job not found")
+
+    else:
+        LOGGER.info(f"Updating job {job_id} to in progress")
+        update_job_status(db_session, job_id, JobStatus.IN_PROGRESS)
+
+
+def update_job_status(db_session: Session, job_id: int, status: JobStatus):
+    db_session.query(Job).filter(Job.id == job_id).update({"status": status})
+    db_session.commit()
+
+
+def image_in_db(db_session: Session, download_response: DownloadResponse) -> bool:
+    # Create a PostGIS geometry from the bounding box
+    bbox = box(*download_response.bbox)
+    bbox_geom_4326 = reproject_geometry(bbox, download_response.crs, 4326)
+    bbox_geom = WKBElement(bbox_geom_4326.wkb, srid=4326)
+
+    image = (
+        db_session.query(Image)
+        .filter(Image.image_id == download_response.image_id)
+        .filter(Image.timestamp == download_response.timestamp)
+        .filter(Image.bbox.ST_Equals(bbox_geom))
+        .first()
+    )
+
+    return image is not None
