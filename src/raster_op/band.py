@@ -51,3 +51,33 @@ class RasterioRemoveBand(RasterOperationStrategy):
                     meta,
                     raster.padding_size,
                 )
+
+
+class RasterioRasterBandSelect(RasterOperationStrategy):
+    def __init__(self, bands: Iterable[int]):
+        self._bands = bands
+        self.bands = [band - 1 for band in bands]
+
+    def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
+        for raster in rasters:
+            with rasterio.open(io.BytesIO(raster.content)) as src:
+                meta = src.meta.copy()
+                image = src.read()
+
+                selected_bands_image = image[self.bands]
+                LOGGER.info(f"Selected bands {self.bands} from raster")
+                meta.update(
+                    {
+                        "count": selected_bands_image.shape[0],
+                        "height": selected_bands_image.shape[1],
+                        "width": selected_bands_image.shape[2],
+                    }
+                )
+
+                yield create_raster(
+                    write_image(selected_bands_image, meta),
+                    selected_bands_image,
+                    src.bounds,
+                    meta,
+                    raster.padding_size,
+                )

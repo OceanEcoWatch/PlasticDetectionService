@@ -10,6 +10,8 @@ insert = Insert(session=create_db_session())
 model = insert.insert_model(
     model_id=config.RUNDPOD_MODEL_ID, model_url=config.RUNPOD_ENDPOINT_ID
 )
+
+bbox = (120.94336238225287, 14.589389, 121.021639, 14.596674776100329)
 aoi = insert.insert_aoi(
     name="manilla bay",
     created_at=datetime.datetime.now(),

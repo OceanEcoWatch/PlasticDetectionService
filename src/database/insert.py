@@ -209,7 +209,6 @@ def update_job_status(db_session: Session, job_id: int, status: JobStatus):
 
 
 def image_in_db(db_session: Session, download_response: DownloadResponse) -> bool:
-    # Create a PostGIS geometry from the bounding box
     bbox = box(*download_response.bbox)
     bbox_geom_4326 = reproject_geometry(bbox, download_response.crs, 4326)
     bbox_geom = WKBElement(bbox_geom_4326.wkb, srid=4326)
