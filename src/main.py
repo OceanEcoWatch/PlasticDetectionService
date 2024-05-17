@@ -64,7 +64,6 @@ def process_response(download_response: DownloadResponse, job_id: int):
     image = _create_raster(download_response)
     image.to_file("tests/assets/scl_image.tif")
     scl_vectors = list(get_scl_vectors(image, band=13))
-    print(scl_vectors)
     comp_op = (
         CompositeRasterOperation()
     )  # instantiate here to avoid shared state between images
