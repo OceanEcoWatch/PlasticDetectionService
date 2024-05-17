@@ -14,7 +14,7 @@ from src.raster_op.merge import RasterioRasterMerge, copy_smooth
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
-from src.raster_op.vectorize import RasterioRasterToVector
+from src.raster_op.vectorize import RasterioRasterToPoint
 
 
 @pytest.mark.slow
@@ -38,7 +38,7 @@ def test_e2e(s2_l2a_raster, raster, inference_func, expected_vectors):
         RasterioRasterReproject(target_crs=4326, target_bands=[1]).execute([merged])
     )
     reprojected.to_file("tests/assets/test_out_e2e.tif")
-    vectors = list(RasterioRasterToVector(band=1).execute(reprojected))
+    vectors = list(RasterioRasterToPoint(band=1).execute(reprojected))
 
     features = [vec.geojson for vec in vectors]
     geojson = {

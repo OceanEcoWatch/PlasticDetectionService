@@ -30,7 +30,7 @@ from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.utils import create_raster
-from src.raster_op.vectorize import RasterioRasterToVector
+from src.raster_op.vectorize import RasterioRasterToPoint
 from src.scl import get_scl_vectors
 
 from ._types import HeightWidth
@@ -61,6 +61,10 @@ def _create_raster(image: DownloadResponse) -> Raster:
 
 
 def process_response(download_response: DownloadResponse, job_id: int):
+    image = _create_raster(download_response)
+    image.to_file("tests/assets/scl_image.tif")
+    scl_vectors = list(get_scl_vectors(image, band=13))
+    print(scl_vectors)
     comp_op = (
         CompositeRasterOperation()
     )  # instantiate here to avoid shared state between images
@@ -72,16 +76,13 @@ def process_response(download_response: DownloadResponse, job_id: int):
     comp_op.add(RasterioRasterMerge())
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
     comp_op.add(RasterioDtypeConversion(dtype="uint8"))
-    image = _create_raster(download_response)
 
     LOGGER.info(f"Processing raster for image {download_response.image_id}")
     pred_raster = next(comp_op.execute([image]))
 
     LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
-    pred_vectors = RasterioRasterToVector().execute(pred_raster)
+    pred_vectors = RasterioRasterToPoint().execute(pred_raster)
     LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")
-
-    scl_vectors = get_scl_vectors(image, band=13)
 
     with create_db_session() as db_session:
         insert_job = InsertJob(insert=Insert(db_session))
@@ -112,7 +113,7 @@ def process_response(download_response: DownloadResponse, job_id: int):
 @click.option("--model-id", type=int, required=True)
 def main(
     bbox: BoundingBox,
-    time_range: tuple[str, str],
+    time_range: TimeRange,
     maxcc: float,
     job_id: int,
     model_id: int,
@@ -123,7 +124,7 @@ def main(
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
-            time_interval=TimeRange(*time_range),
+            time_interval=time_range,
             maxcc=maxcc,
             config=config.SH_CONFIG,
             evalscript=L2A_12_BANDS_SCL,
