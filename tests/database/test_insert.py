@@ -153,7 +153,14 @@ def model(test_session):
 
 @pytest.fixture
 def job(aoi, model, test_session):
-    job = Job(JobStatus.PENDING, aoi.id, model.id)
+    job = Job(
+        JobStatus.PENDING,
+        aoi.id,
+        model.id,
+        start_date=datetime.datetime.now() - datetime.timedelta(days=1),
+        end_date=datetime.datetime.now(),
+        maxcc=0.1,
+    )
     test_session.add(job)
     test_session.commit()
     return job
@@ -169,7 +176,15 @@ def test_insert_mock_session(
         created_at=datetime.datetime.now(),
         geometry=Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]),
     )
-    job = insert.insert_job(aoi.id, model.id)
+    job = insert.insert_job(
+        aoi.id,
+        model.id,
+        time_range=(
+            datetime.datetime.now() - datetime.timedelta(days=1),
+            datetime.datetime.now(),
+        ),
+        maxcc=0.1,
+    )
     image = insert.insert_image(download_response, db_raster, "test_image_url", job.id)
 
     raster = insert.insert_prediction_raster(db_raster, image.id, "test_raster_url")
@@ -302,7 +317,12 @@ def test_insert_db(
         "test_aoi", created_at=datetime.datetime.now(), geometry=db_raster.geometry
     )
     model = insert.insert_model("test_model_id", "test_model_url")
-    job = insert.insert_job(aoi.id, model.id)
+    job = insert.insert_job(
+        aoi.id,
+        model.id,
+        (datetime.datetime.now() - datetime.timedelta(days=1), datetime.datetime.now()),
+        0.1,
+    )
     image = insert.insert_image(download_response, db_raster, "test_image_url", job.id)
     raster = insert.insert_prediction_raster(db_raster, image.id, "test_raster_url")
     insert.insert_prediction_vectors(

@@ -58,6 +58,8 @@ class Insert:
         self,
         aoi_id: int,
         model_id: int,
+        time_range: tuple[datetime.datetime, datetime.datetime],
+        maxcc: float,
         status: JobStatus = JobStatus.PENDING,
         created_at: datetime.datetime = datetime.datetime.now(),
     ) -> Job:
@@ -66,6 +68,9 @@ class Insert:
             model_id=model_id,
             status=status,
             created_at=created_at,
+            start_date=time_range[0],
+            end_date=time_range[1],
+            maxcc=maxcc,
         )
         self.session.add(job)
         self.session.commit()
@@ -187,11 +192,7 @@ class InsertJob:
         return image_db, prediction_raster_db, prediction_vectors_db, scl_vectors_db
 
 
-def set_init_job_status(db_session: Session, job_id: int, model_id: int):
-    model = db_session.query(Model).filter(Model.id == model_id).first()
-    if model is None:
-        update_job_status(db_session, job_id, JobStatus.FAILED)
-        raise NoResultFound("Model not found")
+def set_init_job_status(db_session: Session, job_id: int) -> Job:
     job = db_session.query(Job).filter(Job.id == job_id).first()
 
     if job is None:
@@ -201,6 +202,7 @@ def set_init_job_status(db_session: Session, job_id: int, model_id: int):
     else:
         LOGGER.info(f"Updating job {job_id} to in progress")
         update_job_status(db_session, job_id, JobStatus.IN_PROGRESS)
+    return job
 
 
 def update_job_status(db_session: Session, job_id: int, status: JobStatus):

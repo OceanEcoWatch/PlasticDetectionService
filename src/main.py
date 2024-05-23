@@ -4,11 +4,12 @@ import logging
 
 import click
 import rasterio
+from geoalchemy2.shape import to_shape
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
 
 from src import config
-from src._types import BoundingBox, TimeRange
+from src._types import BoundingBox
 from src.database.connect import create_db_session
 from src.database.insert import (
     Insert,
@@ -18,6 +19,7 @@ from src.database.insert import (
     update_job_status,
 )
 from src.database.models import (
+    AOI,
     JobStatus,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
@@ -33,7 +35,7 @@ from src.raster_op.utils import create_raster
 from src.raster_op.vectorize import RasterioRasterToPoint
 from src.scl import get_scl_vectors
 
-from ._types import HeightWidth
+from ._types import HeightWidth, TimeRange
 from .download.abstractions import DownloadResponse
 from .download.evalscripts import L2A_12_BANDS_SCL
 from .download.sh import (
@@ -96,29 +98,16 @@ def process_response(download_response: DownloadResponse, job_id: int):
 
 
 @click.command()
-@click.option(
-    "--bbox",
-    nargs=4,
-    type=float,
-    help="Bounding box of the area to be processed. Format: min_lon min_lat max_lon max_lat",
-)
-@click.option(
-    "--time-range",
-    nargs=2,
-    help="Time interval to be processed. Format: YYYY-MM-DD YYYY-MM-DD",
-)
-@click.option("--maxcc", type=float, required=True)
 @click.option("--job-id", type=int, required=True)
-@click.option("--model-id", type=int, required=True)
 def main(
-    bbox: BoundingBox,
-    time_range: TimeRange,
-    maxcc: float,
     job_id: int,
-    model_id: int,
 ):
     with create_db_session() as db_session:
-        set_init_job_status(db_session, job_id, model_id)
+        aoi = db_session.query(AOI).filter(AOI.jobs.any(id=job_id)).one()
+        bbox = BoundingBox(*to_shape(aoi.geometry).bounds)
+        job = set_init_job_status(db_session, job_id)
+        maxcc = job.maxcc
+        time_range = TimeRange(job.start_date, job.end_date)
 
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
@@ -138,7 +127,7 @@ def main(
     except StopIteration:
         with create_db_session() as db_session:
             update_job_status(db_session, job_id, JobStatus.FAILED)
-        raise ValueError("No images found for given parameters")
+        return LOGGER.info(f"No images found for job {job_id}")
 
     try:
         for download_response in itertools.chain([first_response], download_generator):

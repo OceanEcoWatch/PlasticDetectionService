@@ -85,7 +85,9 @@ class Job(Base):
     )
     created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     is_deleted = Column(Boolean, nullable=False, default=False)
-
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    maxcc = Column(Float, nullable=False)
     aoi_id = Column(Integer, ForeignKey("aois.id"), nullable=False)
     aoi = relationship("AOI", backref="jobs")
     model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
@@ -96,6 +98,9 @@ class Job(Base):
         status: JobStatus,
         aoi_id: int,
         model_id: int,
+        start_date: datetime.datetime,
+        end_date: datetime.datetime,
+        maxcc: float,
         is_deleted: bool = False,
         created_at: datetime.datetime = datetime.datetime.now(),
     ):
@@ -103,6 +108,9 @@ class Job(Base):
         self.created_at = created_at
         self.aoi_id = aoi_id
         self.model_id = model_id
+        self.start_date = start_date
+        self.end_date = end_date
+        self.maxcc = maxcc
         self.is_deleted = is_deleted
 
 
@@ -209,7 +217,7 @@ class PredictionVector(Base):
 
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
-    geometry = Column(Geometry(geometry_type="Point", srid=4326), nullable=False)
+    geometry = Column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
 
     prediction_raster_id = Column(
         Integer, ForeignKey("prediction_rasters.id"), nullable=False
@@ -227,7 +235,7 @@ class SceneClassificationVector(Base):
 
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
-    geometry = Column(Geometry(geometry_type="MultiPolygon", srid=4326), nullable=False)
+    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
 
     def __init__(self, pixel_value: int, geometry: WKBElement, image_id: int):
