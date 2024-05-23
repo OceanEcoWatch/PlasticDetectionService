@@ -1,9 +1,10 @@
 sagemaker/model/epoch=73-val_loss=0.60-auroc=0.984.ckpt
 sagemaker/model.tar.gz
 sagemaker/venv/
-images/
-predictions/
+
 out/
+predictions/
+images/
 *.xml
 tests/assets/test_out*
 #ruff
