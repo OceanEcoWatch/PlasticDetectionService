@@ -34,6 +34,7 @@ from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.utils import create_raster
 from src.raster_op.vectorize import RasterioRasterToPoint
 from src.scl import get_scl_vectors
+from src.vector_op import probability_to_pixelvalue
 
 from ._types import HeightWidth, TimeRange
 from .download.abstractions import DownloadResponse
@@ -64,11 +65,9 @@ def _create_raster(image: DownloadResponse) -> Raster:
 
 def process_response(download_response: DownloadResponse, job_id: int):
     image = _create_raster(download_response)
-    image.to_file("tests/assets/scl_image.tif")
+
     scl_vectors = list(get_scl_vectors(image, band=13))
-    comp_op = (
-        CompositeRasterOperation()
-    )  # instantiate here to avoid shared state between images
+    comp_op = CompositeRasterOperation()
     comp_op.add(RasterioRasterSplit())
     comp_op.add(RasterioRasterPad())
     comp_op.add(RasterioRemoveBand(band=13))
@@ -82,7 +81,10 @@ def process_response(download_response: DownloadResponse, job_id: int):
     pred_raster = next(comp_op.execute([image]))
 
     LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
-    pred_vectors = RasterioRasterToPoint().execute(pred_raster)
+    pred_vectors = RasterioRasterToPoint(
+        threshold=probability_to_pixelvalue(0.1)
+    ).execute(pred_raster)
+
     LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")
 
     with create_db_session() as db_session:
