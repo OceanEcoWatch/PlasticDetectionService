@@ -4,6 +4,14 @@ from typing import Iterable
 from src.models import Vector
 
 
+def pixelvalue_to_probability(pixelvalue: int) -> float:
+    return round(pixelvalue / 255, 2)
+
+
+def probability_to_pixelvalue(probability: float) -> int:
+    return round(probability * 255)
+
+
 class VectorOperationStrategy(ABC):
     @abstractmethod
     def execute(self, vectors: Iterable[Vector]) -> Iterable[Vector]:
