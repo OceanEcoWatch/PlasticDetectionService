@@ -63,7 +63,9 @@ def _create_raster(image: DownloadResponse) -> Raster:
     )
 
 
-def process_response(download_response: DownloadResponse, job_id: int):
+def process_response(
+    download_response: DownloadResponse, job_id: int, probability_threshold: float
+):
     image = _create_raster(download_response)
 
     scl_vectors = list(get_scl_vectors(image, band=13))
@@ -82,7 +84,7 @@ def process_response(download_response: DownloadResponse, job_id: int):
 
     LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
     pred_vectors = RasterioRasterToPoint(
-        threshold=probability_to_pixelvalue(0.1)
+        threshold=probability_to_pixelvalue(probability_threshold)
     ).execute(pred_raster)
 
     LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")
@@ -101,8 +103,10 @@ def process_response(download_response: DownloadResponse, job_id: int):
 
 @click.command()
 @click.option("--job-id", type=int, required=True)
+@click.option("--probability-threshold", type=float, required=True)
 def main(
     job_id: int,
+    probability_threshold: float,
 ):
     with create_db_session() as db_session:
         aoi = db_session.query(AOI).filter(AOI.jobs.any(id=job_id)).one()
@@ -140,7 +144,7 @@ def main(
                     )
                     continue
 
-            process_response(download_response, job_id)
+            process_response(download_response, job_id, probability_threshold)
 
     except Exception as e:
         with create_db_session() as db_session:

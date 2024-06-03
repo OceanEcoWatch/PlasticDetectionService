@@ -6,6 +6,10 @@ on:
       job_id:
         description: "Job ID"
         required: true
+      probability_threshold:
+        description: "Probability threshold"
+        required: true
+        default: 0.33
 jobs:
   process-raster-data:
     runs-on: ubuntu-latest
@@ -28,6 +32,7 @@ jobs:
         run: >
           python -m src.main
           --job-id ${{ github.event.inputs.job_id }}
+          --probability-threshold ${{ github.event.inputs.probability_threshold }}
 
         env:
           DB_USER: ${{ secrets.DB_USER }}
