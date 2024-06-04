@@ -210,7 +210,9 @@ def update_job_status(db_session: Session, job_id: int, status: JobStatus):
     db_session.commit()
 
 
-def image_in_db(db_session: Session, download_response: DownloadResponse) -> bool:
+def image_in_db(
+    db_session: Session, download_response: DownloadResponse, job_id: int
+) -> bool:
     bbox = box(*download_response.bbox)
     bbox_geom_4326 = reproject_geometry(bbox, download_response.crs, 4326)
     bbox_geom = WKBElement(bbox_geom_4326.wkb, srid=4326)
@@ -220,6 +222,7 @@ def image_in_db(db_session: Session, download_response: DownloadResponse) -> boo
         .filter(Image.image_id == download_response.image_id)
         .filter(Image.timestamp == download_response.timestamp)
         .filter(Image.bbox.ST_Equals(bbox_geom))
+        .filter(Image.job_id == job_id)
         .first()
     )
 

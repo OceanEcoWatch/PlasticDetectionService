@@ -1,13 +1,13 @@
 import io
 import itertools
 import logging
-from concurrent.futures import ThreadPoolExecutor
 
 import click
 import rasterio
 from geoalchemy2.shape import to_shape
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
+from shapely.geometry import Polygon
 
 from src import config
 from src._types import BoundingBox
@@ -25,6 +25,7 @@ from src.database.models import (
 )
 from src.inference.inference_callback import RunpodInferenceCallback
 from src.raster_op.band import RasterioRemoveBand
+from src.raster_op.clip import RasterioClip
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
@@ -65,14 +66,18 @@ def _create_raster(image: DownloadResponse) -> Raster:
 
 
 def process_response(
-    download_response: DownloadResponse, job_id: int, probability_threshold: float
+    download_response: DownloadResponse,
+    job_id: int,
+    probability_threshold: float,
+    aoi_geometry: Polygon,
 ):
     with create_db_session() as db_session:
-        if image_in_db(db_session, download_response):
+        if image_in_db(db_session, download_response, job_id):
             LOGGER.warning(
                 f"Image {download_response.bbox}/{download_response.image_id} already in db"
             )
             return
+
     image = _create_raster(download_response)
 
     scl_vectors = list(get_scl_vectors(image, band=13))
@@ -85,6 +90,7 @@ def process_response(
     comp_op.add(RasterioRasterMerge())
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
     comp_op.add(RasterioDtypeConversion(dtype="uint8"))
+    comp_op.add(RasterioClip(geometry=aoi_geometry))
 
     LOGGER.info(f"Processing raster for image {download_response.image_id}")
     pred_raster = next(comp_op.execute([image]))
@@ -117,7 +123,8 @@ def main(
 ):
     with create_db_session() as db_session:
         aoi = db_session.query(AOI).filter(AOI.jobs.any(id=job_id)).one()
-        bbox = BoundingBox(*to_shape(aoi.geometry).bounds)
+        aoi_geometry = to_shape(aoi.geometry)
+        bbox = BoundingBox(*aoi_geometry.bounds)
         job = set_init_job_status(db_session, job_id)
         maxcc = job.maxcc
         time_range = TimeRange(job.start_date, job.end_date)
@@ -143,13 +150,8 @@ def main(
         return LOGGER.info(f"No images found for job {job_id}")
 
     try:
-        with ThreadPoolExecutor() as executor:
-            executor.map(
-                lambda response: process_response(
-                    response, job_id, probability_threshold
-                ),
-                itertools.chain([first_response], download_generator),
-            )
+        for response in itertools.chain([first_response], download_generator):
+            process_response(response, job_id, probability_threshold, aoi_geometry)
 
     except Exception as e:
         with create_db_session() as db_session:
