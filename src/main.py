@@ -1,6 +1,7 @@
 import io
 import itertools
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import click
 import rasterio
@@ -66,6 +67,12 @@ def _create_raster(image: DownloadResponse) -> Raster:
 def process_response(
     download_response: DownloadResponse, job_id: int, probability_threshold: float
 ):
+    with create_db_session() as db_session:
+        if image_in_db(db_session, download_response):
+            LOGGER.warning(
+                f"Image {download_response.bbox}/{download_response.image_id} already in db"
+            )
+            return
     image = _create_raster(download_response)
 
     scl_vectors = list(get_scl_vectors(image, band=13))
@@ -136,15 +143,13 @@ def main(
         return LOGGER.info(f"No images found for job {job_id}")
 
     try:
-        for download_response in itertools.chain([first_response], download_generator):
-            with create_db_session() as db_session:
-                if image_in_db(db_session, download_response):
-                    LOGGER.warning(
-                        f"Image {download_response.image_id} already exists. Skipping"
-                    )
-                    continue
-
-            process_response(download_response, job_id, probability_threshold)
+        with ThreadPoolExecutor() as executor:
+            executor.map(
+                lambda response: process_response(
+                    response, job_id, probability_threshold
+                ),
+                itertools.chain([first_response], download_generator),
+            )
 
     except Exception as e:
         with create_db_session() as db_session:
