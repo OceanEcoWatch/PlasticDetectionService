@@ -9,7 +9,6 @@ on:
       probability_threshold:
         description: "Probability threshold"
         required: true
-        default: 0.33
 jobs:
   process-raster-data:
     runs-on: ubuntu-latest
