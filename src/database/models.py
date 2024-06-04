@@ -13,7 +13,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -116,7 +115,6 @@ class Job(Base):
 
 class Image(Base):
     __tablename__ = "images"
-    __table_args__ = (UniqueConstraint("image_id", "timestamp", "bbox"),)
 
     id = Column(Integer, primary_key=True)
     image_id = Column(CONSTRAINT_STR, nullable=False)

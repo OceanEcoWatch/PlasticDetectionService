@@ -4,6 +4,7 @@ from sqlalchemy_utils import drop_database
 from src.config import DATABASE_URL
 from src.database.create import create_postgis_db, create_tables
 from src.database.models import Base
+from src.database.triggers import create_triggers
 
 if __name__ == "__main__":
     engine = create_engine(DATABASE_URL)
@@ -13,3 +14,5 @@ if __name__ == "__main__":
     create_postgis_db(engine)
     print("Creating tables")
     create_tables(engine, Base)
+    print("Creating triggers")
+    create_triggers()
