@@ -22,9 +22,6 @@ class RasterioInference(RasterOperationStrategy):
             with rasterio.open(io.BytesIO(raster.content)) as src:
                 meta = src.meta.copy()
 
-                raster_size_mb = len(raster.content) / 1024 / 1024
-                LOGGER.info(f"Raster size: {raster_size_mb:.2f} MB")
-
                 np_buffer = np.frombuffer(
                     self.inference_func(raster.content), dtype=np.float32
                 )

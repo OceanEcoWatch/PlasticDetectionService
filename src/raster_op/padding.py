@@ -37,9 +37,6 @@ class RasterioRasterPad(RasterOperationStrategy):
                 updated_meta = update_bounds(updated_meta, adjusted_bounds)
                 byte_stream = write_image(image, updated_meta)
 
-                print("original image shape: ", src.read().shape)
-                print("padding size: ", padding_size)
-                print("padded image shape: ", image.shape)
                 yield create_raster(
                     byte_stream,
                     image,

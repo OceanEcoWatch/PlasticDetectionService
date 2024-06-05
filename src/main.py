@@ -48,6 +48,13 @@ from .download.sh import (
 from .models import Raster
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("rasterio").setLevel(logging.ERROR)
+logging.getLogger("rasterio.env").setLevel(logging.ERROR)
+logging.getLogger("rasterio._io").setLevel(logging.ERROR)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
+logging.getLogger("botocore.credentials").setLevel(logging.WARNING)
+
 LOGGER = logging.getLogger(__name__)
 
 

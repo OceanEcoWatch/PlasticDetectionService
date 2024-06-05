@@ -170,7 +170,7 @@ class InsertJob:
         )
 
         image_db = self.insert.insert_image(download_response, image, image_url, job_id)
-
+        LOGGER.info(f"Inserted image {unique_id} into database")
         pred_raster_url = s3.stream_to_s3(
             io.BytesIO(pred_raster.content),
             config.S3_BUCKET_NAME,
@@ -179,11 +179,15 @@ class InsertJob:
         prediction_raster_db = self.insert.insert_prediction_raster(
             pred_raster, image_db.id, pred_raster_url
         )
+        LOGGER.info(f"Inserted prediction raster for image {unique_id} into database")
         prediction_vectors_db = self.insert.insert_prediction_vectors(
             vectors, prediction_raster_db.id
         )
-
+        LOGGER.info(f"Inserted prediction vectors for image {unique_id} into database")
         scl_vectors_db = self.insert.insert_scls_vectors(scl_vectors, image_db.id)
+        LOGGER.info(
+            f"Inserted scene classification vectors for image {unique_id} into database"
+        )
         return image_db, prediction_raster_db, prediction_vectors_db, scl_vectors_db
 
 
