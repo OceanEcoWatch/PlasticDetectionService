@@ -65,7 +65,7 @@ class RasterioRasterBandSelect(RasterOperationStrategy):
                 image = src.read()
 
                 selected_bands_image = image[self.bands]
-                LOGGER.info(f"Selected bands {self.bands} from raster")
+                LOGGER.info(f"Selected bands {self._bands} from raster")
                 meta.update(
                     {
                         "count": selected_bands_image.shape[0],
