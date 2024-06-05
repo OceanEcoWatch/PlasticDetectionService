@@ -181,7 +181,7 @@ class PredictionRaster(Base):
     __tablename__ = "prediction_rasters"
 
     id = Column(Integer, primary_key=True)
-    raster_url = Column(CONSTRAINT_STR, nullable=False, unique=True)
+    raster_url = Column(CONSTRAINT_STR, nullable=False)
     dtype = Column(
         Enum(*IMAGE_DTYPES, name="image_dtype"),
         nullable=False,
