@@ -124,7 +124,7 @@ class Image(Base):
 
     id = Column(Integer, primary_key=True)
     image_id = Column(CONSTRAINT_STR, nullable=False)
-    image_url = Column(CONSTRAINT_STR, nullable=False, unique=True)
+    image_url = Column(CONSTRAINT_STR, nullable=False)
     timestamp = Column(DateTime, nullable=False)
     dtype = Column(
         Enum(*IMAGE_DTYPES, name="image_dtype"),

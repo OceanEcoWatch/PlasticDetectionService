@@ -6,7 +6,7 @@ from typing import Iterable, Optional
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Polygon, box
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from src import config
@@ -85,7 +85,7 @@ class Insert:
     ) -> Image:
         target_crs = 4326
         transformed_geometry = reproject_geometry(
-            box(*download_response.bbox), download_response.crs, target_crs
+            raster.geometry, raster.crs, target_crs
         )
         image = Image(
             image_id=download_response.image_id,
@@ -168,13 +168,8 @@ class InsertJob:
             config.S3_BUCKET_NAME,
             f"images/{unique_id}.tif",
         )
-        try:
-            image_db = self.insert.insert_image(
-                download_response, image, image_url, job_id
-            )
-        except IntegrityError:
-            LOGGER.warning(f"Image {unique_id} already exists. Skipping")
-            return None
+
+        image_db = self.insert.insert_image(download_response, image, image_url, job_id)
 
         pred_raster_url = s3.stream_to_s3(
             io.BytesIO(pred_raster.content),
