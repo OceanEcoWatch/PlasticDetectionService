@@ -240,12 +240,6 @@ class SceneClassificationVector(Base):
     geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
 
-    image = relationship(
-        "Image",
-        backref="scene_classification_vectors",
-        cascade="all, delete, delete-orphan",
-    )
-
     def __init__(self, pixel_value: int, geometry: WKBElement, image_id: int):
         self.pixel_value = pixel_value
         self.geometry = geometry
