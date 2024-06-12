@@ -31,6 +31,70 @@ class JobStatus(enum.Enum):
     FAILED = "FAILED"
 
 
+class Satellite(Base):
+    __tablename__ = "satellites"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+
+    bands = relationship(
+        "Band", backref="satellite", cascade="all, delete, delete-orphan"
+    )
+
+
+class Band(Base):
+    __tablename__ = "bands"
+
+    id = Column(Integer, primary_key=True)
+    satellite_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
+    number = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    wavelength = Column(String, nullable=False)
+
+    def __init__(self, satellite_id: int, name: str, wavelength: str):
+        self.satellite_id = satellite_id
+        self.name = name
+        self.wavelength = wavelength
+
+
+class Model(Base):
+    __tablename__ = "models"
+
+    id = Column(Integer, primary_key=True)
+    model_id = Column(CONSTRAINT_STR, nullable=False, unique=True)
+    model_url = Column(CONSTRAINT_STR, nullable=False, unique=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    version = Column(Integer, nullable=False, default=1)
+
+    image_height = Column(Integer, nullable=False)
+    image_width = Column(Integer, nullable=False)
+
+    model_bands = relationship(
+        "ModelBand", backref="model", cascade="all, delete, delete-orphan"
+    )
+
+    jobs = relationship("Job", backref="model", cascade="all, delete, delete-orphan")
+
+    def __init__(
+        self,
+        model_id: str,
+        model_url: str,
+        version: int = 1,
+        created_at: datetime.datetime = datetime.datetime.now(),
+    ):
+        self.model_id = model_id
+        self.model_url = model_url
+        self.version = version
+        self.created_at = created_at
+
+
+class ModelBand(Base):
+    __tablename__ = "model_bands"
+
+    model_id = Column(Integer, ForeignKey("models.id"), primary_key=True)
+    band_id = Column(Integer, ForeignKey("bands.id"), primary_key=True)
+
+
 class AOI(Base):
     __tablename__ = "aois"
 
@@ -53,30 +117,6 @@ class AOI(Base):
         self.created_at = created_at
         self.geometry = geometry
         self.is_deleted = is_deleted
-
-
-class Model(Base):
-    __tablename__ = "models"
-
-    id = Column(Integer, primary_key=True)
-    model_id = Column(CONSTRAINT_STR, nullable=False, unique=True)
-    model_url = Column(CONSTRAINT_STR, nullable=False, unique=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
-    version = Column(Integer, nullable=False, default=1)
-
-    jobs = relationship("Job", backref="model", cascade="all, delete, delete-orphan")
-
-    def __init__(
-        self,
-        model_id: str,
-        model_url: str,
-        version: int = 1,
-        created_at: datetime.datetime = datetime.datetime.now(),
-    ):
-        self.model_id = model_id
-        self.model_url = model_url
-        self.version = version
-        self.created_at = created_at
 
 
 class Job(Base):

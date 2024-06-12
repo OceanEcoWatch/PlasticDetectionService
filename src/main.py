@@ -123,6 +123,7 @@ def process_response(
 
 @click.command()
 @click.option("--job-id", type=int, required=True)
+@click.option("--model-id", type=int, required=True)
 @click.option("--probability-threshold", type=float, required=True)
 def main(
     job_id: int,
