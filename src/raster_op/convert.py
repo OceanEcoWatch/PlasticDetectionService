@@ -14,7 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class RasterioDtypeConversion(RasterOperationStrategy):
-    def __init__(self, dtype: str, scale: bool = False):
+    def __init__(self, dtype: str, scale: bool = True):
         self.dtype = dtype
         self.scale = scale
 

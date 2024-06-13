@@ -85,6 +85,10 @@ def get_data_collection(satellite: str) -> DataCollection:
         )
 
 
+def do_scale(model: Model) -> bool:
+    return model.type == Model.Type.CLASSIFICATION
+
+
 def process_response(
     download_response: DownloadResponse,
     job_id: int,
@@ -124,7 +128,8 @@ def process_response(
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge())
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
-    comp_op.add(RasterioDtypeConversion(dtype="uint8"))
+
+    comp_op.add(RasterioDtypeConversion(dtype="uint8", scale=do_scale(model)))
 
     LOGGER.info(f"Processing raster for image {download_response.image_id}")
     pred_raster = next(comp_op.execute([image]))

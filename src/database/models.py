@@ -179,6 +179,7 @@ class Job(Base):
     status = Column(
         Enum(JobStatus, name="job_status"),
         nullable=False,
+        default=JobStatus.PENDING,
     )
     created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     is_deleted = Column(Boolean, nullable=False, default=False)
@@ -192,19 +193,19 @@ class Job(Base):
 
     def __init__(
         self,
-        status: JobStatus,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         maxcc: float,
         aoi_id: int,
         model_id: int,
+        status: JobStatus = JobStatus.PENDING,
     ):
-        self.status = status
         self.start_date = start_date
         self.end_date = end_date
         self.maxcc = maxcc
         self.aoi_id = aoi_id
         self.model_id = model_id
+        self.status = status
 
 
 class Image(Base):

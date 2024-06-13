@@ -1,22 +1,19 @@
-import datetime
 import io
 import logging
 from typing import Iterable, Optional
 
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape
-from shapely.geometry import Polygon, box
+from shapely.geometry import box
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from src import config
 from src.aws import s3
 from src.database.models import (
-    AOI,
     Image,
     Job,
     JobStatus,
-    Model,
     PredictionRaster,
     PredictionVector,
     SceneClassificationVector,
@@ -30,51 +27,6 @@ LOGGER = logging.getLogger(__name__)
 class Insert:
     def __init__(self, session: Session):
         self.session = session
-
-    def insert_aoi(
-        self,
-        name: str,
-        created_at: datetime.datetime,
-        geometry: Polygon,
-        is_deleted: bool = False,
-    ) -> AOI:
-        aoi = AOI(
-            name=name,
-            created_at=created_at,
-            geometry=from_shape(geometry),
-            is_deleted=is_deleted,
-        )
-        self.session.add(aoi)
-        self.session.commit()
-        return aoi
-
-    def insert_model(self, model_id: str, model_url: str) -> Model:
-        model = Model(model_id=model_id, model_url=model_url)
-        self.session.add(model)
-        self.session.commit()
-        return model
-
-    def insert_job(
-        self,
-        aoi_id: int,
-        model_id: int,
-        time_range: tuple[datetime.datetime, datetime.datetime],
-        maxcc: float,
-        status: JobStatus = JobStatus.PENDING,
-        created_at: datetime.datetime = datetime.datetime.now(),
-    ) -> Job:
-        job = Job(
-            aoi_id=aoi_id,
-            model_id=model_id,
-            status=status,
-            created_at=created_at,
-            start_date=time_range[0],
-            end_date=time_range[1],
-            maxcc=maxcc,
-        )
-        self.session.add(job)
-        self.session.commit()
-        return job
 
     def insert_image(
         self,

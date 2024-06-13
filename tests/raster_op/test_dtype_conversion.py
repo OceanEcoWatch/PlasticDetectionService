@@ -20,7 +20,7 @@ def test_dtype_conversion(s2_l2a_raster):
     assert converted_raster.geometry == s2_l2a_raster.geometry
 
     with rasterio.open(io.BytesIO(s2_l2a_raster.content)) as src:
-        exp_image = strategy._scale(src.read())
+        exp_image = strategy._scale(src.read()).astype(dtype)
         exp_meta = src.meta.copy()
         exp_meta["dtype"] = dtype
 
@@ -44,7 +44,7 @@ def test_uint8_to_uint16_scaling():
     target_dtype = rasterio.uint16
     strategy = RasterioDtypeConversion(dtype=target_dtype)
     image = np.array([0, 128, 255], dtype=rasterio.uint8)
-    scaled_image = strategy._scale(image)
+    scaled_image = strategy._scale(image).astype(target_dtype)
     assert scaled_image.dtype == target_dtype
     assert scaled_image.min() >= np.iinfo(target_dtype).min
     assert scaled_image.max() <= np.iinfo(target_dtype).max
@@ -54,7 +54,7 @@ def test_uint16_to_uint8_scaling():
     target_dtype = rasterio.uint8
     strategy = RasterioDtypeConversion(dtype=target_dtype)
     image = np.array([0, 128, 255], dtype=rasterio.uint16)
-    scaled_image = strategy._scale(image)
+    scaled_image = strategy._scale(image).astype(target_dtype)
     assert scaled_image.dtype == target_dtype
     assert scaled_image.min() >= np.iinfo(target_dtype).min
     assert scaled_image.max() <= np.iinfo(target_dtype).max
@@ -64,7 +64,7 @@ def test_integer_to_float_scaling():
     target_dtype = rasterio.float32
     strategy = RasterioDtypeConversion(dtype=target_dtype)
     image = np.array([0, 128, 255], dtype=rasterio.uint8)
-    scaled_image = strategy._scale(image)
+    scaled_image = strategy._scale(image).astype(target_dtype)
     assert scaled_image.dtype == target_dtype
     assert scaled_image.min() >= 0
     assert scaled_image.max() <= 1
@@ -77,7 +77,7 @@ def test_float_to_integer_scaling():
     target_dtype = rasterio.uint8
     strategy = RasterioDtypeConversion(dtype=target_dtype)
     image = np.array([0, 0.5, 1], dtype=rasterio.float32)
-    scaled_image = strategy._scale(image)
+    scaled_image = strategy._scale(image).astype(target_dtype)
     assert scaled_image.dtype == target_dtype
     assert scaled_image.min() >= np.iinfo(target_dtype).min
     assert scaled_image.max() <= np.iinfo(target_dtype).max

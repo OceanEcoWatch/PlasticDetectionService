@@ -15,17 +15,23 @@ from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.vectorize import RasterioRasterToPoint
+from tests import conftest
 
 
 @pytest.mark.slow
 @pytest.mark.e2e
-@pytest.mark.parametrize("inference_func", [RunpodInferenceCallback()])
+@pytest.mark.parametrize(
+    "inference_func",
+    [RunpodInferenceCallback(endpoint_url=conftest.RUNPOD_ENDPOINT_ID)],
+)
 def test_e2e(s2_l2a_raster, raster, inference_func, expected_vectors):
     comp_op = CompositeRasterOperation()
     comp_op.add(RasterioRasterSplit())
     comp_op.add(RasterioRasterPad())
     comp_op.add(RasterioRemoveBand(band=13))
-    comp_op.add(RasterioInference(inference_func=inference_func))
+    comp_op.add(
+        RasterioInference(inference_func=inference_func, output_dtype="float32")
+    )
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge(merge_method=copy_smooth))
     comp_op.add(RasterioDtypeConversion(dtype="uint8"))
@@ -88,7 +94,14 @@ def test_e2e_full_durban_scene(durban_full_raster):
     comp_op.add(RasterioRasterSplit())
     comp_op.add(RasterioRasterPad())
     comp_op.add(RasterioRemoveBand(band=13))
-    comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
+    comp_op.add(
+        RasterioInference(
+            inference_func=RunpodInferenceCallback(
+                endpoint_url=conftest.RUNPOD_ENDPOINT_ID
+            ),
+            output_dtype="float32",
+        )
+    )
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge(merge_method=copy_smooth))
     comp_op.add(RasterioDtypeConversion(dtype="uint8"))

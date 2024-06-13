@@ -21,9 +21,9 @@ def test_all_raster_op_without_comp(s2_l2a_raster):
     padded_rasters = list(RasterioRasterPad().execute(splitted_rasters))
     assert len(padded_rasters) == len(splitted_rasters)
     inferred_rasters = list(
-        RasterioInference(inference_func=MockInferenceCallback()).execute(
-            padded_rasters
-        )
+        RasterioInference(
+            inference_func=MockInferenceCallback(), output_dtype="float32"
+        ).execute(padded_rasters)
     )
     assert len(inferred_rasters) == len(padded_rasters)
     unpadded_rasters = list(RasterioRasterUnpad().execute(inferred_rasters))
@@ -37,7 +37,12 @@ def test_composite_raster_operation(s2_l2a_raster):
     root_op.add(RasterioRasterSplit())
     root_op.add(RasterioRasterPad(padding=64))
     root_op.add(RasterioRemoveBand(band=13))
-    root_op.add(RasterioInference(inference_func=MockInferenceCallback()))
+    root_op.add(
+        RasterioInference(
+            inference_func=MockInferenceCallback(),
+            output_dtype="float32",
+        )
+    )
     root_op.add(RasterioRasterUnpad())
     root_op.add(RasterioRasterMerge(merge_method=copy_smooth))
 
