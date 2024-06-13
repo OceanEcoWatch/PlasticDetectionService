@@ -14,8 +14,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 class RasterioDtypeConversion(RasterOperationStrategy):
-    def __init__(self, dtype: str):
+    def __init__(self, dtype: str, scale: bool = False):
         self.dtype = dtype
+        self.scale = scale
+
         try:
             self.np_dtype = np.dtype(dtype)
         except TypeError:
@@ -31,7 +33,10 @@ class RasterioDtypeConversion(RasterOperationStrategy):
                     LOGGER.info(f"Raster already has dtype {self.dtype}, skipping")
                     yield raster
 
-                image = self._scale(image)
+                if self.scale:
+                    image = self._scale(image)
+
+                image = image.astype(self.np_dtype)
 
                 meta.update(
                     {
@@ -61,9 +66,8 @@ class RasterioDtypeConversion(RasterOperationStrategy):
                 "Unsupported dtype: must be either integer or floating-point."
             )
 
-        scaled_image = (
-            (image - image_min) / (image_max - image_min) * (dtype_max - dtype_min)
-            + dtype_min
-        ).astype(self.np_dtype)
+        scaled_image = (image - image_min) / (image_max - image_min) * (
+            dtype_max - dtype_min
+        ) + dtype_min
 
         return scaled_image

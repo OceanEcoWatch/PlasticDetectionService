@@ -1,11 +1,9 @@
 import datetime
 import enum
 
-from geoalchemy2 import Geometry
-from geoalchemy2.elements import WKBElement
+from geoalchemy2 import Geometry, WKBElement
 from sqlalchemy import (
     Boolean,
-    CheckConstraint,
     Column,
     DateTime,
     Enum,
@@ -31,6 +29,11 @@ class JobStatus(enum.Enum):
     FAILED = "FAILED"
 
 
+class ModelType(enum.Enum):
+    SEGMENTATION = "SEGMENTATION"
+    CLASSIFICATION = "CLASSIFICATION"
+
+
 class Satellite(Base):
     __tablename__ = "satellites"
 
@@ -40,6 +43,12 @@ class Satellite(Base):
     bands = relationship(
         "Band", backref="satellite", cascade="all, delete, delete-orphan"
     )
+    images = relationship(
+        "Image", backref="satellite", cascade="all, delete, delete-orphan"
+    )
+
+    def __init__(self, name: str):
+        self.name = name
 
 
 class Band(Base):
@@ -47,13 +56,27 @@ class Band(Base):
 
     id = Column(Integer, primary_key=True)
     satellite_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
-    number = Column(Integer, nullable=False)
+    index = Column(Integer, nullable=False)  # 1-based index
     name = Column(String, nullable=False)
+    description = Column(CONSTRAINT_STR, nullable=False)
+    resolution = Column(Float, nullable=False)
+
     wavelength = Column(String, nullable=False)
 
-    def __init__(self, satellite_id: int, name: str, wavelength: str):
+    def __init__(
+        self,
+        satellite_id: int,
+        index: int,
+        name: str,
+        description: str,
+        resolution: float,
+        wavelength: str,
+    ):
         self.satellite_id = satellite_id
+        self.index = index
         self.name = name
+        self.description = description
+        self.resolution = resolution
         self.wavelength = wavelength
 
 
@@ -65,27 +88,55 @@ class Model(Base):
     model_url = Column(CONSTRAINT_STR, nullable=False, unique=True)
     created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     version = Column(Integer, nullable=False, default=1)
-
-    image_height = Column(Integer, nullable=False)
-    image_width = Column(Integer, nullable=False)
-
-    model_bands = relationship(
+    expected_image_height = Column(Integer, nullable=False)
+    expected_image_width = Column(Integer, nullable=False)
+    type = Column(Enum(ModelType), nullable=False)
+    output_dtype = Column(Enum(*IMAGE_DTYPES, name="image_dtype"), nullable=False)
+    expected_bands = relationship(
         "ModelBand", backref="model", cascade="all, delete, delete-orphan"
     )
 
+    classification_classes = relationship(
+        "ClassificationClass",
+        backref="model",
+        cascade="all, delete, delete-orphan",
+    )
     jobs = relationship("Job", backref="model", cascade="all, delete, delete-orphan")
 
     def __init__(
         self,
         model_id: str,
         model_url: str,
-        version: int = 1,
+        expected_image_height: int,
+        expected_image_width: int,
+        type: ModelType,
+        output_dtype: str,
         created_at: datetime.datetime = datetime.datetime.now(),
+        version: int = 1,
     ):
         self.model_id = model_id
         self.model_url = model_url
-        self.version = version
+        self.expected_image_height = expected_image_height
+        self.expected_image_width = expected_image_width
+        self.type = type
+        self.output_dtype = output_dtype
         self.created_at = created_at
+        self.version = version
+
+
+class ClassificationClass(Base):
+    __tablename__ = "classification_classes"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(CONSTRAINT_STR, nullable=False)
+    index = Column(Integer, nullable=False)  # 1-based index
+
+    model_id = Column(Integer, ForeignKey("models.id"), nullable=False)
+
+    def __init__(self, name: str, index: int, model_id: int):
+        self.name = name
+        self.index = index
+        self.model_id = model_id
 
 
 class ModelBand(Base):
@@ -93,6 +144,10 @@ class ModelBand(Base):
 
     model_id = Column(Integer, ForeignKey("models.id"), primary_key=True)
     band_id = Column(Integer, ForeignKey("bands.id"), primary_key=True)
+
+    def __init__(self, model_id: int, band_id: int):
+        self.model_id = model_id
+        self.band_id = band_id
 
 
 class AOI(Base):
@@ -109,14 +164,12 @@ class AOI(Base):
     def __init__(
         self,
         name: str,
-        geometry: WKBElement,
-        is_deleted: bool = False,
+        geometry,
         created_at: datetime.datetime = datetime.datetime.now(),
     ):
         self.name = name
-        self.created_at = created_at
         self.geometry = geometry
-        self.is_deleted = is_deleted
+        self.created_at = created_at
 
 
 class Job(Base):
@@ -140,22 +193,18 @@ class Job(Base):
     def __init__(
         self,
         status: JobStatus,
-        aoi_id: int,
-        model_id: int,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         maxcc: float,
-        is_deleted: bool = False,
-        created_at: datetime.datetime = datetime.datetime.now(),
+        aoi_id: int,
+        model_id: int,
     ):
         self.status = status
-        self.created_at = created_at
-        self.aoi_id = aoi_id
-        self.model_id = model_id
         self.start_date = start_date
         self.end_date = end_date
         self.maxcc = maxcc
-        self.is_deleted = is_deleted
+        self.aoi_id = aoi_id
+        self.model_id = model_id
 
 
 class Image(Base):
@@ -163,6 +212,7 @@ class Image(Base):
     __table_args__ = (UniqueConstraint("image_id", "timestamp", "bbox", "job_id"),)
 
     id = Column(Integer, primary_key=True)
+    satellite_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
     image_id = Column(CONSTRAINT_STR, nullable=False)
     image_url = Column(CONSTRAINT_STR, nullable=False)
     timestamp = Column(DateTime, nullable=False)
@@ -174,8 +224,6 @@ class Image(Base):
     resolution = Column(Float, nullable=False)
     image_width = Column(Integer, nullable=False)
     image_height = Column(Integer, nullable=False)
-    bands = Column(Integer, CheckConstraint("bands>0 AND bands<=100"), nullable=False)
-    provider = Column(CONSTRAINT_STR, nullable=False)
     bbox = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
     job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
 
@@ -190,6 +238,7 @@ class Image(Base):
 
     def __init__(
         self,
+        satellite_id: int,
         image_id: str,
         image_url: str,
         timestamp: datetime.datetime,
@@ -198,11 +247,10 @@ class Image(Base):
         resolution: float,
         image_width: int,
         image_height: int,
-        bands: int,
-        provider: str,
-        bbox: WKBElement,
+        bbox,
         job_id: int,
     ):
+        self.satellite_id = satellite_id
         self.image_id = image_id
         self.image_url = image_url
         self.timestamp = timestamp
@@ -211,8 +259,6 @@ class Image(Base):
         self.resolution = resolution
         self.image_width = image_width
         self.image_height = image_height
-        self.bands = bands
-        self.provider = provider
         self.bbox = bbox
         self.job_id = job_id
 
@@ -243,7 +289,7 @@ class PredictionRaster(Base):
         dtype: str,
         image_width: int,
         image_height: int,
-        bbox: WKBElement,
+        bbox,
         image_id: int,
     ):
         self.raster_url = raster_url
@@ -262,14 +308,15 @@ class PredictionVector(Base):
     geometry = Column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
 
     prediction_raster_id = Column(
-        Integer, ForeignKey("prediction_rasters.id"), nullable=False
+        Integer, ForeignKey("prediction_rasters.id"), nullable=False, index=True
     )
 
-    def __init__(self, pixel_value: int, geometry: WKBElement, raster_id: int):
+    def __init__(
+        self, pixel_value: int, geometry: WKBElement, prediction_raster_id: int
+    ):
         self.pixel_value = pixel_value
         self.geometry = geometry
-
-        self.prediction_raster_id = raster_id
+        self.prediction_raster_id = prediction_raster_id
 
 
 class SceneClassificationVector(Base):

@@ -19,7 +19,7 @@ class BaseInferenceCallback(ABC):
 
 
 class RunpodInferenceCallback(BaseInferenceCallback):
-    def __init__(self, endpoint_url: str = config.RUNPOD_ENDPOINT_ID):
+    def __init__(self, endpoint_url: str):
         self.endpoint_url = endpoint_url
 
     def __call__(self, payload: bytes) -> bytes:
