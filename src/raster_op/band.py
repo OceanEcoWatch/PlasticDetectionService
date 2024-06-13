@@ -55,6 +55,8 @@ class RasterioRemoveBand(RasterOperationStrategy):
 
 class RasterioRasterBandSelect(RasterOperationStrategy):
     def __init__(self, bands: Iterable[int]):
+        """Select bands from raster. Index is 1-based."""
+
         self._bands = bands
         self.bands = [band - 1 for band in bands]
 
@@ -63,7 +65,6 @@ class RasterioRasterBandSelect(RasterOperationStrategy):
             with rasterio.open(io.BytesIO(raster.content)) as src:
                 meta = src.meta.copy()
                 image = src.read()
-
                 selected_bands_image = image[self.bands]
                 meta.update(
                     {

@@ -39,6 +39,8 @@ TEST_AOI_POLYGON = Polygon(
 )
 MAX_CC = 0.1
 
+RUNPOD_ENDPOINT_ID = "2qzxx0ljdkepts"
+
 
 @pytest.fixture
 def s2_l2a_response():

@@ -14,7 +14,9 @@ from tests.conftest import LocalInferenceCallback, MockInferenceCallback
 
 
 def test_inference_raster_mock(s2_l2a_raster):
-    operation = RasterioInference(inference_func=MockInferenceCallback())
+    operation = RasterioInference(
+        inference_func=MockInferenceCallback(), output_dtype="float32"
+    )
 
     result = next(operation.execute([s2_l2a_raster]))
 
@@ -37,7 +39,9 @@ def test_inference_raster_real(s2_l2a_raster, pred_durban_first_split_raster):
     raster = list(RasterioRasterPad(padding=64).execute(raster))
     raster = list(RasterioRemoveBand(band=13).execute(raster))
     inference_raster = list(
-        RasterioInference(inference_func=LocalInferenceCallback()).execute(raster)
+        RasterioInference(
+            inference_func=LocalInferenceCallback(), output_dtype="float32"
+        ).execute(raster)
     )
 
     inference_raster = next(RasterioRasterUnpad().execute(inference_raster))

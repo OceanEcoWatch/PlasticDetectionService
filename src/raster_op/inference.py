@@ -14,8 +14,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class RasterioInference(RasterOperationStrategy):
-    def __init__(self, inference_func: Callable[[bytes], bytes]):
+    def __init__(self, inference_func: Callable[[bytes], bytes], output_dtype: str):
         self.inference_func = inference_func
+        self.output_dtype = output_dtype
 
     def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
         for raster in rasters:
@@ -23,7 +24,7 @@ class RasterioInference(RasterOperationStrategy):
                 meta = src.meta.copy()
 
                 np_buffer = np.frombuffer(
-                    self.inference_func(raster.content), dtype=np.float32
+                    self.inference_func(raster.content), dtype=self.output_dtype
                 )
                 prediction = np_buffer.reshape(1, meta["height"], meta["width"])
 
@@ -35,7 +36,6 @@ class RasterioInference(RasterOperationStrategy):
                         "dtype": prediction.dtype,
                     }
                 )
-
                 yield create_raster(
                     write_image(prediction, meta),
                     prediction,

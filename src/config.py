@@ -16,8 +16,6 @@ DB_HOST = os.environ["DB_HOST"]
 DB_PORT = os.environ["DB_PORT"]
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PW}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-RUNPOD_ENDPOINT_ID = os.environ["RUNPOD_ENDPOINT_ID"]
-RUNDPOD_MODEL_ID = "plastic_detection_model:1.0.1"
 RUNPOD_API_KEY = os.environ["RUNPOD_API_KEY"]
 
 

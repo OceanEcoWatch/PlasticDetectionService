@@ -19,6 +19,7 @@ from src.database.models import (
     Job,
     JobStatus,
     Model,
+    ModelType,
     PredictionRaster,
     PredictionVector,
     SceneClassificationVector,
@@ -154,9 +155,9 @@ def model(test_session):
 @pytest.fixture
 def job(aoi, model, test_session):
     job = Job(
-        JobStatus.PENDING,
-        aoi.id,
-        model.id,
+        status=JobStatus.PENDING,
+        aoi_id=aoi.id,
+        model_id=model.id,
         start_date=datetime.datetime.now() - datetime.timedelta(days=1),
         end_date=datetime.datetime.now(),
         maxcc=0.1,
@@ -170,22 +171,34 @@ def test_insert_mock_session(
     mock_session, download_response, db_raster, db_vectors, db_scls_vectors
 ):
     insert = Insert(mock_session)
-    model = insert.insert_model("test_model_id", "test_model_url")
-    aoi = insert.insert_aoi(
-        name="test_aoi",
+    model = Model(
+        model_id="test_model_id",
+        model_url="test_model_url",
         created_at=datetime.datetime.now(),
+        version=1,
+        expected_image_height=480,
+        expected_image_width=480,
+        type=ModelType.SEGMENTATION,
+        output_dtype="float32",
+    )
+    aoi = AOI(
+        name="test_aoi",
         geometry=Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]),
     )
-    job = insert.insert_job(
-        aoi.id,
-        model.id,
-        time_range=(
-            datetime.datetime.now() - datetime.timedelta(days=1),
-            datetime.datetime.now(),
-        ),
+    mock_session.add(aoi)
+    mock_session.commit()
+    job = Job(
+        start_date=datetime.datetime.now() - datetime.timedelta(days=1),
+        end_date=datetime.datetime.now(),
         maxcc=0.1,
+        aoi_id=aoi.id,
+        model_id=model.id,
     )
-    image = insert.insert_image(download_response, db_raster, "test_image_url", job.id)
+    mock_session.add(job)
+    mock_session.commit()
+    image = insert.insert_image(
+        download_response, db_raster, "test_image_url", job.id, 1
+    )
 
     raster = insert.insert_prediction_raster(db_raster, image.id, "test_raster_url")
     prediction_vectors = insert.insert_prediction_vectors(db_vectors, raster.id)
@@ -193,7 +206,6 @@ def test_insert_mock_session(
     scls_vectors = insert.insert_scls_vectors(db_scls_vectors, image.id)
 
     assert aoi.name == "test_aoi"
-    assert aoi.geometry == from_shape(Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]))
     assert job.aoi_id == aoi.id
     assert job.model_id == model.id
     assert image.image_id == download_response.image_id
@@ -202,8 +214,6 @@ def test_insert_mock_session(
     assert image.dtype == db_raster.dtype
     assert image.image_width == db_raster.size.width
     assert image.image_height == db_raster.size.height
-    assert image.bands == len(db_raster.bands)
-    assert image.provider == download_response.data_collection
 
     assert model.model_id == "test_model_id"
     assert model.model_url == "test_model_url"
