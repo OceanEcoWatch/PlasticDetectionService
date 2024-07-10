@@ -1,22 +1,19 @@
-import datetime
 import io
 import logging
 from typing import Iterable, Optional
 
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape
-from shapely.geometry import Polygon, box
+from shapely.geometry import box
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from src import config
 from src.aws import s3
 from src.database.models import (
-    AOI,
     Image,
     Job,
     JobStatus,
-    Model,
     PredictionRaster,
     PredictionVector,
     SceneClassificationVector,
@@ -31,57 +28,13 @@ class Insert:
     def __init__(self, session: Session):
         self.session = session
 
-    def insert_aoi(
-        self,
-        name: str,
-        created_at: datetime.datetime,
-        geometry: Polygon,
-        is_deleted: bool = False,
-    ) -> AOI:
-        aoi = AOI(
-            name=name,
-            created_at=created_at,
-            geometry=from_shape(geometry),
-            is_deleted=is_deleted,
-        )
-        self.session.add(aoi)
-        self.session.commit()
-        return aoi
-
-    def insert_model(self, model_id: str, model_url: str) -> Model:
-        model = Model(model_id=model_id, model_url=model_url)
-        self.session.add(model)
-        self.session.commit()
-        return model
-
-    def insert_job(
-        self,
-        aoi_id: int,
-        model_id: int,
-        time_range: tuple[datetime.datetime, datetime.datetime],
-        maxcc: float,
-        status: JobStatus = JobStatus.PENDING,
-        created_at: datetime.datetime = datetime.datetime.now(),
-    ) -> Job:
-        job = Job(
-            aoi_id=aoi_id,
-            model_id=model_id,
-            status=status,
-            created_at=created_at,
-            start_date=time_range[0],
-            end_date=time_range[1],
-            maxcc=maxcc,
-        )
-        self.session.add(job)
-        self.session.commit()
-        return job
-
     def insert_image(
         self,
         download_response: DownloadResponse,
         raster: Raster,
         image_url: str,
         job_id: int,
+        satellite_id: int,
     ) -> Image:
         target_crs = 4326
         transformed_geometry = reproject_geometry(
@@ -89,6 +42,7 @@ class Insert:
         )
         image = Image(
             image_id=download_response.image_id,
+            satellite_id=satellite_id,
             image_url=image_url,
             timestamp=download_response.timestamp,
             dtype=str(raster.dtype),
@@ -96,8 +50,6 @@ class Insert:
             resolution=raster.resolution,
             image_width=raster.size[0],
             image_height=raster.size[1],
-            bands=len(raster.bands),
-            provider=download_response.data_collection,
             bbox=from_shape(transformed_geometry, srid=target_crs),
             job_id=job_id,
         )
@@ -154,11 +106,11 @@ class InsertJob:
     def insert_all(
         self,
         job_id: int,
+        satellite_id: int,
         download_response: DownloadResponse,
         image: Raster,
         pred_raster: Raster,
         vectors: Iterable[Vector],
-        scl_vectors: Iterable[Vector],
     ) -> Optional[
         tuple[Image, PredictionRaster, PredictionVector, SceneClassificationVector]
     ]:
@@ -169,7 +121,9 @@ class InsertJob:
             f"images/{unique_id}.tif",
         )
 
-        image_db = self.insert.insert_image(download_response, image, image_url, job_id)
+        image_db = self.insert.insert_image(
+            download_response, image, image_url, job_id, satellite_id
+        )
         LOGGER.info(f"Inserted image {unique_id} into database")
         pred_raster_url = s3.stream_to_s3(
             io.BytesIO(pred_raster.content),
@@ -184,11 +138,8 @@ class InsertJob:
             vectors, prediction_raster_db.id
         )
         LOGGER.info(f"Inserted prediction vectors for image {unique_id} into database")
-        scl_vectors_db = self.insert.insert_scls_vectors(scl_vectors, image_db.id)
-        LOGGER.info(
-            f"Inserted scene classification vectors for image {unique_id} into database"
-        )
-        return image_db, prediction_raster_db, prediction_vectors_db, scl_vectors_db
+
+        return image_db, prediction_raster_db, prediction_vectors_db
 
 
 def set_init_job_status(db_session: Session, job_id: int) -> Job:

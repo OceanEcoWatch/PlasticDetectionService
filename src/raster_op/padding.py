@@ -108,7 +108,6 @@ class RasterioRasterUnpad(RasterOperationStrategy):
     def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
         for raster in rasters:
             with rasterio.open(io.BytesIO(raster.content)) as src:
-                print("padding size: ", raster.padding_size)
                 image = src.read()
                 image = self._unpad_image(image, raster.padding_size)
 

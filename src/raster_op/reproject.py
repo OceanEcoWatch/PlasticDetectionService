@@ -52,6 +52,7 @@ class RasterioRasterReproject(RasterOperationStrategy):
                             dst_crs=target_crs,
                             resampling=Resampling[self.resample_alg],
                         )
+
                     yield create_raster(
                         write_image(dst.read(), dst.meta),
                         dst.read(),

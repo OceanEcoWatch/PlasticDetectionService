@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from src._types import HeightWidth
+from src.inference.inference_callback import RunpodInferenceCallback
 from src.raster_op.band import RasterioRemoveBand
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
@@ -12,6 +13,7 @@ from src.raster_op.merge import (
 )
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.split import RasterioRasterSplit
+from tests import conftest
 from tests.conftest import LocalInferenceCallback, MockInferenceCallback
 
 
@@ -21,9 +23,9 @@ def test_all_raster_op_without_comp(s2_l2a_raster):
     padded_rasters = list(RasterioRasterPad().execute(splitted_rasters))
     assert len(padded_rasters) == len(splitted_rasters)
     inferred_rasters = list(
-        RasterioInference(inference_func=MockInferenceCallback()).execute(
-            padded_rasters
-        )
+        RasterioInference(
+            inference_func=MockInferenceCallback(), output_dtype="float32"
+        ).execute(padded_rasters)
     )
     assert len(inferred_rasters) == len(padded_rasters)
     unpadded_rasters = list(RasterioRasterUnpad().execute(inferred_rasters))
@@ -37,7 +39,12 @@ def test_composite_raster_operation(s2_l2a_raster):
     root_op.add(RasterioRasterSplit())
     root_op.add(RasterioRasterPad(padding=64))
     root_op.add(RasterioRemoveBand(band=13))
-    root_op.add(RasterioInference(inference_func=MockInferenceCallback()))
+    root_op.add(
+        RasterioInference(
+            inference_func=MockInferenceCallback(),
+            output_dtype="float32",
+        )
+    )
     root_op.add(RasterioRasterUnpad())
     root_op.add(RasterioRasterMerge(merge_method=copy_smooth))
 
@@ -57,12 +64,18 @@ def test_composite_raster_operation(s2_l2a_raster):
 
 
 @pytest.mark.slow
+@pytest.mark.integration
 def test_composite_raster_real_inference(s2_l2a_raster, raster):
     comp_op = CompositeRasterOperation()
     comp_op.add(RasterioRasterSplit(image_size=HeightWidth(480, 480), offset=64))
     comp_op.add(RasterioRasterPad(padding=64))
     comp_op.add(RasterioRemoveBand(band=13))
-    comp_op.add(RasterioInference(inference_func=LocalInferenceCallback()))
+    comp_op.add(
+        RasterioInference(
+            inference_func=RunpodInferenceCallback(conftest.RUNPOD_ENDPOINT_ID),
+            output_dtype="uint8",
+        )
+    )
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge(offset=64, merge_method=copy_smooth))
 

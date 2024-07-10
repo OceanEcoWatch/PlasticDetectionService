@@ -8,6 +8,7 @@ from geoalchemy2.shape import to_shape
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
 from shapely.geometry import Polygon
+from sqlalchemy.orm import joinedload
 
 from src import config
 from src._types import BoundingBox
@@ -21,11 +22,15 @@ from src.database.insert import (
 )
 from src.database.models import (
     AOI,
+    Band,
     JobStatus,
+    Model,
+    ModelBand,
+    ModelType,
+    Satellite,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
-from src.raster_op.band import RasterioRemoveBand
-from src.raster_op.clip import RasterioClip
+from src.raster_op.band import RasterioRasterBandSelect
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
@@ -35,12 +40,11 @@ from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
 from src.raster_op.utils import create_raster
 from src.raster_op.vectorize import RasterioRasterToPoint
-from src.scl import get_scl_vectors
 from src.vector_op import probability_to_pixelvalue
 
 from ._types import HeightWidth, TimeRange
 from .download.abstractions import DownloadResponse
-from .download.evalscripts import L2A_12_BANDS_SCL
+from .download.evalscripts import L1C_13_BANDS
 from .download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
@@ -72,11 +76,27 @@ def _create_raster(image: DownloadResponse) -> Raster:
     )
 
 
+def get_data_collection(satellite: str) -> DataCollection:
+    _satellite = satellite.upper().replace(" ", "_")
+    try:
+        return getattr(DataCollection, _satellite)
+    except AttributeError:
+        raise ValueError(
+            "Could not find a matching DataCollection" f" for {_satellite}"
+        )
+
+
+def do_scale(model: Model) -> bool:
+    return model.type.value == ModelType.CLASSIFICATION.value
+
+
 def process_response(
     download_response: DownloadResponse,
     job_id: int,
     probability_threshold: float,
     aoi_geometry: Polygon,
+    model: Model,
+    satellite_id: int,
 ):
     with create_db_session() as db_session:
         if image_in_db(db_session, download_response, job_id):
@@ -84,20 +104,33 @@ def process_response(
                 f"Image {download_response.bbox}/{download_response.image_id} already in db"
             )
             return
+        band_indexes = [
+            band.index
+            for model_band in model.expected_bands
+            for band in db_session.query(Band).filter(Band.id == model_band.band_id)
+        ]
 
     image = _create_raster(download_response)
 
-    scl_vectors = list(get_scl_vectors(image, band=13))
     comp_op = CompositeRasterOperation()
-    comp_op.add(RasterioRasterSplit())
+    comp_op.add(
+        RasterioRasterSplit(
+            HeightWidth(model.expected_image_height, model.expected_image_width)
+        )
+    )
     comp_op.add(RasterioRasterPad())
-    comp_op.add(RasterioRemoveBand(band=13))
-    comp_op.add(RasterioInference(inference_func=RunpodInferenceCallback()))
+    comp_op.add(RasterioRasterBandSelect(band_indexes))
+    comp_op.add(
+        RasterioInference(
+            inference_func=RunpodInferenceCallback(endpoint_url=model.model_url),
+            output_dtype=model.output_dtype,
+        )
+    )
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge())
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
-    comp_op.add(RasterioDtypeConversion(dtype="uint8"))
-    comp_op.add(RasterioClip(geometry=aoi_geometry))
+
+    comp_op.add(RasterioDtypeConversion(dtype="uint8", scale=do_scale(model)))
 
     LOGGER.info(f"Processing raster for image {download_response.image_id}")
     pred_raster = next(comp_op.execute([image]))
@@ -105,6 +138,8 @@ def process_response(
     LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
     pred_vectors = RasterioRasterToPoint(
         threshold=probability_to_pixelvalue(probability_threshold)
+        if model.type.value == ModelType.SEGMENTATION.value
+        else None
     ).execute(pred_raster)
 
     LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")
@@ -113,11 +148,11 @@ def process_response(
         insert_job = InsertJob(insert=Insert(db_session))
         insert_job.insert_all(
             job_id=job_id,
+            satellite_id=satellite_id,
             download_response=download_response,
             image=image,
             pred_raster=pred_raster,
             vectors=pred_vectors,
-            scl_vectors=scl_vectors,
         )
 
 
@@ -133,17 +168,32 @@ def main(
         aoi_geometry = to_shape(aoi.geometry)
         bbox = BoundingBox(*aoi_geometry.bounds)
         job = set_init_job_status(db_session, job_id)
-        maxcc = job.maxcc
-        time_range = TimeRange(job.start_date, job.end_date)
-
+        model = (
+            db_session.query(Model)
+            .options(joinedload(Model.expected_bands))
+            .filter(Model.id == job.model_id)
+            .one()
+        )
+        satellite = (
+            db_session.query(Satellite)
+            .join(Band)
+            .join(ModelBand)
+            .join(Model)
+            .filter(Model.id == model.id)
+            .first()
+        )
+        sat_id = satellite.id
+        LOGGER.info(
+            f"Starting job {job_id} with model:{model.model_id} for AOI: {aoi.name}. Satellite: {satellite.name}"
+        )
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
-            time_interval=time_range,
-            maxcc=maxcc,
+            time_interval=TimeRange(job.start_date, job.end_date),
+            maxcc=job.maxcc,
             config=config.SH_CONFIG,
-            evalscript=L2A_12_BANDS_SCL,
-            data_collection=DataCollection.SENTINEL2_L2A,
+            evalscript=L1C_13_BANDS,
+            data_collection=get_data_collection(satellite.name),
             mime_type=MimeType.TIFF,
         )
     )
@@ -158,7 +208,14 @@ def main(
 
     try:
         for response in itertools.chain([first_response], download_generator):
-            process_response(response, job_id, probability_threshold, aoi_geometry)
+            process_response(
+                response,
+                job_id,
+                probability_threshold,
+                aoi_geometry,
+                model,
+                sat_id,
+            )
 
     except Exception as e:
         with create_db_session() as db_session:
