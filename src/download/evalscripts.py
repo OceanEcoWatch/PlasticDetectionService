@@ -1,3 +1,26 @@
+def generate_evalscript(band_names: list[str]) -> str:
+    inputs = ", ".join([f'"{band}"' for band in band_names])
+
+    evalscript = f"""
+    //VERSION=3
+    function setup() {{
+        return {{
+            input: [{inputs}],
+            output: [{{
+                id: "default",
+                bands: {len(band_names)},
+                sampleType: SampleType.UINT16
+            }}]
+        }};
+    }}
+
+    function evaluatePixel(sample) {{
+        return [{', '.join([f'sample.{band}' for band in band_names])}];
+    }}
+    """
+    return evalscript
+
+
 L1C_13_BANDS = """
     //VERSION=3
 function setup() {
