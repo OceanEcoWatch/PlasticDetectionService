@@ -18,7 +18,7 @@ from src.database.models import (
 
 session = create_db_session()
 sat = Satellite(
-    name="SENTINEL2_L1C",
+    name="SENTINEL2_L2A",
 )
 session.add(sat)
 session.commit()
@@ -103,14 +103,7 @@ band9 = Band(
     resolution=60,
     wavelength="945nm",
 )
-band10 = Band(
-    satellite_id=sat.id,
-    index=11,
-    name="B10",
-    description="SWIR - Cirrus",
-    resolution=60,
-    wavelength="1373nm",
-)
+
 band11 = Band(
     satellite_id=sat.id,
     index=12,
@@ -138,7 +131,6 @@ session.add(band7)
 session.add(band8)
 session.add(band8a)
 session.add(band9)
-session.add(band10)
 session.add(band11)
 session.add(band12)
 session.commit()
@@ -262,7 +254,7 @@ job = Job(
     start_date=datetime.datetime.now() - datetime.timedelta(days=100),
     end_date=datetime.datetime.now(),
     maxcc=0.1,
-    model_id=model2.id,
+    model_id=model1.id,
 )
 session.add(job)
 session.commit()

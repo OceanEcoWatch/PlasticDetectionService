@@ -30,7 +30,6 @@ from src.database.models import (
     Satellite,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
-from src.raster_op.band import RasterioRasterBandSelect
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
@@ -44,7 +43,7 @@ from src.vector_op import probability_to_pixelvalue
 
 from ._types import HeightWidth, TimeRange
 from .download.abstractions import DownloadResponse
-from .download.evalscripts import L1C_13_BANDS
+from .download.evalscripts import generate_evalscript
 from .download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
@@ -104,11 +103,6 @@ def process_response(
                 f"Image {download_response.bbox}/{download_response.image_id} already in db"
             )
             return
-        band_indexes = [
-            band.index
-            for model_band in model.expected_bands
-            for band in db_session.query(Band).filter(Band.id == model_band.band_id)
-        ]
 
     image = _create_raster(download_response)
 
@@ -119,7 +113,6 @@ def process_response(
         )
     )
     comp_op.add(RasterioRasterPad())
-    comp_op.add(RasterioRasterBandSelect(band_indexes))
     comp_op.add(
         RasterioInference(
             inference_func=RunpodInferenceCallback(endpoint_url=model.model_url),
@@ -180,19 +173,27 @@ def main(
             .join(ModelBand)
             .join(Model)
             .filter(Model.id == model.id)
-            .first()
+            .one()
         )
         sat_id = satellite.id
         LOGGER.info(
             f"Starting job {job_id} with model:{model.model_id} for AOI: {aoi.name}. Satellite: {satellite.name}"
         )
+        expected_bands = (
+            db_session.query(Band.name)
+            .join(ModelBand)
+            .filter(ModelBand.model_id == model.id)
+            .all()
+        )
+        band_names = [band.name for band in expected_bands]
+
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
             time_interval=TimeRange(job.start_date, job.end_date),
             maxcc=job.maxcc,
             config=config.SH_CONFIG,
-            evalscript=L1C_13_BANDS,
+            evalscript=generate_evalscript(band_names),
             data_collection=get_data_collection(satellite.name),
             mime_type=MimeType.TIFF,
         )

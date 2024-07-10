@@ -111,9 +111,7 @@ class InsertJob:
         image: Raster,
         pred_raster: Raster,
         vectors: Iterable[Vector],
-    ) -> Optional[
-        tuple[Image, PredictionRaster, PredictionVector, SceneClassificationVector]
-    ]:
+    ) -> Optional[tuple[Image, PredictionRaster, PredictionVector]]:
         unique_id = f"{download_response.bbox}/{download_response.image_id}"
         image_url = s3.stream_to_s3(
             io.BytesIO(download_response.content),
