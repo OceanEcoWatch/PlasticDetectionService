@@ -26,6 +26,7 @@ from src.database.models import (
     JobStatus,
     Model,
     ModelBand,
+    ModelType,
     Satellite,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
@@ -86,7 +87,7 @@ def get_data_collection(satellite: str) -> DataCollection:
 
 
 def do_scale(model: Model) -> bool:
-    return model.type == Model.Type.CLASSIFICATION
+    return model.type.value == ModelType.CLASSIFICATION.value
 
 
 def process_response(
@@ -137,6 +138,8 @@ def process_response(
     LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
     pred_vectors = RasterioRasterToPoint(
         threshold=probability_to_pixelvalue(probability_threshold)
+        if model.type.value == ModelType.SEGMENTATION.value
+        else None
     ).execute(pred_raster)
 
     LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")

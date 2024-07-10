@@ -1,5 +1,5 @@
 import io
-from typing import Generator
+from typing import Generator, Optional
 
 import numpy as np
 import rasterio
@@ -14,7 +14,7 @@ from .abstractions import (
 
 
 class RasterioRasterToPoint(RasterToVectorStrategy):
-    def __init__(self, band: int = 1, threshold: int = 0):
+    def __init__(self, band: int = 1, threshold: Optional[int] = None):
         """
         :param band: The band to use for the conversion
         :param threshold: Pixels with values below this threshold will be ignored (lt)
@@ -35,7 +35,7 @@ class RasterioRasterToPoint(RasterToVectorStrategy):
                 )
 
             for (row, col), value in np.ndenumerate(image):
-                if value <= self.threshold:
+                if self.threshold is not None and value <= self.threshold:
                     continue
                 x, y = transform * (col + 0.5, row + 0.5)
 
