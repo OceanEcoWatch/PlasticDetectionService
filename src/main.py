@@ -100,7 +100,7 @@ def process_response(
     with create_db_session() as db_session:
         if image_in_db(db_session, download_response, job_id):
             LOGGER.warning(
-                f"Image {download_response.bbox}/{download_response.image_id} already in db"
+                f"Image {model.model_id}/{download_response.bbox}/{download_response.image_id} already in db"
             )
             return
 
@@ -142,6 +142,7 @@ def process_response(
         insert_job.insert_all(
             job_id=job_id,
             satellite_id=satellite_id,
+            model_name=model.model_id,
             download_response=download_response,
             image=image,
             pred_raster=pred_raster,

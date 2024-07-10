@@ -107,6 +107,7 @@ class InsertJob:
         self,
         job_id: int,
         satellite_id: int,
+        model_name: str,
         download_response: DownloadResponse,
         image: Raster,
         pred_raster: Raster,
@@ -126,7 +127,7 @@ class InsertJob:
         pred_raster_url = s3.stream_to_s3(
             io.BytesIO(pred_raster.content),
             config.S3_BUCKET_NAME,
-            f"predictions/{unique_id}.tif",
+            f"predictions/{model_name}/{unique_id}.tif",
         )
         prediction_raster_db = self.insert.insert_prediction_raster(
             pred_raster, image_db.id, pred_raster_url

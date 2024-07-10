@@ -254,7 +254,7 @@ job = Job(
     start_date=datetime.datetime.now() - datetime.timedelta(days=100),
     end_date=datetime.datetime.now(),
     maxcc=0.1,
-    model_id=model1.id,
+    model_id=model2.id,
 )
 session.add(job)
 session.commit()
