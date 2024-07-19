@@ -30,6 +30,7 @@ from src.database.models import (
     Satellite,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
+from src.raster_op.clip import RasterioClip
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
@@ -121,6 +122,7 @@ def process_response(
     )
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge())
+    comp_op.add(RasterioClip(aoi_geometry))
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
 
     comp_op.add(RasterioDtypeConversion(dtype="uint8", scale=do_scale(model)))
@@ -177,9 +179,7 @@ def main(
             .one()
         )
         sat_id = satellite.id
-        LOGGER.info(
-            f"Starting job {job_id} with model:{model.model_id} for AOI: {aoi.name}. Satellite: {satellite.name}"
-        )
+
         expected_bands = (
             db_session.query(Band.name)
             .join(ModelBand)
@@ -188,6 +188,10 @@ def main(
         )
         band_names = [band.name for band in expected_bands]
 
+        LOGGER.info(
+            f"Starting job {job_id} with model:{model.model_id} for AOI: {aoi.name}. "
+            f"Satellite: {satellite.name} with bands: {band_names}. Timestamps: {job.start_date} - {job.end_date}"
+        )
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
