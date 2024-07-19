@@ -23,7 +23,8 @@ def main(job_id: int):
         try:
             job = db.query(Job).filter(Job.id == job_id).one()
             if job.status != JobStatus.COMPLETED:
-                raise ValueError(f"Job {job_id} is not completed")
+                LOGGER.warning(f"Job {job_id} is not in COMPLETED status. Skipping...")
+                return
 
             satellite = (
                 db.query(Satellite)
@@ -32,12 +33,14 @@ def main(job_id: int):
                 .filter(Job.id == job_id)
                 .one()
             )
-            if satellite.name.capitalize() != "SENTINEL_2_L2A":
-                raise ValueError(f"Job {job_id} is not for Sentinel 2 L2A")
+            if satellite.name.capitalize().strip() != "SENTINEL2_L2A":
+                LOGGER.warning(f"Job {job_id} is not for Sentinel-2 L2A. Skipping...")
+                return
 
             images = job.images
             if not images:
-                raise ValueError(f"Job {job_id} has no images")
+                LOGGER.warning(f"Job {job_id} has no images. Skipping...")
+                return
 
             job.status = JobStatus.IN_PROGRESS
             for image in images:
