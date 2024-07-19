@@ -29,7 +29,7 @@ jobs:
 
       - name: Run main script
         run: >
-          python -m src.main
+          python -m src.main_service.main
           --job-id ${{ github.event.inputs.job_id }}
           --probability-threshold ${{ github.event.inputs.probability_threshold }}
 

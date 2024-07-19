@@ -1,4 +1,5 @@
-""" Domain models for the application """
+"""Domain models for the application"""
+
 import datetime as dt
 import io
 from dataclasses import dataclass
