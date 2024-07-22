@@ -3,7 +3,7 @@
 [![Format Lint Test](https://github.com/OceanEcoWatch/PlasticDetectionService/actions/workflows/lint_test.yml/badge.svg)](https://github.com/OceanEcoWatch/PlasticDetectionService/actions/workflows/lint_test.yml)
 
 This repository contains a cloud-based pipeline for predicting marine debris from Sentinel-2 L2A images using machine learning. The predictions are made using the [PlasticDetectionModel](https://github.com/OceanEcoWatch/PlasticDetectionModel). The output is stored in a PostGIS database hosted on AWS RDS.
-Ultimately, the predictions will be displayed on our [mapping application](https://github.com/OceanEcoWatch/OceanEcoWatchMap), deployed here: [https://map.oceanecowatch.org](https://map.oceanecowatch.org/)
+The predictions are displayed on our [mapping application](https://github.com/OceanEcoWatch/OceanEcoWatchMap), deployed here: [https://map.oceanecowatch.org](https://map.oceanecowatch.org/)
 
 This repository is triggered by the [OceanEcoMapServer](https://github.com/OceanEcoWatch/OceanEcoMapServer) via a Github Actions workflow endpoint.
 
@@ -44,20 +44,20 @@ RUNPOD_API_KEY=
 RUNPOD_ENDPOINT_ID=
 ```
 
-3. Greate the database and a aoi, job and model row in the database
+3. Greate the database and necessary tables
 
 ```bash
 python -m scripts.reset_db
 ```
 
 ```bash
-python -m scripts.add_job_to_db
+python -m scripts.add_tables.py
 ```
 4. Run the service locally
    The job and model id will be 1 if you have run the reset_db and add_job_to_db scripts
 
 ```bash
-python -m src.main --bbox <max_lat> <min_lat> <max_lon> <min_lon> --time <start_date> <end_date> --maxcc <cloudcover_float> --job-id <job_id> --model-id <model_id>
+python -m src.main --job-id <job-id> --probability-threshold <prob-theshold>
 ```
 
 ## Development environment and testing
