@@ -1,9 +1,7 @@
-import io
 import itertools
 import logging
 
 import click
-import rasterio
 from geoalchemy2.shape import to_shape
 from sentinelhub.constants import MimeType
 from sentinelhub.data_collections import DataCollection
@@ -30,6 +28,7 @@ from src.database.models import (
     Satellite,
 )
 from src.inference.inference_callback import RunpodInferenceCallback
+from src.raster_op.clip import RasterioClip
 from src.raster_op.composite import CompositeRasterOperation
 from src.raster_op.convert import RasterioDtypeConversion
 from src.raster_op.inference import RasterioInference
@@ -37,18 +36,17 @@ from src.raster_op.merge import RasterioRasterMerge
 from src.raster_op.padding import RasterioRasterPad, RasterioRasterUnpad
 from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.split import RasterioRasterSplit
-from src.raster_op.utils import create_raster
+from src.raster_op.utils import create_raster_from_download_response
 from src.raster_op.vectorize import RasterioRasterToPoint
 from src.vector_op import probability_to_pixelvalue
 
-from ._types import HeightWidth, TimeRange
-from .download.abstractions import DownloadResponse
-from .download.evalscripts import generate_evalscript
-from .download.sh import (
+from .._types import HeightWidth, TimeRange
+from ..download.abstractions import DownloadResponse
+from ..download.evalscripts import generate_evalscript
+from ..download.sh import (
     SentinelHubDownload,
     SentinelHubDownloadParams,
 )
-from .models import Raster
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("rasterio").setLevel(logging.ERROR)
@@ -59,20 +57,6 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 logging.getLogger("botocore.credentials").setLevel(logging.WARNING)
 
 LOGGER = logging.getLogger(__name__)
-
-
-def _create_raster(image: DownloadResponse) -> Raster:
-    with rasterio.open(io.BytesIO(image.content)) as src:
-        np_image = src.read().copy()
-        meta = src.meta.copy()
-        bounds = BoundingBox(*src.bounds)
-    return create_raster(
-        content=image.content,
-        image=np_image,
-        bounds=bounds,
-        meta=meta,
-        padding_size=HeightWidth(0, 0),
-    )
 
 
 def get_data_collection(satellite: str) -> DataCollection:
@@ -104,7 +88,7 @@ def process_response(
             )
             return
 
-    image = _create_raster(download_response)
+    image = create_raster_from_download_response(download_response)
 
     comp_op = CompositeRasterOperation()
     comp_op.add(
@@ -122,8 +106,8 @@ def process_response(
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge())
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
-
     comp_op.add(RasterioDtypeConversion(dtype="uint8", scale=do_scale(model)))
+    comp_op.add(RasterioClip(aoi_geometry))
 
     LOGGER.info(f"Processing raster for image {download_response.image_id}")
     pred_raster = next(comp_op.execute([image]))
@@ -177,9 +161,7 @@ def main(
             .one()
         )
         sat_id = satellite.id
-        LOGGER.info(
-            f"Starting job {job_id} with model:{model.model_id} for AOI: {aoi.name}. Satellite: {satellite.name}"
-        )
+
         expected_bands = (
             db_session.query(Band.name)
             .join(ModelBand)
@@ -188,6 +170,10 @@ def main(
         )
         band_names = [band.name for band in expected_bands]
 
+        LOGGER.info(
+            f"Starting job {job_id} with model:{model.model_id} for AOI: {aoi.name}. "
+            f"Satellite: {satellite.name} with bands: {band_names}. Timestamps: {job.start_date} - {job.end_date}"
+        )
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,

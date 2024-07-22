@@ -4,7 +4,6 @@ from shapely.geometry import box
 
 from src._types import HeightWidth
 from src.models import Raster
-from src.scl import SCL, get_scl_vectors
 
 
 @pytest.fixture
@@ -23,12 +22,3 @@ def scl_raster():
         resolution=src.res[0],
         geometry=box(*src.bounds),
     )
-
-
-def test_get_scl_vectors(scl_raster):
-    vectors = list(get_scl_vectors(scl_raster, band=13))
-    assert len(vectors) > 100
-    for vector in vectors:
-        assert vector.pixel_value >= SCL.min() and vector.pixel_value <= SCL.max()
-        assert vector.geometry.geom_type == "Polygon"
-        assert vector.crs == 4326

@@ -6,7 +6,7 @@ import rasterio
 from shapely.geometry import box
 
 from src._types import BoundingBox, HeightWidth
-from src.models import Raster
+from src.models import DownloadResponse, Raster
 
 LOGGER = logging.getLogger(__name__)
 
@@ -60,3 +60,17 @@ def write_image(image: np.ndarray, meta: dict) -> bytes:
         mem_dst.write(image)
 
     return buffer.getvalue()
+
+
+def create_raster_from_download_response(image: DownloadResponse) -> Raster:
+    with rasterio.open(io.BytesIO(image.content)) as src:
+        np_image = src.read().copy()
+        meta = src.meta.copy()
+        bounds = BoundingBox(*src.bounds)
+    return create_raster(
+        content=image.content,
+        image=np_image,
+        bounds=bounds,
+        meta=meta,
+        padding_size=HeightWidth(0, 0),
+    )
