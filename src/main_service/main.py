@@ -105,10 +105,9 @@ def process_response(
     )
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge())
-    comp_op.add(RasterioClip(aoi_geometry))
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
-
     comp_op.add(RasterioDtypeConversion(dtype="uint8", scale=do_scale(model)))
+    comp_op.add(RasterioClip(aoi_geometry))
 
     LOGGER.info(f"Processing raster for image {download_response.image_id}")
     pred_raster = next(comp_op.execute([image]))
