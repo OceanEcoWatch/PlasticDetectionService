@@ -31,7 +31,7 @@ def main():
             )
             .filter(Satellite.name == "SENTINEL2_L2A")
             .filter(
-                SceneClassificationVector.id == None
+                SceneClassificationVector.id == None  # noqa: E711
             )  # Check where no related SCL vectors exist
             .all()
         )
