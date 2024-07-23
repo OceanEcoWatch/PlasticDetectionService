@@ -5,7 +5,7 @@ from typing import Iterable, Optional
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import from_shape
 from shapely.geometry import box
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 
 from src import config
@@ -94,9 +94,18 @@ class Insert:
             )
             for v in vectors
         ]
-        self.session.bulk_save_objects(scls_vectors)
-        self.session.commit()
-        return scls_vectors
+
+        inserted_vectors = []
+        for vector in scls_vectors:
+            try:
+                self.session.add(vector)
+                self.session.commit()
+                inserted_vectors.append(vector)
+            except IntegrityError:
+                self.session.rollback()
+                LOGGER.info(f"Duplicate vector skipped: {vector.geometry}")
+
+        return inserted_vectors
 
 
 class InsertJob:

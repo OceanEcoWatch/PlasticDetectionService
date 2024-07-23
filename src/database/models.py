@@ -325,7 +325,10 @@ class SceneClassificationVector(Base):
 
     id = Column(Integer, primary_key=True)
     pixel_value = Column(Integer, nullable=False)
-    geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+    geometry = Column(
+        Geometry(geometry_type="POLYGON", srid=4326),
+        nullable=False,
+    )
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
 
     def __init__(self, pixel_value: int, geometry: WKBElement, image_id: int):

@@ -82,16 +82,11 @@ def main():
                 )
 
                 inserter = Insert(db)
-                try:
-                    inserter.insert_scls_vectors(vectors=scl_vectors, image_id=image.id)
-                    LOGGER.info(
-                        f"Inserted {len(scl_vectors)} SCL vectors for image {image.id}"
-                    )
-                except Exception as e:
-                    LOGGER.error(
-                        f"Failed to insert SCL vectors for image {image.id} with error {e}"
-                    )
-                    db.rollback()
+
+                inserter.insert_scls_vectors(vectors=scl_vectors, image_id=image.id)
+                LOGGER.info(
+                    f"Inserted {len(scl_vectors)} SCL vectors for image {image.id}"
+                )
 
 
 if __name__ == "__main__":
