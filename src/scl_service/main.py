@@ -1,15 +1,14 @@
+import json
 import logging
 
-import click
 from geoalchemy2.shape import to_shape
 from sentinelhub import DataCollection, MimeType
-from sqlalchemy.exc import NoResultFound
 
 from src import config
 from src._types import BoundingBox, TimeRange
 from src.database.connect import create_db_session
 from src.database.insert import Insert
-from src.database.models import Image, Job
+from src.database.models import AOI, Image, Job, Satellite, SceneClassificationVector
 from src.download.evalscripts import L2A_SCL
 from src.download.sh import SentinelHubDownload, SentinelHubDownloadParams
 from src.raster_op.clip import RasterioClip
@@ -18,80 +17,81 @@ from src.raster_op.reproject import RasterioRasterReproject
 from src.raster_op.utils import create_raster_from_download_response
 from src.raster_op.vectorize import RasterioRasterToPolygon
 
+logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
-@click.command()
-@click.option("--job-id", type=int, required=True)
-def main(job_id: int):
+def main():
     with create_db_session() as db:
-        job = db.query(Job).filter(Job.id == job_id).one_or_none()
-        if job is None:
-            LOGGER.error(f"Job {job_id} not found.")
-            return
-        try:
-            # if job.status != JobStatus.COMPLETED:
-            #     LOGGER.warning(f"Job {job_id} is not in COMPLETED status. Skipping...")
-            #     return
+        images_without_scl_vectors = (
+            db.query(Image)
+            .join(Satellite, Image.satellite_id == Satellite.id)
+            .outerjoin(
+                SceneClassificationVector,
+                Image.id == SceneClassificationVector.image_id,
+            )
+            .filter(Satellite.name == "SENTINEL2_L2A")
+            .filter(
+                SceneClassificationVector.id == None
+            )  # Check where no related SCL vectors exist
+            .all()
+        )
 
-            # satellite = (
-            #     db.query(Satellite)
-            #     .join(Satellite.images)
-            #     .join(Image.job)
-            #     .filter(Job.id == job_id)
-            #     .one()
-            # )
-            # if satellite.name.capitalize().strip() != "SENTINEL2_L2A":
-            #     LOGGER.warning(f"Job {job_id} is not for Sentinel-2 L2A. Skipping...")
-            #     return
+        if not images_without_scl_vectors:
+            LOGGER.info("No images without SCL vectors found.")
+            return
+
+        for image in images_without_scl_vectors:
+            image_geom = to_shape(image.bbox)
+            aoi = db.query(AOI).join(Job).filter(Job.id == image.job_id).one_or_none()
+
+            if aoi:
+                aoi_geom = to_shape(aoi.geometry)
+                with open("aoi.geojson", "w") as f:
+                    f.write(json.dumps(aoi_geom.__geo_interface__))
+                with open("image_centroid.geojson", "w") as f:
+                    f.write(json.dumps(image_geom.__geo_interface__))
+                if not aoi_geom.intersects(image_geom):
+                    raise ValueError(
+                        f"Image {image.id} centroid is not within AOI {aoi.id}"
+                    )
+            else:
+                raise ValueError(f"AOI not found for image {image.id}")
 
             downloader = SentinelHubDownload(
                 SentinelHubDownloadParams(
-                    bbox=BoundingBox(*to_shape(job.aoi.geometry).bounds),
-                    time_interval=TimeRange(job.start_date, job.end_date),
-                    maxcc=job.maxcc,
+                    bbox=BoundingBox(*image_geom.bounds),
+                    time_interval=TimeRange(image.timestamp, image.timestamp),
+                    maxcc=1.0,
                     config=config.SH_CONFIG,
                     evalscript=L2A_SCL,
                     data_collection=DataCollection.SENTINEL2_L2A,
                     mime_type=MimeType.TIFF,
                 )
             )
-            download_generator = downloader.download_images()
-
-            for download_response in download_generator:
-                image = (
-                    db.query(Image)
-                    .filter(Image.image_id == download_response.image_id)
-                    .filter(Image.timestamp == download_response.timestamp)
-                    .filter(Image.job_id == job_id)
-                    .one_or_none()
+            download_response_list = list(downloader.download_images())
+            if len(download_response_list) == 0:
+                LOGGER.error(f"No images found for image {image.id}")
+                continue
+            for download_response in download_response_list:
+                LOGGER.info(
+                    f"Downloaded SCL image {download_response.image_id} for image {image.id}"
                 )
-                if image is None:
-                    raise NoResultFound(
-                        f"Image with id {download_response.image_id, download_response.timestamp} not found."
-                    )
-
-                if download_response is None:
-                    continue
                 scl_raster = create_raster_from_download_response(download_response)
                 comp_op = CompositeRasterOperation()
                 comp_op.add(RasterioRasterReproject(target_crs=4326))
-                comp_op.add(RasterioClip(to_shape(job.aoi.geometry)))
+                comp_op.add(RasterioClip(aoi_geom))
                 clipped_scl_raster = next(comp_op.execute([scl_raster]))
-                scl_vectors = RasterioRasterToPolygon(band=1).execute(
-                    clipped_scl_raster
+                scl_vectors = list(
+                    RasterioRasterToPolygon(band=1).execute(clipped_scl_raster)
                 )
 
                 inserter = Insert(db)
-                inserter.insert_scls_vectors(vectors=scl_vectors, image_id=image.id)
 
-        except NoResultFound as e:
-            LOGGER.error(f"Failed to process job {job_id}: {str(e)}")
-            db.rollback()
-        except Exception as e:
-            LOGGER.error(f"Failed to process job {job_id}: {str(e)}")
-            db.rollback()
-            raise e
+                inserter.insert_scls_vectors(vectors=scl_vectors, image_id=image.id)
+                LOGGER.info(
+                    f"Inserted {len(scl_vectors)} SCL vectors for image {image.id}"
+                )
 
 
 if __name__ == "__main__":
