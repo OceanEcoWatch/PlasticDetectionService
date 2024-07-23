@@ -1,4 +1,3 @@
-import json
 import logging
 
 from geoalchemy2.shape import to_shape
@@ -47,10 +46,6 @@ def main():
 
             if aoi:
                 aoi_geom = to_shape(aoi.geometry)
-                with open("aoi.geojson", "w") as f:
-                    f.write(json.dumps(aoi_geom.__geo_interface__))
-                with open("image_centroid.geojson", "w") as f:
-                    f.write(json.dumps(image_geom.__geo_interface__))
                 if not aoi_geom.intersects(image_geom):
                     raise ValueError(
                         f"Image {image.id} centroid is not within AOI {aoi.id}"
