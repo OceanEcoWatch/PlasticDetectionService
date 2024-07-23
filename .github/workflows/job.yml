@@ -32,6 +32,9 @@ jobs:
           python -m src.plastic_detection_service.main
           --job-id ${{ github.event.inputs.job_id }}
           --probability-threshold ${{ github.event.inputs.probability_threshold }}
+      - name: insert scl
+        run: >
+          python -m src.scl_service.main
 
         env:
           DB_USER: ${{ secrets.DB_USER }}
