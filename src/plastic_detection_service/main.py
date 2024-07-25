@@ -69,8 +69,8 @@ def get_data_collection(satellite: str) -> DataCollection:
         )
 
 
-def do_scale(model: Model) -> bool:
-    return model.type.value == ModelType.CLASSIFICATION.value
+def is_segmentation(model: Model) -> bool:
+    return model.type.value == ModelType.SEGMENTATION.value
 
 
 def process_response(
@@ -106,20 +106,24 @@ def process_response(
     comp_op.add(RasterioRasterUnpad())
     comp_op.add(RasterioRasterMerge())
     comp_op.add(RasterioRasterReproject(target_crs=4326, target_bands=[1]))
-    comp_op.add(RasterioDtypeConversion(dtype="uint8", scale=do_scale(model)))
+    comp_op.add(RasterioDtypeConversion(dtype="uint8", scale=is_segmentation(model)))
     comp_op.add(RasterioClip(aoi_geometry))
 
     LOGGER.info(f"Processing raster for image {download_response.image_id}")
     pred_raster = next(comp_op.execute([image]))
 
     LOGGER.info(f"Got prediction raster for image {download_response.image_id}")
-    pred_vectors = RasterioRasterToPoint(
-        threshold=probability_to_pixelvalue(probability_threshold)
-        if model.type.value == ModelType.SEGMENTATION.value
+    threshold = (
+        probability_to_pixelvalue(probability_threshold)
+        if is_segmentation(model)
         else None
-    ).execute(pred_raster)
+    )
+    print(threshold)
+    pred_vectors = list(RasterioRasterToPoint(threshold=threshold).execute(pred_raster))
 
-    LOGGER.info(f"Got prediction vectors for image {download_response.image_id}")
+    LOGGER.info(
+        f"Got {len(pred_vectors)} prediction vectors for image {download_response.image_id}"
+    )
 
     with create_db_session() as db_session:
         insert_job = InsertJob(insert=Insert(db_session))
