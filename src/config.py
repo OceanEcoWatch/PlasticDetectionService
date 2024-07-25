@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from sentinelhub.config import SHConfig
 
-load_dotenv(override=True)
+load_dotenv()
 
 SH_INSTANCE_ID = os.environ["SH_INSTANCE_ID"]
 SH_CLIENT_ID = os.environ["SH_CLIENT_ID"]
