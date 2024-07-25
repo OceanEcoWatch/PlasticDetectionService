@@ -2,6 +2,7 @@ import logging
 
 from geoalchemy2.shape import to_shape
 from sentinelhub import DataCollection, MimeType
+from sqlalchemy import and_
 
 from src import config
 from src._types import BoundingBox, TimeRange
@@ -29,10 +30,12 @@ def main():
                 SceneClassificationVector,
                 Image.id == SceneClassificationVector.image_id,
             )
-            .filter(Satellite.name == "SENTINEL2_L2A")
             .filter(
-                SceneClassificationVector.id == None  # noqa: E711
-            )  # Check where no related SCL vectors exist
+                and_(
+                    SceneClassificationVector.id.is_(None),
+                    Satellite.name == "SENTINEL2_L2A",
+                )
+            )
             .all()
         )
 
