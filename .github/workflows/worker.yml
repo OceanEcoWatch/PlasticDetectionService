@@ -1,4 +1,4 @@
-name: Run SentinelHub Worker
+name: SCL Download Worker
 
 on:
   schedule:
