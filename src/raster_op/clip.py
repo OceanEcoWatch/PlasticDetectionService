@@ -1,4 +1,5 @@
 import io
+import logging
 from typing import Generator, Iterable
 
 import rasterio
@@ -12,15 +13,18 @@ from .abstractions import (
 )
 from .utils import create_raster, write_image
 
+LOGGER = logging.getLogger(__name__)
+
 
 class RasterioClip(RasterOperationStrategy):
-    def __init__(self, geometry: Polygon):
+    def __init__(self, geometry: Polygon, crop: bool = False):
         self.geometry = geometry
+        self.crop = crop
 
     def execute(self, rasters: Iterable[Raster]) -> Generator[Raster, None, None]:
         for raster in rasters:
             with rasterio.open(io.BytesIO(raster.content)) as src:
-                out_image, out_transform = mask(src, [self.geometry], crop=True)
+                out_image, out_transform = mask(src, [self.geometry], crop=self.crop)
                 out_meta = src.meta.copy()
 
                 out_meta.update(

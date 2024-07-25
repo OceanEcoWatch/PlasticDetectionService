@@ -17,7 +17,7 @@ class RasterioRasterToPoint(RasterToVectorStrategy):
     def __init__(self, band: int = 1, threshold: Optional[int] = None):
         """
         :param band: The band to use for the conversion
-        :param threshold: Pixels with values below this threshold will be ignored (lt)
+        :param threshold: Pixels with values below this threshold will be ignored
         """
         self.band = band
         self.threshold = threshold
@@ -48,6 +48,10 @@ class RasterioRasterToPoint(RasterToVectorStrategy):
 
 class RasterioRasterToPolygon(RasterToVectorStrategy):
     def __init__(self, band: int = 1, threshold: int = 0):
+        """
+        :param band: The band to use for the conversion
+        :param threshold: Pixels with values below this threshold will be ignored
+        """
         self.band = band
         self.threshold = threshold
 
@@ -61,7 +65,7 @@ class RasterioRasterToPolygon(RasterToVectorStrategy):
                 )
 
             for geom, value in shapes(image, transform=src.transform):
-                if value < self.threshold:
+                if value <= self.threshold:
                     continue
 
                 yield Vector(

@@ -4,7 +4,7 @@ from src.raster_op.clip import RasterioClip
 def test_clip_raster(raster):
     clip_geometry = raster.geometry.buffer(-1000)
     org_size = raster.size[0] * raster.size[1]
-    clip = RasterioClip(geometry=clip_geometry)
+    clip = RasterioClip(geometry=clip_geometry, crop=True)
 
     clipped = list(clip.execute([raster]))
     assert len(clipped) == 1
