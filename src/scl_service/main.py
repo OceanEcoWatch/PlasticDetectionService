@@ -48,7 +48,7 @@ def main():
                 aoi_geom = to_shape(aoi.geometry)
                 if not aoi_geom.intersects(image_geom):
                     raise ValueError(
-                        f"Image {image.id} centroid is not within AOI {aoi.id}"
+                        f"Image {image.id} does not intersect with its AOI {aoi.id}"
                     )
             else:
                 raise ValueError(f"AOI not found for image {image.id}")
