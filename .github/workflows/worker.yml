@@ -1,14 +1,9 @@
-name: Job
+name: Run SentinelHub Worker
 
 on:
-  workflow_dispatch:
-    inputs:
-      job_id:
-        description: "Job ID"
-        required: true
-      probability_threshold:
-        description: "Probability threshold"
-        required: true
+  schedule:
+    # run every 10 minutes
+    - cron: "*/10 * * * *"
 
 jobs:
   process-raster-data:
@@ -47,6 +42,4 @@ jobs:
 
       - name: Run main script
         run: >
-          python -m src.plastic_detection_service.main
-          --job-id ${{ github.event.inputs.job_id }}
-          --probability-threshold ${{ github.event.inputs.probability_threshold }}
+          python -m src.scl_service.main
