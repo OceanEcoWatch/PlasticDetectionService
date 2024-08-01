@@ -119,9 +119,7 @@ def main(job_id: int):
                 f"images/{unique_id}.tif",
             )
             insert = Insert(db_session)
-            image_db = insert.insert_image(
-                download_response, image, image_url, job_id, sat_id
-            )
+            _ = insert.insert_image(download_response, image, image_url, job_id, sat_id)
 
 
 if __name__ == "__main__":
