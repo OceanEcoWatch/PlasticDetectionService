@@ -1,9 +1,15 @@
 import datetime
 
+from geoalchemy2.shape import from_shape
+from shapely.geometry import shape
+
 from src.database.connect import create_db_session
 from src.database.models import (
+    AOI,
     Band,
     ClassificationClass,
+    Job,
+    JobStatus,
     Model,
     ModelBand,
     ModelType,
@@ -211,4 +217,45 @@ model_2_classes = [
 ]
 session.add_all(model_1_classes)
 session.add_all(model_2_classes)
+session.commit()
+
+
+aoi = {
+    "name": "manilla bay",
+    "geometry": {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+            "coordinates": [
+                [
+                    [120.8617410392963, 14.622900808887422],
+                    [120.8617410392963, 14.56223679040346],
+                    [120.94056794296893, 14.56223679040346],
+                    [120.94056794296893, 14.622900808887422],
+                    [120.8617410392963, 14.622900808887422],
+                ]
+            ],
+            "type": "Polygon",
+        },
+    },
+}
+
+
+aoi = AOI(
+    name=aoi["name"],
+    geometry=from_shape(shape(aoi["geometry"]["geometry"]), srid=4326),
+)
+session.add(aoi)
+session.commit()
+
+
+job = Job(
+    aoi_id=aoi.id,
+    status=JobStatus.PENDING,
+    start_date=datetime.datetime.now() - datetime.timedelta(days=31),
+    end_date=datetime.datetime.now(),
+    maxcc=1,
+    model_id=model2.id,
+)
+session.add(job)
 session.commit()

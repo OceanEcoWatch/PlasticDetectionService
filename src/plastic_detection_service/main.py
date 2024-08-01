@@ -118,7 +118,6 @@ def process_response(
         if is_segmentation(model)
         else None
     )
-    print(threshold)
     pred_vectors = list(RasterioRasterToPoint(threshold=threshold).execute(pred_raster))
 
     LOGGER.info(
@@ -178,13 +177,15 @@ def main(
             f"Starting job {job_id} with model:{model.model_id} for AOI: {aoi.name}. "
             f"Satellite: {satellite.name} with bands: {band_names}. Timestamps: {job.start_date} - {job.end_date}"
         )
+
+    evalscript = generate_evalscript(band_names)
     downloader = SentinelHubDownload(
         SentinelHubDownloadParams(
             bbox=bbox,
             time_interval=TimeRange(job.start_date, job.end_date),
             maxcc=job.maxcc,
             config=config.SH_CONFIG,
-            evalscript=generate_evalscript(band_names),
+            evalscript=evalscript,
             data_collection=get_data_collection(satellite.name),
             mime_type=MimeType.TIFF,
         )
