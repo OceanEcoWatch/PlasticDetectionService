@@ -5,7 +5,10 @@ def generate_evalscript(band_names: list[str]) -> str:
     //VERSION=3
     function setup() {{
         return {{
-            input: [{inputs}],
+            input: [{{
+                bands: [{inputs}],
+                units: "DN"
+            }}],
             output: [{{
                 id: "default",
                 bands: {len(band_names)},
