@@ -50,8 +50,8 @@ def main():
             if aoi:
                 aoi_geom = to_shape(aoi.geometry)
                 if not aoi_geom.intersects(image_geom):
-                    raise ValueError(
-                        f"Image {image.id} does not intersect with its AOI {aoi.id}"
+                    LOGGER.error(
+                        f"AOI {aoi.id} does not intersect image {image.id}. Skipping."
                     )
             else:
                 raise ValueError(f"AOI not found for image {image.id}")
