@@ -2,8 +2,8 @@ name: SCL Download Worker
 
 on:
   schedule:
-    # run every 10 minutes
-    - cron: "*/10 * * * *"
+    # run every hour
+    - cron: "0 * * * *"
 
 jobs:
   process-raster-data:
